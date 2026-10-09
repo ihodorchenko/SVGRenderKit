@@ -25,6 +25,8 @@ open class SVGSourceStyleElement {
 
     /// The fill paint applied to the interior of the shape.
     open var fill: SVGPaint?
+    /// The current text color (`color` property), used to resolve `currentColor`.
+    open var color: UIColor?
     /// The opacity of the fill, overriding the fill color's alpha when set.
     open var fillOpacity: CGFloat?
     /// The rule used to determine which regions are inside the shape for filling.
@@ -79,6 +81,7 @@ open class SVGSourceStyleElement {
         newElem.set(element: self)
         if let display = child.display { newElem.display = display }
         if let fill = child.fill { newElem.fill = fill }
+        if let color = child.color { newElem.color = color }
         if let fillOpacity = child.fillOpacity { newElem.fillOpacity = fillOpacity }
         if let fillRule = child.fillRule { newElem.fillRule = fillRule }
         if let opacity = child.opacity { newElem.opacity = opacity }
@@ -107,6 +110,7 @@ open class SVGSourceStyleElement {
     func set(element: SVGSourceStyleElement) {
         display = element.display
         fill = element.fill
+        color = element.color
         fillOpacity = element.fillOpacity
         fillRule = element.fillRule
         opacity = element.opacity
@@ -146,6 +150,7 @@ open class SVGSourceStyleElement {
     func set(attributeDict: [String: String]) throws {
         if let str = attributeDict["display"], !str.isEmpty { try setDisplay(str: str) }
         if let str = attributeDict["fill"], !str.isEmpty { try setFill(str: str) }
+        if let str = attributeDict["color"], !str.isEmpty { setColor(str: str) }
         if let str = attributeDict["opacity"], !str.isEmpty { try setOpacity(str: str) }
         if let str = attributeDict["fill-opacity"], !str.isEmpty { try setFillOpacity(str: str) }
         if let str = attributeDict["fill-rule"], !str.isEmpty { setFillRule(str: str) }
@@ -177,6 +182,15 @@ open class SVGSourceStyleElement {
 
     func setFill(str: String) throws {
         fill = try SVGPaint.get(string: str)
+    }
+
+    func setColor(str: String) {
+        let trimmed = SVGUtils.trimmed(string: str)
+        if trimmed == "inherit" || trimmed == "currentColor" {
+            color = nil
+            return
+        }
+        color = SVGColors.getColor(string: trimmed)
     }
 
     func setFillOpacity(str: String) throws {
@@ -371,7 +385,12 @@ extension SVGSourceStyleElement {
         case .none:
             pathLayer.fillColor = nil
         case .currentColor:
-            break
+            let resolvedColor = self.color ?? .black
+            if let fillOpacity = fillOpacity {
+                pathLayer.fillColor = resolvedColor.withAlphaComponent(fillOpacity).cgColor
+            } else {
+                pathLayer.fillColor = resolvedColor.cgColor
+            }
         case .color(let color):
             if let fillOpacity = fillOpacity {
                 pathLayer.fillColor = color.withAlphaComponent(fillOpacity).cgColor
@@ -407,8 +426,17 @@ extension SVGSourceStyleElement {
         }
 
         switch stroke {
-        case .none, .currentColor:
+        case .none:
             break
+        case .currentColor:
+            let resolvedColor = self.color ?? .black
+            switch strokeWidth {
+            case .px(let value):
+                pathLayer.lineWidth = value
+            case .percent(let value):
+                pathLayer.lineWidth = 1 * value
+            }
+            pathLayer.strokeColor = resolvedColor.withAlphaComponent(strokeOpacity).cgColor
         case .color(let color):
             switch strokeWidth {
             case .px(let value):

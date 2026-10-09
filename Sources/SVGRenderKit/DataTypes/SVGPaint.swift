@@ -4,8 +4,8 @@ import UIKit
 public enum SVGPaint {
     /// No paint; the element is not filled or stroked.
     case none
-    /// Use the current text color. Not supported.
-    case currentColor //not supported
+    /// Use the current text color, resolved from the `color` property.
+    case currentColor
     /// A solid color.
     case color(color: UIColor)
     /// A reference to a gradient or pattern via a functional IRI.
@@ -16,6 +16,8 @@ public enum SVGPaint {
     public static func get(string: String) throws -> SVGPaint {
         if string == "none" {
             return (.none)
+        } else if string == "currentColor" {
+            return .currentColor
         } else if string.hasPrefix("#") {
             return SVGPaint.color(color: SVGColors.getColor(string: string))
         } else if string.hasPrefix("rgb") {
