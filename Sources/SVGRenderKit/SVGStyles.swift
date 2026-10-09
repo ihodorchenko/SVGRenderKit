@@ -55,6 +55,8 @@ open class SVGSourceStyleElement {
 
     /// A reference to the clip path that masks the element.
     open var clipPath: SVGFuncIRI?
+    /// The rule used to determine which regions are inside the clipping path.
+    open var clipRule: SVGClipRuleType?
 
     var fontFamily: String?
     var fontStyle: SVGFontStyle?
@@ -94,6 +96,7 @@ open class SVGSourceStyleElement {
         if let strokeDasharray = child.strokeDasharray { newElem.strokeDasharray = strokeDasharray }
         if let strokeDashoffset = child.strokeDashoffset { newElem.strokeDashoffset = strokeDashoffset }
         if let clipPath = child.clipPath { newElem.clipPath = clipPath }
+        if let clipRule = child.clipRule { newElem.clipRule = clipRule }
 
         if let fontFamily = child.fontFamily { newElem.fontFamily = fontFamily }
         if let fontStyle = child.fontStyle { newElem.fontStyle = fontStyle }
@@ -123,6 +126,7 @@ open class SVGSourceStyleElement {
         strokeDasharray = element.strokeDasharray
         strokeDashoffset = element.strokeDashoffset
         clipPath = element.clipPath
+        clipRule = element.clipRule
 
         fontFamily = element.fontFamily
         fontStyle = element.fontStyle
@@ -165,6 +169,7 @@ open class SVGSourceStyleElement {
         if let str = attributeDict["stroke-dashoffset"], !str.isEmpty { try setStrokeDashoffset(str: str) }
 
         if let str = attributeDict["clip-path"], !str.isEmpty { try setClipPath(str: str) }
+        if let str = attributeDict["clip-rule"], !str.isEmpty { setClipRule(str: str) }
 
         if let str = attributeDict["font-family"], !str.isEmpty { setFontFamily(str: str) }
         if let str = attributeDict["font-style"], !str.isEmpty { try setFontStyle(str: str) }
@@ -297,6 +302,12 @@ open class SVGSourceStyleElement {
 
     func setClipPath(str: String) throws {
         self.clipPath = try SVGFuncIRI.get(fullStr: str)
+    }
+
+    func setClipRule(str: String) {
+        if let f = SVGClipRuleType.init(rawValue: str) {
+            clipRule = f
+        }
     }
 
     func setFontFamily(str: String) {
@@ -484,7 +495,14 @@ extension SVGSourceStyleElement {
             case .local(let key):
                 if let rendering = try group.getClipPath(byKey: key, fromParents: true)?.createLayer(overrideElements: overrideElements) {
                     if let rendering = rendering as? CAShapeLayer {
-                        rendering.fillRule = .nonZero
+                        switch self.clipRule ?? .nonzero {
+                        case .nonzero:
+                            rendering.fillRule = .nonZero
+                        case .evenodd:
+                            rendering.fillRule = .evenOdd
+                        case .inherit:
+                            rendering.fillRule = .nonZero
+                        }
                     }
                     mainLayer.mask = rendering
                 } else {

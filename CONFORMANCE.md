@@ -95,7 +95,7 @@ All commands are implemented, including elliptical arcs:
 | `stroke-opacity` | ✅ |
 | `opacity` | ✅ |
 | `clip-path` | ✅ local `url(#…)` |
-| `clip-rule` | ⚠️ enum declared, **not wired up** |
+| `clip-rule` | ✅ `nonzero` / `evenodd` |
 | `transform` | ✅ `matrix`, `translate`, `rotate`, `scale`, `skewX`, `skewY` |
 | `gradientTransform`, `gradientUnits` | ✅ |
 | `xlink:href` / `href` inheritance | ✅ (both spellings) |
@@ -119,7 +119,6 @@ All commands are implemented, including elliptical arcs:
 - No `filter`, `mask`, `pattern`, `marker`, `symbol`.
 - No SMIL animation or scripting.
 - Basic text only: no `textPath`, no `text-anchor`, no multi-line `<tspan>`.
-- `clip-rule` is declared but not applied.
 - External `url(...)` resources are not loaded.
 - Almost all SVG 2.0 additions are absent (see below).
 
@@ -134,7 +133,7 @@ items are cheap and unlock a large share of real-world SVG 1.1 content.
 | 2 | ✅ `stroke-linecap`, `stroke-linejoin`, `stroke-miterlimit` | Low | Painting |
 | 3 | ✅ `stroke-dasharray`, `stroke-dashoffset` | Low | Painting |
 | 4 | ✅ `currentColor` resolution | Medium | Painting |
-| 5 | `clip-rule` wiring (enum already exists) | Low | Clipping |
+| 5 | ✅ `clip-rule` wiring | Low | Clipping |
 | 6 | `<symbol>` + `<use>` with `viewBox`/`width`/`height` | Medium-High | Structure |
 | 7 | `text-anchor` + multi-line `<tspan>` | Medium | Text |
 | 8 | `<mask>` | Medium | Compositing |
