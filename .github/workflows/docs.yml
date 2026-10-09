@@ -1,0 +1,63 @@
+name: Docs
+
+# Builds DocC documentation and publishes it to GitHub Pages.
+# Enable Pages once: Settings ▸ Pages ▸ Source: GitHub Actions.
+#
+# Deploying from tags is blocked by the github-pages environment protection
+# rule (which only allows the default branch), so we publish on every push to
+# main and on manual runs instead.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build documentation archive
+        run: |
+          xcodebuild docbuild \
+            -scheme SVGRenderKit \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath .build/docs
+
+      - name: Transform archive for static hosting
+        run: |
+          ARCHIVE=$(find .build/docs -name SVGRenderKit.doccarchive | head -1)
+          xcrun docc process-archive transform-for-static-hosting \
+            "$ARCHIVE" \
+            --hosting-base-path SVGRenderKit \
+            --output-path _site
+          # The site root has no page of its own: send visitors to the module documentation.
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <meta http-equiv="refresh" content="0; url=documentation/svgrenderkit/">
+          <a href="documentation/svgrenderkit/">SVGRenderKit documentation</a>
+          HTML
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

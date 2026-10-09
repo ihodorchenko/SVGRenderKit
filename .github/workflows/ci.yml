@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iPhone, iPad]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run package tests
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -m1 "${{ matrix.device }}" | grep -oE '[0-9A-F-]{36}' | head -1)
+          echo "Using simulator: $UDID"
+          xcodebuild -scheme SVGRenderKit \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            test

@@ -1,0 +1,51 @@
+name: Release
+
+# Creates a GitHub Release for a version tag; notes are taken from CHANGELOG.md.
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to create a Release for (e.g. 1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          awk -v tag="$TAG" '
+            $0 == "## " tag { found = 1; next }
+            found && /^## /  { exit }
+            found            { print }
+          ' CHANGELOG.md | sed -e '/./,$!d' > notes.md
+          if [ -s notes.md ]; then
+            echo "Notes for $TAG:"; cat notes.md
+          else
+            echo "No CHANGELOG section for $TAG; GitHub will generate notes."
+          fi
+
+      - name: Create GitHub Release
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists, nothing to do."
+            exit 0
+          fi
+          if [ -s notes.md ]; then
+            gh release create "$TAG" --title "$TAG" --notes-file notes.md --verify-tag
+          else
+            gh release create "$TAG" --title "$TAG" --generate-notes --verify-tag
+          fi

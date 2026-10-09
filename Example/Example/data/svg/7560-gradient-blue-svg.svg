@@ -1,0 +1,18 @@
+<?xml version="1.0"?><svg width="60" height="40" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+ <defs>
+  <linearGradient id="linearGradient37404">
+   <stop stop-color="#000000" offset="0" id="stop37406"/>
+   <stop stop-color="gold" offset="0.49" id="stop37412"/>
+   <stop stop-color="lemonchiffon" offset="0.50" id="stop37413"/>
+   <stop stop-color="gold" offset="0.52" id="stop37417"/>
+   <stop stop-color="#50f000" offset="1" id="stop37408"/>
+  </linearGradient>
+  <linearGradient x1="0" y1="0" x2="60" y2="40" xlink:href="#linearGradient37404" id="linearGradient37410" gradientUnits="userSpaceOnUse" gradientTransform="matrix(1 0 0 2 0 0)"/>
+ </defs>
+ <g>
+  <title>Layer 1</title>
+  <g id="layer1">
+   <rect fill="url(#linearGradient37410)" fill-rule="nonzero" stroke="#007cdb" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="4" y="5" x="5" width="50" id="rect36642" height="30"/>
+  </g>
+ </g>
+</svg>
