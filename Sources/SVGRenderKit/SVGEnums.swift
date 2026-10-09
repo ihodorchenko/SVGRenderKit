@@ -48,6 +48,26 @@ public enum SVGDisplaytype: String {
     static var `default`: SVGDisplaytype = SVGDisplaytype.inline
 }
 
+/// The shape of the end caps of an SVG stroke.
+public enum SVGLineCap: String {
+    /// The stroke ends exactly at the path endpoint (no cap).
+    case butt = "butt"
+    /// A semicircular cap extends beyond the endpoint.
+    case round = "round"
+    /// A square cap extends beyond the endpoint.
+    case square = "square"
+}
+
+/// The shape used to join two stroke segments.
+public enum SVGLineJoin: String {
+    /// A sharp (mitered) corner.
+    case miter = "miter"
+    /// A rounded corner.
+    case round = "round"
+    /// A beveled (flattened) corner.
+    case bevel = "bevel"
+}
+
 
 
 

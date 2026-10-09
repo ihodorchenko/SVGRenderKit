@@ -39,6 +39,13 @@ open class SVGSourceStyleElement {
     /// The width of the stroke outline.
     open var strokeWidth: SVGLength?
 
+    /// The shape of the stroke line caps.
+    open var strokeLinecap: SVGLineCap?
+    /// The shape of the stroke line joins.
+    open var strokeLinejoin: SVGLineJoin?
+    /// The limit for miter joins.
+    open var strokeMiterlimit: CGFloat?
+
     /// A reference to the clip path that masks the element.
     open var clipPath: SVGFuncIRI?
 
@@ -73,6 +80,9 @@ open class SVGSourceStyleElement {
         if let stroke = child.stroke { newElem.stroke = stroke }
         if let strokeOpacity = child.strokeOpacity { newElem.strokeOpacity = strokeOpacity }
         if let strokeWidth = child.strokeWidth { newElem.strokeWidth = strokeWidth }
+        if let strokeLinecap = child.strokeLinecap { newElem.strokeLinecap = strokeLinecap }
+        if let strokeLinejoin = child.strokeLinejoin { newElem.strokeLinejoin = strokeLinejoin }
+        if let strokeMiterlimit = child.strokeMiterlimit { newElem.strokeMiterlimit = strokeMiterlimit }
         if let clipPath = child.clipPath { newElem.clipPath = clipPath }
 
         if let fontFamily = child.fontFamily { newElem.fontFamily = fontFamily }
@@ -96,6 +106,9 @@ open class SVGSourceStyleElement {
         stroke = element.stroke
         strokeOpacity = element.strokeOpacity
         strokeWidth = element.strokeWidth
+        strokeLinecap = element.strokeLinecap
+        strokeLinejoin = element.strokeLinejoin
+        strokeMiterlimit = element.strokeMiterlimit
         clipPath = element.clipPath
 
         fontFamily = element.fontFamily
@@ -131,6 +144,9 @@ open class SVGSourceStyleElement {
         if let str = attributeDict["stroke"], !str.isEmpty { try setStroke(str: str) }
         if let str = attributeDict["stroke-opacity"], !str.isEmpty { try setStrokeOpacity(str: str) }
         if let str = attributeDict["stroke-width"], !str.isEmpty { try setStrokeWidth(str: str) }
+        if let str = attributeDict["stroke-linecap"], !str.isEmpty { try setStrokeLinecap(str: str) }
+        if let str = attributeDict["stroke-linejoin"], !str.isEmpty { try setStrokeLinejoin(str: str) }
+        if let str = attributeDict["stroke-miterlimit"], !str.isEmpty { try setStrokeMiterlimit(str: str) }
 
         if let str = attributeDict["clip-path"], !str.isEmpty { try setClipPath(str: str) }
 
@@ -188,6 +204,30 @@ open class SVGSourceStyleElement {
 
     func setStrokeWidth(str: String) throws {
         self.strokeWidth = try SVGLength.get(string: str)
+    }
+
+    func setStrokeLinecap(str: String) throws {
+        if let value = SVGLineCap(rawValue: str) {
+            strokeLinecap = value
+        } else if str != "inherit" {
+            throw SVGError.content(text: "wrong stroke-linecap: \(str)")
+        }
+    }
+
+    func setStrokeLinejoin(str: String) throws {
+        if let value = SVGLineJoin(rawValue: str) {
+            strokeLinejoin = value
+        } else if str != "inherit" {
+            throw SVGError.content(text: "wrong stroke-linejoin: \(str)")
+        }
+    }
+
+    func setStrokeMiterlimit(str: String) throws {
+        if let f = Float(str), f >= 1 {
+            strokeMiterlimit = CGFloat(f)
+        } else {
+            throw SVGError.content(text: "wrong stroke-miterlimit: \(str)")
+        }
     }
 
     func setClipPath(str: String) throws {
@@ -328,6 +368,30 @@ extension SVGSourceStyleElement {
             pathLayer.strokeColor = color.withAlphaComponent(strokeOpacity).cgColor
         case .funcIRI(let iri):
             throw SVGError.content(text: "stroke iri not supported: \(iri)")
+        }
+
+        if let strokeLinecap = self.strokeLinecap {
+            switch strokeLinecap {
+            case .butt:
+                pathLayer.lineCap = .butt
+            case .round:
+                pathLayer.lineCap = .round
+            case .square:
+                pathLayer.lineCap = .square
+            }
+        }
+        if let strokeLinejoin = self.strokeLinejoin {
+            switch strokeLinejoin {
+            case .miter:
+                pathLayer.lineJoin = .miter
+            case .round:
+                pathLayer.lineJoin = .round
+            case .bevel:
+                pathLayer.lineJoin = .bevel
+            }
+        }
+        if let strokeMiterlimit = self.strokeMiterlimit {
+            pathLayer.miterLimit = strokeMiterlimit
         }
 
         if let clipPath = clipPath {
