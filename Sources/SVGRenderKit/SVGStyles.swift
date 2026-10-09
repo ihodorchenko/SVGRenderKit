@@ -46,6 +46,11 @@ open class SVGSourceStyleElement {
     /// The limit for miter joins.
     open var strokeMiterlimit: CGFloat?
 
+    /// The dash pattern applied to the stroke (`nil` for a solid stroke).
+    open var strokeDasharray: [CGFloat]?
+    /// The offset into the dash pattern.
+    open var strokeDashoffset: CGFloat?
+
     /// A reference to the clip path that masks the element.
     open var clipPath: SVGFuncIRI?
 
@@ -83,6 +88,8 @@ open class SVGSourceStyleElement {
         if let strokeLinecap = child.strokeLinecap { newElem.strokeLinecap = strokeLinecap }
         if let strokeLinejoin = child.strokeLinejoin { newElem.strokeLinejoin = strokeLinejoin }
         if let strokeMiterlimit = child.strokeMiterlimit { newElem.strokeMiterlimit = strokeMiterlimit }
+        if let strokeDasharray = child.strokeDasharray { newElem.strokeDasharray = strokeDasharray }
+        if let strokeDashoffset = child.strokeDashoffset { newElem.strokeDashoffset = strokeDashoffset }
         if let clipPath = child.clipPath { newElem.clipPath = clipPath }
 
         if let fontFamily = child.fontFamily { newElem.fontFamily = fontFamily }
@@ -109,6 +116,8 @@ open class SVGSourceStyleElement {
         strokeLinecap = element.strokeLinecap
         strokeLinejoin = element.strokeLinejoin
         strokeMiterlimit = element.strokeMiterlimit
+        strokeDasharray = element.strokeDasharray
+        strokeDashoffset = element.strokeDashoffset
         clipPath = element.clipPath
 
         fontFamily = element.fontFamily
@@ -147,6 +156,8 @@ open class SVGSourceStyleElement {
         if let str = attributeDict["stroke-linecap"], !str.isEmpty { try setStrokeLinecap(str: str) }
         if let str = attributeDict["stroke-linejoin"], !str.isEmpty { try setStrokeLinejoin(str: str) }
         if let str = attributeDict["stroke-miterlimit"], !str.isEmpty { try setStrokeMiterlimit(str: str) }
+        if let str = attributeDict["stroke-dasharray"], !str.isEmpty { try setStrokeDasharray(str: str) }
+        if let str = attributeDict["stroke-dashoffset"], !str.isEmpty { try setStrokeDashoffset(str: str) }
 
         if let str = attributeDict["clip-path"], !str.isEmpty { try setClipPath(str: str) }
 
@@ -227,6 +238,46 @@ open class SVGSourceStyleElement {
             strokeMiterlimit = CGFloat(f)
         } else {
             throw SVGError.content(text: "wrong stroke-miterlimit: \(str)")
+        }
+    }
+
+    func setStrokeDasharray(str: String) throws {
+        let trimmed = SVGUtils.trimmed(string: str)
+        if trimmed == "none" {
+            strokeDasharray = nil
+            return
+        }
+
+        var separators = CharacterSet.whitespacesAndNewlines
+        separators.insert(",")
+        let parts = SVGUtils.split(string: trimmed, separatorSet: separators)
+
+        var values: [CGFloat] = []
+        for part in parts {
+            guard let f = Float(part) else {
+                throw SVGError.content(text: "wrong stroke-dasharray value: \(part)")
+            }
+            values.append(CGFloat(f))
+        }
+
+        // A zero-length dash pattern is equivalent to a solid stroke.
+        if values.isEmpty || values.reduce(0, +) == 0 {
+            strokeDasharray = nil
+            return
+        }
+
+        // An odd-length pattern is doubled so it repeats evenly.
+        if values.count % 2 == 1 {
+            values.append(contentsOf: values)
+        }
+        strokeDasharray = values
+    }
+
+    func setStrokeDashoffset(str: String) throws {
+        if let f = Float(str) {
+            strokeDashoffset = CGFloat(f)
+        } else {
+            throw SVGError.content(text: "wrong stroke-dashoffset: \(str)")
         }
     }
 
@@ -392,6 +443,12 @@ extension SVGSourceStyleElement {
         }
         if let strokeMiterlimit = self.strokeMiterlimit {
             pathLayer.miterLimit = strokeMiterlimit
+        }
+        if let strokeDasharray = self.strokeDasharray {
+            pathLayer.lineDashPattern = strokeDasharray.map { NSNumber(value: Double($0)) }
+        }
+        if let strokeDashoffset = self.strokeDashoffset {
+            pathLayer.lineDashPhase = strokeDashoffset
         }
 
         if let clipPath = clipPath {

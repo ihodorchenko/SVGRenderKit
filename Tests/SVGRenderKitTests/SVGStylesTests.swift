@@ -59,6 +59,67 @@ final class SVGStylesTests: XCTestCase {
         XCTAssertEqual(shape.miterLimit, 5, accuracy: 0.0001)
     }
 
+    // MARK: Stroke dash
+
+    func testStrokeDasharrayParsed() throws {
+        let style = SVGSourceStyleElement()
+        try style.set(attributeDict: ["stroke-dasharray": "5, 5"])
+        let arr = try XCTUnwrap(style.strokeDasharray)
+        XCTAssertEqual(arr, [CGFloat(5), CGFloat(5)])
+    }
+
+    func testStrokeDasharraySpaceSeparated() throws {
+        let style = SVGSourceStyleElement()
+        try style.set(attributeDict: ["stroke-dasharray": "5 3 2"])
+        let arr = try XCTUnwrap(style.strokeDasharray)
+        XCTAssertEqual(arr, [CGFloat(5), CGFloat(3), CGFloat(2), CGFloat(5), CGFloat(3), CGFloat(2)])
+    }
+
+    func testStrokeDasharrayOddCountDoubled() throws {
+        let style = SVGSourceStyleElement()
+        try style.set(attributeDict: ["stroke-dasharray": "5"])
+        let arr = try XCTUnwrap(style.strokeDasharray)
+        XCTAssertEqual(arr, [CGFloat(5), CGFloat(5)])
+    }
+
+    func testStrokeDasharrayNoneLeavesNil() throws {
+        let style = SVGSourceStyleElement()
+        try style.set(attributeDict: ["stroke-dasharray": "none"])
+        XCTAssertNil(style.strokeDasharray)
+    }
+
+    func testStrokeDasharrayInvalidThrows() {
+        let style = SVGSourceStyleElement()
+        XCTAssertThrowsError(try style.set(attributeDict: ["stroke-dasharray": "foo"]))
+    }
+
+    func testStrokeDashoffsetParsed() throws {
+        let style = SVGSourceStyleElement()
+        try style.set(attributeDict: ["stroke-dashoffset": "3"])
+        let offset = try XCTUnwrap(style.strokeDashoffset)
+        XCTAssertEqual(offset, 3, accuracy: 0.0001)
+    }
+
+    func testStrokeDashAppliedToLayer() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <line x1="0" y1="50" x2="100" y2="50" stroke="#000000" stroke-width="2"
+                  stroke-dasharray="5 5" stroke-dashoffset="2"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let shape = try XCTUnwrap(findStrokedShapeLayer(in: layer))
+
+        guard let pattern = shape.lineDashPattern else {
+            return XCTFail("expected a dash pattern")
+        }
+        XCTAssertEqual(pattern.count, 2)
+        XCTAssertEqual(pattern[0].doubleValue, 5, accuracy: 0.0001)
+        XCTAssertEqual(pattern[1].doubleValue, 5, accuracy: 0.0001)
+        XCTAssertEqual(shape.lineDashPhase, 2, accuracy: 0.0001)
+    }
+
     private func findStrokedShapeLayer(in layer: CALayer) -> CAShapeLayer? {
         if let shape = layer as? CAShapeLayer, shape.strokeColor != nil {
             return shape

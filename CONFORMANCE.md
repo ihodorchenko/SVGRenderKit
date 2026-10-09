@@ -103,7 +103,7 @@ All commands are implemented, including elliptical arcs:
 | `font-family`, `font-style`, `font-weight`, `font-size` | ✅ (`px` / `%` / `em`) |
 | `preserveAspectRatio` | ✅ `meet`/`slice` + all aligns, `none` |
 | `stroke-linecap`, `stroke-linejoin`, `stroke-miterlimit` | ✅ |
-| `stroke-dasharray`, `stroke-dashoffset` | ❌ |
+| `stroke-dasharray`, `stroke-dashoffset` | ✅ |
 | `currentColor` | ⚠️ parsed, **not resolved** |
 | `color`, `paint-order`, `vector-effect`, `marker-*`, `mask`, `filter` | ❌ |
 | `text-anchor`, multi-line `<tspan>` layout | ❌ |
@@ -119,7 +119,6 @@ All commands are implemented, including elliptical arcs:
 - No `filter`, `mask`, `pattern`, `marker`, `symbol`.
 - No SMIL animation or scripting.
 - Basic text only: no `textPath`, no `text-anchor`, no multi-line `<tspan>`.
-- No `stroke-dasharray`/`stroke-dashoffset`.
 - `currentColor` is parsed but never resolved to a concrete color.
 - `clip-rule` is declared but not applied.
 - External `url(...)` resources are not loaded.
@@ -134,7 +133,7 @@ items are cheap and unlock a large share of real-world SVG 1.1 content.
 |---|---|---|---|
 | 1 | ✅ `preserveAspectRatio` (`meet`/`slice`, `xMidYMid`, …) | Low | Viewport / layout |
 | 2 | ✅ `stroke-linecap`, `stroke-linejoin`, `stroke-miterlimit` | Low | Painting |
-| 3 | `stroke-dasharray`, `stroke-dashoffset` | Low | Painting |
+| 3 | ✅ `stroke-dasharray`, `stroke-dashoffset` | Low | Painting |
 | 4 | `currentColor` resolution | Medium | Painting |
 | 5 | `clip-rule` wiring (enum already exists) | Low | Clipping |
 | 6 | `<symbol>` + `<use>` with `viewBox`/`width`/`height` | Medium-High | Structure |
