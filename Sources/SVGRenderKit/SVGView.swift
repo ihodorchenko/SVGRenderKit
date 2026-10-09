@@ -207,6 +207,7 @@ open class SVGView: UIView {
         if let name = SVGView.updateNotificationName {
             NotificationCenter.default.addObserver(self, selector: #selector(updateSvg), name: name, object: nil)
         }
+        contentView.clipsToBounds = true
         self.addSubview(contentView)
     }
 
@@ -221,38 +222,20 @@ open class SVGView: UIView {
     /// Lays out the rendered SVG, scaling and translating it to fit the view's bounds.
     open override func layoutSubviews() {
         super.layoutSubviews()
-        if let parser = parser, let shapeLayer = shapeLayer {
-            let options = parser.root.svgElement.options
-            let viewBox = options.viewBox
-            let viewSize = options.size
+        guard let parser = parser, let shapeLayer = shapeLayer else { return }
 
-            let containingSize: CGSize = self.bounds.size
-            let boundingBoxAspectRatio = viewSize.width/viewSize.height
-            let viewAspectRatio = containingSize.width/containingSize.height
+        let options = parser.root.svgElement.options
+        let viewBox = options.viewBox
+        let containingSize = self.bounds.size
+        let resolved = options.preserveAspectRatio.resolve(viewBox: viewBox, containerSize: containingSize)
 
-            let scaleFactor: CGFloat
-            if (boundingBoxAspectRatio > viewAspectRatio) {
-                scaleFactor = containingSize.width/viewSize.width
-            } else {
-                scaleFactor = containingSize.height/viewSize.height
-            }
+        var transform = CATransform3DIdentity
+        transform = CATransform3DTranslate(transform, -viewBox.origin.x, -viewBox.origin.y, 0)
+        transform = CATransform3DScale(transform, resolved.scaleX, resolved.scaleY, 1)
+        transform = CATransform3DTranslate(transform, resolved.translateX, resolved.translateY, 0)
+        shapeLayer.transform = transform
 
-            let contentSize: CGSize = CGSize(width: viewSize.width * scaleFactor,
-                                             height: viewSize.height * scaleFactor)
-            var transform = CATransform3DIdentity
-
-            let layerScaleX: CGFloat = 1.0/(viewBox.width / viewSize.width)
-            let layerScaleY: CGFloat = 1.0/(viewBox.height / viewSize.height)
-
-
-            transform = CATransform3DScale(transform, scaleFactor * layerScaleX, scaleFactor * layerScaleY, 1.0)
-            transform = CATransform3DTranslate(transform, -viewBox.origin.x, -viewBox.origin.y, 0)
-            shapeLayer.transform = transform
-            contentView.frame = CGRect(x: (containingSize.width - contentSize.width)/2.0,
-                                       y: (containingSize.height - contentSize.height)/2.0,
-                                       width: contentSize.width,
-                                       height: contentSize.height)
-        }
+        contentView.frame = self.bounds
     }
 }
 

@@ -101,7 +101,7 @@ All commands are implemented, including elliptical arcs:
 | `xlink:href` / `href` inheritance | ✅ (both spellings) |
 | `display` | ✅ `inline` / `block` / `none` |
 | `font-family`, `font-style`, `font-weight`, `font-size` | ✅ (`px` / `%` / `em`) |
-| `preserveAspectRatio` | ❌ (hard-coded aspect-fit in `SVGView`) |
+| `preserveAspectRatio` | ✅ `meet`/`slice` + all aligns, `none` |
 | `stroke-linecap`, `stroke-linejoin`, `stroke-miterlimit` | ❌ |
 | `stroke-dasharray`, `stroke-dashoffset` | ❌ |
 | `currentColor` | ⚠️ parsed, **not resolved** |
@@ -123,7 +123,6 @@ All commands are implemented, including elliptical arcs:
 - `currentColor` is parsed but never resolved to a concrete color.
 - `clip-rule` is declared but not applied.
 - External `url(...)` resources are not loaded.
-- `preserveAspectRatio` is replaced by a fixed aspect-fit scale in `SVGView.layoutSubviews`.
 - Almost all SVG 2.0 additions are absent (see below).
 
 ## Improvement roadmap — targeting SVG 1.1
@@ -133,7 +132,7 @@ items are cheap and unlock a large share of real-world SVG 1.1 content.
 
 | # | Feature | Effort | SVG 1.1 area |
 |---|---|---|---|
-| 1 | `preserveAspectRatio` (`meet`/`slice`, `xMidYMid`, …) | Low | Viewport / layout |
+| 1 | ✅ `preserveAspectRatio` (`meet`/`slice`, `xMidYMid`, …) | Low | Viewport / layout |
 | 2 | `stroke-linecap`, `stroke-linejoin`, `stroke-miterlimit` | Low | Painting |
 | 3 | `stroke-dasharray`, `stroke-dashoffset` | Low | Painting |
 | 4 | `currentColor` resolution | Medium | Painting |

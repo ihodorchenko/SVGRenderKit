@@ -1,5 +1,90 @@
 import UIKit
 
+/// Controls how the `viewBox` is fitted and aligned within the viewport.
+struct SVGPreserveAspectRatio {
+    enum Align: String {
+        case none = "none"
+        case xMinYMin = "xMinYMin"
+        case xMidYMin = "xMidYMin"
+        case xMaxYMin = "xMaxYMin"
+        case xMinYMid = "xMinYMid"
+        case xMidYMid = "xMidYMid"
+        case xMaxYMid = "xMaxYMid"
+        case xMinYMax = "xMinYMax"
+        case xMidYMax = "xMidYMax"
+        case xMaxYMax = "xMaxYMax"
+    }
+
+    enum MeetOrSlice: String {
+        case meet = "meet"
+        case slice = "slice"
+    }
+
+    var align: Align = .xMidYMid
+    var meetOrSlice: MeetOrSlice = .meet
+
+    /// Parses a `preserveAspectRatio` attribute value. Falls back to the
+    /// default `xMidYMid meet` for missing or unrecognized input.
+    static func get(string: String?) -> SVGPreserveAspectRatio {
+        var result = SVGPreserveAspectRatio()
+        guard let string = string, !string.isEmpty else { return result }
+        var tokens = string.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+        if tokens.first == "defer" {
+            tokens.removeFirst()
+        }
+        for token in tokens {
+            if let align = Align(rawValue: token) {
+                result.align = align
+            } else if let meetOrSlice = MeetOrSlice(rawValue: token) {
+                result.meetOrSlice = meetOrSlice
+            }
+        }
+        return result
+    }
+
+    /// Computes the scale and translation needed to fit `viewBox` into a
+    /// container of `containerSize` per this preserveAspectRatio setting.
+    func resolve(viewBox: CGRect, containerSize: CGSize) -> (scaleX: CGFloat, scaleY: CGFloat, translateX: CGFloat, translateY: CGFloat) {
+        if align == .none {
+            return (containerSize.width / viewBox.width,
+                    containerSize.height / viewBox.height,
+                    0, 0)
+        }
+
+        let sx = containerSize.width / viewBox.width
+        let sy = containerSize.height / viewBox.height
+        let scale: CGFloat = (meetOrSlice == .meet) ? min(sx, sy) : max(sx, sy)
+        let renderedWidth = viewBox.width * scale
+        let renderedHeight = viewBox.height * scale
+
+        let translateX: CGFloat
+        switch align {
+        case .xMinYMin, .xMinYMid, .xMinYMax:
+            translateX = 0
+        case .xMidYMin, .xMidYMid, .xMidYMax:
+            translateX = (containerSize.width - renderedWidth) / 2
+        case .xMaxYMin, .xMaxYMid, .xMaxYMax:
+            translateX = containerSize.width - renderedWidth
+        case .none:
+            translateX = 0
+        }
+
+        let translateY: CGFloat
+        switch align {
+        case .xMinYMin, .xMidYMin, .xMaxYMin:
+            translateY = 0
+        case .xMinYMid, .xMidYMid, .xMaxYMid:
+            translateY = (containerSize.height - renderedHeight) / 2
+        case .xMinYMax, .xMidYMax, .xMaxYMax:
+            translateY = containerSize.height - renderedHeight
+        case .none:
+            translateY = 0
+        }
+
+        return (scale, scale, translateX, translateY)
+    }
+}
+
 /// Holds the parsed layout options (view box, width, and height) of an SVG document.
 open class SVGOptions {
     var width: SVGLength = SVGLength.percent(value: 1)
@@ -8,9 +93,14 @@ open class SVGOptions {
 
     var size: CGSize
 
-    /// Initializes options by parsing the `viewBox`, `width`, and `height` attributes.
+    /// How the `viewBox` is fitted and aligned within the viewport.
+    var preserveAspectRatio: SVGPreserveAspectRatio = SVGPreserveAspectRatio()
+
+    /// Initializes options by parsing the `viewBox`, `width`, `height`, and `preserveAspectRatio` attributes.
     /// - parameter attributeDict: The attributes of the root `svg` element.
     public init(attributeDict: [String : String]) throws {
+        self.preserveAspectRatio = SVGPreserveAspectRatio.get(string: attributeDict["preserveAspectRatio"])
+
         var viewBox: CGRect?
         if let viewBoxStr = attributeDict["viewBox"] {
             let arr: [String] = SVGUtils.split(string: viewBoxStr, separator: " ")
