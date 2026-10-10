@@ -111,4 +111,35 @@ final class SVGPreserveAspectRatioTests: XCTestCase {
         XCTAssertEqual(options.preserveAspectRatio.align, .xMidYMid)
         XCTAssertEqual(options.preserveAspectRatio.meetOrSlice, .meet)
     }
+
+    // MARK: SVGView layout fit
+
+    func testLayoutCentersSquareViewBoxInTallContainer() throws {
+        // A square viewBox in a tall container must be centered vertically, not
+        // pushed off-screen by a scale-multiplied centering translation.
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <rect width="24" height="24" fill="#000"/>
+        </svg>
+        """
+        let view = SVGView()
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        view.parser = parser
+        view.shapeLayer = try parser.getLayer(overrideElements: nil)
+        view.frame = CGRect(x: 0, y: 0, width: 240, height: 480)
+
+        view.layoutSubviews()
+
+        let affine = CATransform3DGetAffineTransform(try XCTUnwrap(view.shapeLayer).transform)
+
+        // scale = 10; 240x240 content centered vertically => viewBox origin at (0, 120).
+        let origin = CGPoint(x: 0, y: 0).applying(affine)
+        XCTAssertEqual(origin.x, 0, accuracy: 0.001)
+        XCTAssertEqual(origin.y, 120, accuracy: 0.001)
+
+        // Opposite corner (24, 24) => (240, 360).
+        let corner = CGPoint(x: 24, y: 24).applying(affine)
+        XCTAssertEqual(corner.x, 240, accuracy: 0.001)
+        XCTAssertEqual(corner.y, 360, accuracy: 0.001)
+    }
 }

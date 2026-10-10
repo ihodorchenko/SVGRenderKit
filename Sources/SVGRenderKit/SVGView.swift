@@ -229,10 +229,13 @@ open class SVGView: UIView {
         let containingSize = self.bounds.size
         let resolved = options.preserveAspectRatio.resolve(viewBox: viewBox, containerSize: containingSize)
 
+        // Build Translate(center) · Scale(scale) · Translate(-origin) so the
+        // centering is applied in container space (not multiplied by scale),
+        // and the viewBox origin offset is applied in viewBox space (scaled).
         var transform = CATransform3DIdentity
-        transform = CATransform3DTranslate(transform, -viewBox.origin.x, -viewBox.origin.y, 0)
-        transform = CATransform3DScale(transform, resolved.scaleX, resolved.scaleY, 1)
         transform = CATransform3DTranslate(transform, resolved.translateX, resolved.translateY, 0)
+        transform = CATransform3DScale(transform, resolved.scaleX, resolved.scaleY, 1)
+        transform = CATransform3DTranslate(transform, -viewBox.origin.x, -viewBox.origin.y, 0)
         shapeLayer.transform = transform
 
         contentView.frame = self.bounds
