@@ -111,7 +111,8 @@ open class SVGOptions {
 
         var viewBox: CGRect?
         if let viewBoxStr = attributeDict["viewBox"] {
-            let arr: [String] = SVGUtils.split(string: viewBoxStr, separator: " ")
+            let cleaned = viewBoxStr.replacingOccurrences(of: ",", with: " ")
+            let arr: [String] = SVGUtils.split(string: cleaned, separator: " ")
             if arr.count == 4 {
                 if let x = Double(arr[0]),
                     let y = Double(arr[1]),

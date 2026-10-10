@@ -23,6 +23,11 @@ final class SVGOptionsTests: XCTestCase {
         XCTAssertNil(options.baseProfile)
     }
 
+    func testCommaSeparatedViewBox() throws {
+        let options = try SVGOptions(attributeDict: ["viewBox": "0,0 100,100"])
+        XCTAssertEqual(options.viewBox, CGRect(x: 0, y: 0, width: 100, height: 100))
+    }
+
     // MARK: T39 — unknown elements are tolerated
 
     func testUnknownElementsAreTolerated() throws {
