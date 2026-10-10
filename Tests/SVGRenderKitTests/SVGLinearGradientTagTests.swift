@@ -21,7 +21,7 @@ final class SVGLinearGradientTagTests: XCTestCase {
         let svg = """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <defs>
-                <linearGradient id="g" x1="0" y1="0" x2="0" y2="100" gradientTransform="rotate(45)">
+                <linearGradient id="g" x1="0" y1="0" x2="0" y2="100" gradientUnits="userSpaceOnUse" gradientTransform="rotate(45)">
                     <stop offset="0" stop-color="#ff0000"/>
                     <stop offset="1" stop-color="#0000ff"/>
                 </linearGradient>
@@ -81,5 +81,24 @@ final class SVGLinearGradientTagTests: XCTestCase {
         let locations = try XCTUnwrap(gradient.locations)
         XCTAssertEqual(locations.count, 3)
         XCTAssertEqual(locations[1].doubleValue, 0.5, accuracy: 0.0001)
+    }
+
+    func testDefaultGradientUnitsIsObjectBoundingBox() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stop-color="#ff0000"/>
+                    <stop offset="1" stop-color="#0000ff"/>
+                </linearGradient>
+            </defs>
+            <rect width="100" height="100" fill="url(#g)"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let gradient = try XCTUnwrap(findGradientLayer(in: layer))
+        XCTAssertEqual(gradient.startPoint.x, 0, accuracy: 1e-6)
+        XCTAssertEqual(gradient.endPoint.x, 1, accuracy: 1e-6)
     }
 }

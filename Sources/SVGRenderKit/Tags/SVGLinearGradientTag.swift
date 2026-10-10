@@ -57,34 +57,10 @@ open class SVGLinearGradientTag: SVGBaseGradient {
                 gradLayer.anchorPoint = CGPoint.zero
                 gradLayer.position = CGPoint.zero
                 gradLayer.mask = maskLayer
-                let x1: CGFloat
-                let x2: CGFloat
-                let y1: CGFloat
-                let y2: CGFloat
-                switch self.x1 {
-                case .px(let value):
-                    x1 = value
-                case .percent(let value):
-                    x1 = value * boundsToPoints.width
-                }
-                switch self.x2 {
-                case .px(let value):
-                    x2 = value
-                case .percent(let value):
-                    x2 = value * boundsToPoints.width
-                }
-                switch self.y1 {
-                case .px(let value):
-                    y1 = value
-                case .percent(let value):
-                    y1 = value * boundsToPoints.height
-                }
-                switch self.y2 {
-                case .px(let value):
-                    y2 = value
-                case .percent(let value):
-                    y2 = value * boundsToPoints.height
-                }
+                let x1: CGFloat = resolveCoordinate(self.x1, dimension: boundsToPoints.width)
+                let x2: CGFloat = resolveCoordinate(self.x2, dimension: boundsToPoints.width)
+                let y1: CGFloat = resolveCoordinate(self.y1, dimension: boundsToPoints.height)
+                let y2: CGFloat = resolveCoordinate(self.y2, dimension: boundsToPoints.height)
                 gradLayer.frame = boundsToPoints
                 gradLayer.anchorPoint = CGPoint.zero
 

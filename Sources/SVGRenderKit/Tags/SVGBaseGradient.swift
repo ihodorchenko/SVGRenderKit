@@ -14,7 +14,7 @@ open class SVGBaseGradient: SVGChildObject {
     }
 
     var stops: [SVGGradientStop] = []
-    var gradientUnits: GradientUnits = GradientUnits.userSpaceOnUse
+    var gradientUnits: GradientUnits = GradientUnits.objectBoundingBox
     var spreadMethod: SVGSpreadMethod = SVGSpreadMethod.pad
 
     var transform: CATransform3D?
@@ -68,6 +68,20 @@ open class SVGBaseGradient: SVGChildObject {
                 newLocations.append((1 + locations[i]) / 2)
             }
             return (newColors, newLocations)
+        }
+    }
+
+    /// Resolves a gradient coordinate to points in the current coordinate space.
+    /// For `objectBoundingBox`, plain numbers are fractions of the bounding box.
+    func resolveCoordinate(_ length: SVGLength, dimension: CGFloat) -> CGFloat {
+        switch length {
+        case .px(let value):
+            if gradientUnits == .objectBoundingBox {
+                return value * dimension
+            }
+            return value
+        case .percent(let value):
+            return value * dimension
         }
     }
 
