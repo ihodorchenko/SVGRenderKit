@@ -58,6 +58,9 @@ open class SVGSourceStyleElement {
     /// The rule used to determine which regions are inside the clipping path.
     open var clipRule: SVGClipRuleType?
 
+    /// A reference to the mask applied to the element.
+    open var mask: SVGFuncIRI?
+
     var fontFamily: String?
     var fontStyle: SVGFontStyle?
     var fontWeight: Float?
@@ -97,6 +100,7 @@ open class SVGSourceStyleElement {
         if let strokeDashoffset = child.strokeDashoffset { newElem.strokeDashoffset = strokeDashoffset }
         if let clipPath = child.clipPath { newElem.clipPath = clipPath }
         if let clipRule = child.clipRule { newElem.clipRule = clipRule }
+        if let mask = child.mask { newElem.mask = mask }
 
         if let fontFamily = child.fontFamily { newElem.fontFamily = fontFamily }
         if let fontStyle = child.fontStyle { newElem.fontStyle = fontStyle }
@@ -127,6 +131,7 @@ open class SVGSourceStyleElement {
         strokeDashoffset = element.strokeDashoffset
         clipPath = element.clipPath
         clipRule = element.clipRule
+        mask = element.mask
 
         fontFamily = element.fontFamily
         fontStyle = element.fontStyle
@@ -170,6 +175,7 @@ open class SVGSourceStyleElement {
 
         if let str = attributeDict["clip-path"], !str.isEmpty { try setClipPath(str: str) }
         if let str = attributeDict["clip-rule"], !str.isEmpty { setClipRule(str: str) }
+        if let str = attributeDict["mask"], !str.isEmpty { try setMask(str: str) }
 
         if let str = attributeDict["font-family"], !str.isEmpty { setFontFamily(str: str) }
         if let str = attributeDict["font-style"], !str.isEmpty { try setFontStyle(str: str) }
@@ -308,6 +314,10 @@ open class SVGSourceStyleElement {
         if let f = SVGClipRuleType.init(rawValue: str) {
             clipRule = f
         }
+    }
+
+    func setMask(str: String) throws {
+        self.mask = try SVGFuncIRI.get(fullStr: str)
     }
 
     func setFontFamily(str: String) {
@@ -510,6 +520,19 @@ extension SVGSourceStyleElement {
                 }
             case .web(let url):
                 throw SVGError.content(text: "web iri not supported: \(url)")
+            }
+        }
+
+        if let mask = self.mask {
+            switch mask {
+            case .local(let key):
+                if let rendering = try group.getMask(byKey: key, fromParents: true)?.createLayer(overrideElements: overrideElements) {
+                    mainLayer.mask = rendering
+                } else {
+                    throw SVGError.content(text: "mask not found: \(key)")
+                }
+            case .web(let url):
+                throw SVGError.content(text: "web mask not supported: \(url)")
             }
         }
     }

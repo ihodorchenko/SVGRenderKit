@@ -30,6 +30,9 @@ public protocol SVGShapesContainer {
 
     /// Returns the clip path matching the key, optionally searching parent containers.
     func getClipPath(byKey: String, fromParents: Bool) -> SVGClipPath?
+
+    /// Returns the mask matching the key, optionally searching parent containers.
+    func getMask(byKey: String, fromParents: Bool) -> SVGMask?
 }
 
 extension SVGShapesContainer {

@@ -59,6 +59,7 @@ specific additions (Tiny's `textArea`/`solidColor`/mandatory animation; 2.0's
 | `<defs>` | ✅ |
 | `<use>` | ✅ local `#ref`, incl. `<symbol>` with `viewBox` |
 | `<clipPath>` | ✅ |
+| `<mask>` | ✅ alpha masking |
 | `<symbol>` | ✅ instantiated via `<use>` |
 | `<path>` | ✅ |
 | `<rect>` | ✅ |
@@ -72,7 +73,7 @@ specific additions (Tiny's `textArea`/`solidColor`/mandatory animation; 2.0's
 | `<radialGradient>` | ✅ |
 | `<stop>` | ✅ (`stop-color`, `stop-opacity`, `offset`) |
 | `<style>` | ✅ (id / class / tag selectors) |
-| `<mask>`, `<pattern>`, `<marker>`, `<filter>` | ❌ |
+| `<pattern>`, `<marker>`, `<filter>` | ❌ |
 | `<image>`, `<switch>`, `<a>`, `<foreignObject>`, `<font>` | ❌ |
 | `<animate>`, `<set>`, `<animateTransform>`, etc. (SMIL) | ❌ |
 | `<script>`, `<cursor>`, `<solidColor>`, `<textPath>` | ❌ |
@@ -97,6 +98,7 @@ All commands are implemented, including elliptical arcs:
 | `opacity` | ✅ |
 | `clip-path` | ✅ local `url(#…)` |
 | `clip-rule` | ✅ `nonzero` / `evenodd` |
+| `mask` | ✅ local `url(#…)` |
 | `transform` | ✅ `matrix`, `translate`, `rotate`, `scale`, `skewX`, `skewY` |
 | `gradientTransform`, `gradientUnits` | ✅ |
 | `xlink:href` / `href` inheritance | ✅ (both spellings) |
@@ -106,7 +108,7 @@ All commands are implemented, including elliptical arcs:
 | `stroke-linecap`, `stroke-linejoin`, `stroke-miterlimit` | ✅ |
 | `stroke-dasharray`, `stroke-dashoffset` | ✅ |
 | `currentColor` | ✅ resolved via `color` |
-| `color`, `paint-order`, `vector-effect`, `marker-*`, `mask`, `filter` | ❌ |
+| `color`, `paint-order`, `vector-effect`, `marker-*`, `filter` | ❌ |
 | `text-anchor`, multi-line `<tspan>` layout | ✅ |
 
 ### CSS
@@ -117,7 +119,7 @@ All commands are implemented, including elliptical arcs:
 
 ## Limitations (why it is not 100 % on any standard)
 
-- No `filter`, `mask`, `pattern`, `marker`.
+- No `filter`, `pattern`, `marker`.
 - No SMIL animation or scripting.
 - No `<textPath>`; text uses `<tspan>` with absolute `x`/`y` or `dx`/`dy`.
 - External `url(...)` resources are not loaded.
@@ -137,7 +139,7 @@ items are cheap and unlock a large share of real-world SVG 1.1 content.
 | 5 | ✅ `clip-rule` wiring | Low | Clipping |
 | 6 | ✅ `<symbol>` + `<use>` with `viewBox`/`width`/`height` | Medium-High | Structure |
 | 7 | ✅ `text-anchor` + multi-line `<tspan>` | Medium | Text |
-| 8 | `<mask>` | Medium | Compositing |
+| 8 | ✅ `<mask>` | Medium | Compositing |
 | 9 | gradient `spreadMethod` (`pad`/`reflect`/`repeat`) | Medium | Gradients |
 | 10 | `<pattern>` | High | Painting |
 | 11 | `<marker>` (arrowheads) | High | Painting |

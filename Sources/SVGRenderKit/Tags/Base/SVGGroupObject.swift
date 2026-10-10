@@ -77,6 +77,10 @@ extension SVGGroupObject {
             let symbol: SVGSymbol = try SVGSymbol(xmlElement: children, parent: self)
             try self.add(symbols: [symbol])
             break
+        case SVGMask.key:
+            let mask: SVGMask = try SVGMask(xmlElement: children, parent: self)
+            try self.add(masks: [mask])
+            break
         default:
             if let shapeTag = try SVGShapeObject.create(xml: children, parent: self) {
                 try self.add(shapes: [shapeTag])
@@ -152,6 +156,15 @@ extension SVGGroupObject {
         for symbol in symbols {
             symbol.parent = self
             self.all.add(item: symbol)
+        }
+    }
+
+    /// Adds the given masks to this group. Masks are registered for lookup but
+    /// are not rendered directly.
+    public func add(masks: [SVGMask]) throws {
+        for mask in masks {
+            mask.parent = self
+            self.all.add(item: mask)
         }
     }
 
@@ -325,5 +338,18 @@ extension SVGGroupObject {
             return o
         }
         return fromParents ? parent.getClipPath(byKey: byKey, fromParents: fromParents) : nil
+    }
+
+    /// Returns the mask matching the key, optionally searching parent groups.
+    public func getMask(byKey: String, fromParents: Bool) -> SVGMask? {
+        if let defs = defs {
+            if let m = defs.getMask(byKey: byKey, fromParents: false) {
+                return m
+            }
+        }
+        if let m = all.get(key: byKey) as? SVGMask {
+            return m
+        }
+        return fromParents ? parent.getMask(byKey: byKey, fromParents: fromParents) : nil
     }
 }
