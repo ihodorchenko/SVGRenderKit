@@ -116,6 +116,11 @@ extension SVGClipPath: SVGShapesContainer {
         return nil
     }
 
+    /// Returns `nil`, since a clip path does not define patterns.
+    public func getPattern(byKey: String, fromParents: Bool) -> SVGPattern? {
+        return nil
+    }
+
     /// Resolves a renderable object by key from the parent container.
     public func getRendering(byKey: String, fromParents: Bool) -> SVGRendering? {
         return parent.getRendering(byKey: byKey, fromParents: true)

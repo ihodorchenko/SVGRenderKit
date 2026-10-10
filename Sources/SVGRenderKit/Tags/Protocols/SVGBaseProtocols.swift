@@ -33,6 +33,9 @@ public protocol SVGShapesContainer {
 
     /// Returns the mask matching the key, optionally searching parent containers.
     func getMask(byKey: String, fromParents: Bool) -> SVGMask?
+
+    /// Returns the pattern matching the key, optionally searching parent containers.
+    func getPattern(byKey: String, fromParents: Bool) -> SVGPattern?
 }
 
 extension SVGShapesContainer {

@@ -60,6 +60,7 @@ specific additions (Tiny's `textArea`/`solidColor`/mandatory animation; 2.0's
 | `<use>` | ✅ local `#ref`, incl. `<symbol>` with `viewBox` |
 | `<clipPath>` | ✅ |
 | `<mask>` | ✅ alpha masking |
+| `<pattern>` | ✅ tiled fill |
 | `<symbol>` | ✅ instantiated via `<use>` |
 | `<path>` | ✅ |
 | `<rect>` | ✅ |
@@ -73,7 +74,7 @@ specific additions (Tiny's `textArea`/`solidColor`/mandatory animation; 2.0's
 | `<radialGradient>` | ✅ |
 | `<stop>` | ✅ (`stop-color`, `stop-opacity`, `offset`) |
 | `<style>` | ✅ (id / class / tag selectors) |
-| `<pattern>`, `<marker>`, `<filter>` | ❌ |
+| `<marker>`, `<filter>` | ❌ |
 | `<image>`, `<switch>`, `<a>`, `<foreignObject>`, `<font>` | ❌ |
 | `<animate>`, `<set>`, `<animateTransform>`, etc. (SMIL) | ❌ |
 | `<script>`, `<cursor>`, `<solidColor>`, `<textPath>` | ❌ |
@@ -89,7 +90,7 @@ All commands are implemented, including elliptical arcs:
 | Property | Status |
 |---|---|
 | `viewBox`, `width`, `height` | ✅ (`px`, `%`) |
-| `fill` | ✅ color, `none`, gradient `url(#…)` |
+| `fill` | ✅ color, `none`, gradient/pattern `url(#…)` |
 | `fill-rule` | ✅ `nonzero` / `evenodd` |
 | `fill-opacity` | ✅ |
 | `stroke` | ✅ color, `none` |
@@ -119,7 +120,7 @@ All commands are implemented, including elliptical arcs:
 
 ## Limitations (why it is not 100 % on any standard)
 
-- No `filter`, `pattern`, `marker`.
+- No `filter`, `marker`.
 - No SMIL animation or scripting.
 - No `<textPath>`; text uses `<tspan>` with absolute `x`/`y` or `dx`/`dy`.
 - External `url(...)` resources are not loaded.
@@ -141,7 +142,7 @@ items are cheap and unlock a large share of real-world SVG 1.1 content.
 | 7 | ✅ `text-anchor` + multi-line `<tspan>` | Medium | Text |
 | 8 | ✅ `<mask>` | Medium | Compositing |
 | 9 | ✅ gradient `spreadMethod` (`pad`/`reflect`/`repeat`) | Medium | Gradients |
-| 10 | `<pattern>` | High | Painting |
+| 10 | ✅ `<pattern>` | High | Painting |
 | 11 | `<marker>` (arrowheads) | High | Painting |
 | 12 | `<filter>` subset (`feGaussianBlur`, `feDropShadow`) | High | Filters |
 | 13 | SMIL animation | Very High | Animation |

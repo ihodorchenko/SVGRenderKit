@@ -423,6 +423,8 @@ extension SVGSourceStyleElement {
             case .local(let key):
                 if let gradient = group.getGradient(byKey: key, fromParents: true) {
                     try applyGradient(mainLayer: mainLayer, pathLayer: pathLayer, path: path, gradient: gradient, group: group, opacity: Float(fillOpacity ?? 1.0))
+                } else if let pattern = group.getPattern(byKey: key, fromParents: true) {
+                    applyPattern(pathLayer: pathLayer, pattern: pattern)
                 } else {
                     throw SVGError.content(text: "local iri not found by key: \(key)")
                 }
@@ -534,6 +536,12 @@ extension SVGSourceStyleElement {
             case .web(let url):
                 throw SVGError.content(text: "web mask not supported: \(url)")
             }
+        }
+    }
+
+    private func applyPattern(pathLayer: CAShapeLayer, pattern: SVGPattern) {
+        if let image = pattern.tileImage() {
+            pathLayer.fillColor = UIColor(patternImage: image).cgColor
         }
     }
 

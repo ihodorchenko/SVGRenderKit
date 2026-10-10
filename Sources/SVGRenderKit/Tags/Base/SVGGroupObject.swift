@@ -81,6 +81,10 @@ extension SVGGroupObject {
             let mask: SVGMask = try SVGMask(xmlElement: children, parent: self)
             try self.add(masks: [mask])
             break
+        case SVGPattern.key:
+            let pattern: SVGPattern = try SVGPattern(xmlElement: children, parent: self)
+            try self.add(patterns: [pattern])
+            break
         default:
             if let shapeTag = try SVGShapeObject.create(xml: children, parent: self) {
                 try self.add(shapes: [shapeTag])
@@ -165,6 +169,15 @@ extension SVGGroupObject {
         for mask in masks {
             mask.parent = self
             self.all.add(item: mask)
+        }
+    }
+
+    /// Adds the given patterns to this group. Patterns are registered for lookup
+    /// but are not rendered directly.
+    public func add(patterns: [SVGPattern]) throws {
+        for pattern in patterns {
+            pattern.parent = self
+            self.all.add(item: pattern)
         }
     }
 
@@ -351,5 +364,18 @@ extension SVGGroupObject {
             return m
         }
         return fromParents ? parent.getMask(byKey: byKey, fromParents: fromParents) : nil
+    }
+
+    /// Returns the pattern matching the key, optionally searching parent groups.
+    public func getPattern(byKey: String, fromParents: Bool) -> SVGPattern? {
+        if let defs = defs {
+            if let p = defs.getPattern(byKey: byKey, fromParents: false) {
+                return p
+            }
+        }
+        if let p = all.get(key: byKey) as? SVGPattern {
+            return p
+        }
+        return fromParents ? parent.getPattern(byKey: byKey, fromParents: fromParents) : nil
     }
 }
