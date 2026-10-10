@@ -60,7 +60,7 @@ open class SVGLinearGradientTag: SVGBaseGradient {
             if viewBox.width > 1, viewBox.height > 1 {
                 gradLayer.anchorPoint = CGPoint.zero
                 gradLayer.position = CGPoint.zero
-                gradLayer.mask = maskLayer
+                gradLayer.mask = localizedMask(maskLayer, origin: boundsToPoints.origin)
                 let x1: CGFloat = resolveCoordinate(self.x1, dimension: boundsToPoints.width)
                 let x2: CGFloat = resolveCoordinate(self.x2, dimension: boundsToPoints.width)
                 let y1: CGFloat = resolveCoordinate(self.y1, dimension: boundsToPoints.height)

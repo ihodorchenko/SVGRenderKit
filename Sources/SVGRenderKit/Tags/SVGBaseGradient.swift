@@ -71,6 +71,26 @@ open class SVGBaseGradient: SVGChildObject {
         }
     }
 
+    /// Shifts a shape mask so its path (expressed in absolute/viewBox coordinates)
+    /// lines up with the gradient layer's local coordinate space.
+    ///
+    /// A layer `mask` is composited in the *masked* layer's own coordinate system,
+    /// whose origin is that layer's frame origin (`boundsToPoints.origin`). Because
+    /// the mask path is absolute while the gradient layer is bbox-relative, a
+    /// gradient over a shape that isn't anchored at (0,0) would otherwise mask out
+    /// everything: the mask must be shifted by the inverse of the frame's origin.
+    func localizedMask(_ maskLayer: CALayer, origin: CGPoint) -> CALayer {
+        guard origin != .zero,
+              let shapeMask = maskLayer as? CAShapeLayer,
+              let path = shapeMask.path else {
+            return maskLayer
+        }
+        let bezier = UIBezierPath(cgPath: path)
+        bezier.apply(CGAffineTransform(translationX: -origin.x, y: -origin.y))
+        shapeMask.path = bezier.cgPath
+        return maskLayer
+    }
+
     /// Resolves a gradient coordinate to points in the current coordinate space.
     /// For `objectBoundingBox`, plain numbers are fractions of the bounding box.
     func resolveCoordinate(_ length: SVGLength, dimension: CGFloat) -> CGFloat {

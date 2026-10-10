@@ -80,7 +80,7 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         let gradLayer = RadialGradientLayer()
         newLayer.frame = boundsToPoints
         gradLayer.frame = boundsToPoints
-        gradLayer.mask = maskLayer
+        gradLayer.mask = localizedMask(maskLayer, origin: boundsToPoints.origin)
         gradLayer.anchorPoint = CGPoint(x: 0, y: 0)
         gradLayer.position = CGPoint(x: 0, y: 0)
         gradLayer.startPoint = finalCenter
