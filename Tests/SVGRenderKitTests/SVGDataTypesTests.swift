@@ -84,6 +84,22 @@ final class SVGPaintTests: XCTestCase {
         }
     }
 
+    func testArgbColor() throws {
+        let paint = try SVGPaint.get(string: "argb(0.5, 255, 0, 0)")
+        guard case .color(let color) = paint else {
+            return XCTFail("expected .color, got \(paint)")
+        }
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        XCTAssertEqual(red, 1)
+        XCTAssertEqual(green, 0)
+        XCTAssertEqual(blue, 0)
+        XCTAssertEqual(alpha, 0.5, accuracy: 0.001)
+    }
+
     func testFuncIRI() throws {
         let paint = try SVGPaint.get(string: "url(#grad)")
         guard case .funcIRI(let iri) = paint else {

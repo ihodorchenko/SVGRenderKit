@@ -20,6 +20,8 @@ public enum SVGPaint {
             return .currentColor
         } else if string.hasPrefix("#") {
             return SVGPaint.color(color: SVGColors.getColor(string: string))
+        } else if string.hasPrefix("argb") {
+            return SVGPaint.color(color: SVGColors.getColor(string: string))
         } else if string.hasPrefix("rgb") {
             return SVGPaint.color(color: SVGColors.getColor(string: string))
         } else if string.hasPrefix("url") {
