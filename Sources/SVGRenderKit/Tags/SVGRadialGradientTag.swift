@@ -17,7 +17,7 @@ open class SVGRadialGradientTag: SVGBaseGradient {
     }
 
     /// Builds a masked layer that draws this radial gradient.
-    open override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect) -> CALayer? {
+    open override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
         var colors: [CGColor] = []
         var locations: [CGFloat] = []
 
@@ -28,7 +28,7 @@ open class SVGRadialGradientTag: SVGBaseGradient {
             // SVG 1.1 clamps stop offsets to [0, 1] rather than failing the gradient.
             let offset = max(0, min(1, stop.offset))
             locations.append(CGFloat(offset))
-            colors.append(stop.stop_color.cgColor)
+            colors.append(stop.resolvedColor(currentColor: currentColor).cgColor)
         }
         // A single stop renders as a solid color; duplicate it so the gradient
         // layer has a valid two-stop gradient.

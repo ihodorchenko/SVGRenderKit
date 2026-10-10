@@ -181,4 +181,29 @@ final class SVGLinearGradientTagTests: XCTestCase {
         XCTAssertEqual(locations.count, 2)
         XCTAssertEqual(gradient.colors?.count, 2)
     }
+
+    func testStopColorCurrentColorResolvesFromColorProperty() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <linearGradient id="g">
+                    <stop offset="0" stop-color="currentColor"/>
+                    <stop offset="1" stop-color="#0000ff"/>
+                </linearGradient>
+            </defs>
+            <rect width="100" height="100" fill="url(#g)" color="#ff0000"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let gradient = try XCTUnwrap(findGradientLayer(in: layer))
+        let colors = try XCTUnwrap(gradient.colors as? [CGColor])
+        XCTAssertEqual(colors.count, 2)
+
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        UIColor(cgColor: colors[0]).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        XCTAssertEqual(red, 1, accuracy: 1e-6)
+        XCTAssertEqual(green, 0, accuracy: 1e-6)
+        XCTAssertEqual(blue, 0, accuracy: 1e-6)
+    }
 }

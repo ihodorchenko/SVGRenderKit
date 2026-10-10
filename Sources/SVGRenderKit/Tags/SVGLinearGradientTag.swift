@@ -19,7 +19,7 @@ open class SVGLinearGradientTag: SVGBaseGradient {
     }
 
     /// Builds a masked layer that draws this linear gradient along its axis.
-    open override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect) -> CALayer? {
+    open override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
         var colors: [CGColor] = []
         var locations: [CGFloat] = []
 
@@ -30,7 +30,7 @@ open class SVGLinearGradientTag: SVGBaseGradient {
             // SVG 1.1 clamps stop offsets to [0, 1] rather than failing the gradient.
             let offset = max(0, min(1, stop.offset))
             locations.append(CGFloat(offset))
-            colors.append(stop.stop_color.cgColor)
+            colors.append(stop.resolvedColor(currentColor: currentColor).cgColor)
         }
         // A single stop renders as a solid color; duplicate it so CAGradientLayer
         // has a valid two-stop gradient.

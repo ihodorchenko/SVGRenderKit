@@ -99,7 +99,7 @@ open class SVGBaseGradient: SVGChildObject {
     }
 
     /// Returns the layer that renders this gradient, or nil if it cannot be built.
-    open func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect) -> CALayer? {
+    open func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
         return nil
     }
 }
@@ -160,6 +160,20 @@ open class SVGGradientStop: SVGObject {
 
     var offset: Float = 0
     var stop_color: UIColor = UIColor.black
+    private(set) var stopColorString: String?
+    private(set) var stopOpacity: CGFloat = 1
+
+    /// Resolves the stop's final color, honoring `currentColor` (resolved against
+    /// the referencing element's inherited `color`) and `stop-opacity`.
+    func resolvedColor(currentColor: UIColor) -> UIColor {
+        let base: UIColor
+        if let raw = stopColorString, SVGUtils.trimmed(string: raw) == "currentColor" {
+            base = currentColor
+        } else {
+            base = stop_color
+        }
+        return base.withAlphaComponent(base.cgColor.alpha * stopOpacity)
+    }
 
     /// Creates a gradient stop by parsing stop attributes from the given XML element.
     public override init(xmlElement: XMLElement, addDict: [String: String]? = nil) throws {
@@ -198,10 +212,11 @@ open class SVGGradientStop: SVGObject {
             }
         }
         if let str = attributeDict["stop-color"] {
+            stopColorString = str
             stop_color = SVGColors.getColor(string: str)
         }
         if let str = attributeDict["stop-opacity"], let f: Float = Float(str.trimmed) {
-            stop_color = stop_color.withAlphaComponent(CGFloat(f))
+            stopOpacity = CGFloat(f)
         }
     }
 }

@@ -637,7 +637,7 @@ extension SVGSourceStyleElement {
             pathLayer.fillColor = UIColor.clear.cgColor
             let maskLayer = CAShapeLayer()
             maskLayer.path = path.cgPath
-            if let gradLayer = gradient.getGradientLayer(maskLayer: maskLayer, path: path, viewBox: options.viewBox) {
+            if let gradLayer = gradient.getGradientLayer(maskLayer: maskLayer, path: path, viewBox: options.viewBox, currentColor: self.color ?? .black) {
                 if let opacity = opacity {
                     gradLayer.opacity = opacity
                 }
