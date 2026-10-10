@@ -175,8 +175,13 @@ open class SVGGradientStop: SVGObject {
     }
 
     func set(attributeDict: [String: String]) throws {
-        if let str = attributeDict["offset"], let f: Float = Float(str.trimmed) {
-            offset = f
+        if let str = attributeDict["offset"] {
+            let trimmed = str.trimmed
+            if trimmed.hasSuffix("%"), let f = Float(trimmed.dropLast()) {
+                offset = f / 100
+            } else if let f = Float(trimmed) {
+                offset = f
+            }
         }
         if let str = attributeDict["stop-color"] {
             stop_color = SVGColors.getColor(string: str)

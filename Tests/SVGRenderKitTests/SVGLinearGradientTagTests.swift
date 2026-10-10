@@ -61,4 +61,25 @@ final class SVGLinearGradientTagTests: XCTestCase {
         let layer = try parser.getLayer(overrideElements: nil)
         XCTAssertNotNil(layer)
     }
+
+    func testStopOffsetPercentage() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <linearGradient id="g">
+                    <stop offset="0%" stop-color="#ff0000"/>
+                    <stop offset="50%" stop-color="#00ff00"/>
+                    <stop offset="100%" stop-color="#0000ff"/>
+                </linearGradient>
+            </defs>
+            <rect width="100" height="100" fill="url(#g)"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let gradient = try XCTUnwrap(findGradientLayer(in: layer))
+        let locations = try XCTUnwrap(gradient.locations)
+        XCTAssertEqual(locations.count, 3)
+        XCTAssertEqual(locations[1].doubleValue, 0.5, accuracy: 0.0001)
+    }
 }
