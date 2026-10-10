@@ -1,7 +1,7 @@
 import UIKit
 import QuartzCore
 
-/// A parsed SMIL animation element (`animate` or `animateTransform`), minimal subset.
+/// A parsed SMIL animation element (`animate`, `animateTransform`, or `set`).
 struct SVGAnimation {
     enum Kind {
         case opacity
@@ -11,41 +11,63 @@ struct SVGAnimation {
     }
 
     var kind: Kind
-    var from: String
-    var to: String
+    var values: [String]
+    var keyTimes: [Double]?
     var duration: TimeInterval
+    var repeatCount: Float
+    var begin: TimeInterval
 
-    /// Parses `<animate>` and `<animateTransform>` children into animations.
+    /// Parses `<animate>`, `<animateTransform>`, and `<set>` children into animations.
     static func parse(children: [XMLElement]) -> [SVGAnimation] {
         var result: [SVGAnimation] = []
         for child in children {
             let name = child.name
+            guard name == "animate" || name == "animateTransform" || name == "set" else { continue }
             let attrs = child.attributesDict()
-            guard name == "animate" || name == "animateTransform",
-                  let attributeName = attrs["attributeName"],
-                  let from = attrs["from"],
-                  let to = attrs["to"],
-                  let durStr = attrs["dur"],
-                  let duration = parseDuration(durStr) else {
-                continue
-            }
+            guard let attributeName = attrs["attributeName"] else { continue }
 
             let kind: Kind
             if name == "animateTransform" {
                 kind = .transform(type: attrs["type"] ?? "translate")
             } else {
                 switch attributeName {
-                case "opacity":
-                    kind = .opacity
-                case "fill":
-                    kind = .fill
-                case "stroke":
-                    kind = .stroke
-                default:
-                    continue
+                case "opacity": kind = .opacity
+                case "fill": kind = .fill
+                case "stroke": kind = .stroke
+                default: continue
                 }
             }
-            result.append(SVGAnimation(kind: kind, from: from, to: to, duration: duration))
+
+            var values: [String] = []
+            if let valuesStr = attrs["values"] {
+                values = valuesStr.components(separatedBy: ";")
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+            } else if let from = attrs["from"], let to = attrs["to"] {
+                values = [from, to]
+            } else if name == "set", let to = attrs["to"] {
+                values = [to]
+            }
+            guard !values.isEmpty else { continue }
+
+            let duration = attrs["dur"].flatMap(parseDuration) ?? 0
+            let keyTimes: [Double]? = attrs["keyTimes"].map {
+                $0.components(separatedBy: ";")
+                    .compactMap { Double($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            }
+            var repeatCount: Float = 1
+            if let rc = attrs["repeatCount"] {
+                let trimmed = rc.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed == "indefinite" {
+                    repeatCount = .infinity
+                } else if let f = Float(trimmed) {
+                    repeatCount = f
+                }
+            }
+            let begin = attrs["begin"].flatMap(parseDuration) ?? 0
+
+            result.append(SVGAnimation(kind: kind, values: values, keyTimes: keyTimes,
+                                       duration: duration, repeatCount: repeatCount, begin: begin))
         }
         return result
     }
@@ -67,37 +89,62 @@ struct SVGAnimation {
 
     /// Adds the animation to the appropriate layer.
     func apply(to layer: CALayer, pathLayer: CAShapeLayer?) {
+        let targetLayer: CALayer
+        let keyPath: String
+        switch kind {
+        case .opacity: targetLayer = layer; keyPath = "opacity"
+        case .fill: targetLayer = pathLayer ?? layer; keyPath = "fillColor"
+        case .stroke: targetLayer = pathLayer ?? layer; keyPath = "strokeColor"
+        case .transform: targetLayer = layer; keyPath = "transform"
+        }
+
+        // `<set>` (single value, no duration) applies the value immediately.
+        if duration <= 0, let value = values.first {
+            applySet(to: layer, pathLayer: pathLayer, value: value)
+            return
+        }
+
+        let animation: CAAnimation
+        if values.count == 2 {
+            let basic = CABasicAnimation(keyPath: keyPath)
+            basic.fromValue = anyValue(from: values[0])
+            basic.toValue = anyValue(from: values[1])
+            animation = basic
+        } else {
+            let keyframe = CAKeyframeAnimation(keyPath: keyPath)
+            keyframe.values = values.map { anyValue(from: $0) }
+            if let keyTimes = keyTimes, keyTimes.count == values.count {
+                keyframe.keyTimes = keyTimes.map { NSNumber(value: $0) }
+            }
+            animation = keyframe
+        }
+        animation.duration = duration
+        animation.repeatCount = repeatCount
+        animation.beginTime = begin
+        targetLayer.add(animation, forKey: keyPath)
+    }
+
+    private func applySet(to layer: CALayer, pathLayer: CAShapeLayer?, value: String) {
         switch kind {
         case .opacity:
-            guard let from = Float(from), let to = Float(to) else { return }
-            let anim = CABasicAnimation(keyPath: "opacity")
-            anim.fromValue = from
-            anim.toValue = to
-            anim.duration = duration
-            layer.add(anim, forKey: "opacity")
-
+            if let f = Float(value) { layer.opacity = f }
         case .fill:
-            let anim = CABasicAnimation(keyPath: "fillColor")
-            anim.fromValue = SVGColors.getColor(string: from).cgColor
-            anim.toValue = SVGColors.getColor(string: to).cgColor
-            anim.duration = duration
-            pathLayer?.add(anim, forKey: "fillColor")
-
+            pathLayer?.fillColor = SVGColors.getColor(string: value).cgColor
         case .stroke:
-            let anim = CABasicAnimation(keyPath: "strokeColor")
-            anim.fromValue = SVGColors.getColor(string: from).cgColor
-            anim.toValue = SVGColors.getColor(string: to).cgColor
-            anim.duration = duration
-            pathLayer?.add(anim, forKey: "strokeColor")
-
+            pathLayer?.strokeColor = SVGColors.getColor(string: value).cgColor
         case .transform(let type):
-            guard let from = Self.transform(from: from, type: type),
-                  let to = Self.transform(from: to, type: type) else { return }
-            let anim = CABasicAnimation(keyPath: "transform")
-            anim.fromValue = NSValue(caTransform3D: from)
-            anim.toValue = NSValue(caTransform3D: to)
-            anim.duration = duration
-            layer.add(anim, forKey: "transform")
+            if let t = Self.transform(from: value, type: type) { layer.transform = t }
+        }
+    }
+
+    private func anyValue(from string: String) -> Any {
+        switch kind {
+        case .opacity:
+            return Float(string) ?? 0
+        case .fill, .stroke:
+            return SVGColors.getColor(string: string).cgColor
+        case .transform(let type):
+            return NSValue(caTransform3D: Self.transform(from: string, type: type) ?? CATransform3DIdentity)
         }
     }
 

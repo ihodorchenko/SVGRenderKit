@@ -64,4 +64,70 @@ final class SVGAnimationTests: XCTestCase {
         let layer = try parser.getLayer(overrideElements: nil)
         XCTAssertNotNil(findLayerWithAnimation(in: layer, key: "transform"))
     }
+
+    // MARK: Second pass (values / keyTimes / repeatCount / set)
+
+    func testSetElementSetsFillColor() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <rect width="50" height="50" fill="#ff0000">
+                <set attributeName="fill" to="#0000ff"/>
+            </rect>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let shape = try XCTUnwrap(findFilledShapeLayer(in: layer))
+        let ui = UIColor(cgColor: try XCTUnwrap(shape.fillColor))
+        var r: CGFloat = 0
+        var g: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
+        ui.getRed(&r, green: &g, blue: &b, alpha: &a)
+        XCTAssertEqual(r, 0, accuracy: 1e-3)
+        XCTAssertEqual(b, 1, accuracy: 1e-3)
+    }
+
+    func testAnimateValuesProducesKeyframeAnimation() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <rect width="50" height="50" fill="#ff0000">
+                <animate attributeName="opacity" values="0;1;0" dur="2s"/>
+            </rect>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let animated = try XCTUnwrap(findLayerWithAnimation(in: layer, key: "opacity"))
+        let anim = try XCTUnwrap(animated.animation(forKey: "opacity"))
+        XCTAssertTrue(anim is CAKeyframeAnimation)
+        XCTAssertEqual(anim.duration, 2.0)
+    }
+
+    func testRepeatCountIndefinite() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <rect width="50" height="50" fill="#ff0000">
+                <animate attributeName="opacity" from="0" to="1" dur="1s" repeatCount="indefinite"/>
+            </rect>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let animated = try XCTUnwrap(findLayerWithAnimation(in: layer, key: "opacity"))
+        let anim = try XCTUnwrap(animated.animation(forKey: "opacity"))
+        XCTAssertEqual(anim.repeatCount, .infinity)
+    }
+
+    private func findFilledShapeLayer(in layer: CALayer) -> CAShapeLayer? {
+        if let shape = layer as? CAShapeLayer, shape.path != nil, shape.fillColor != nil {
+            return shape
+        }
+        for sublayer in layer.sublayers ?? [] {
+            if let found = findFilledShapeLayer(in: sublayer) {
+                return found
+            }
+        }
+        return nil
+    }
 }
