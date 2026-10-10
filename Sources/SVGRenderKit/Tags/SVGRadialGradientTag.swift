@@ -4,26 +4,16 @@ import UIKit
 open class SVGRadialGradientTag: SVGBaseGradient {
     class override var key: String { get { return "radialGradient" }}
 
-    var cx: CGFloat?
-    var cy: CGFloat?
-    var r: CGFloat?
+    /// Center x, defaults to 50%.
+    var cx: SVGLength = SVGLength.percent(value: 0.5)
+    /// Center y, defaults to 50%.
+    var cy: SVGLength = SVGLength.percent(value: 0.5)
+    /// Radius, defaults to 50%.
+    var r: SVGLength = SVGLength.percent(value: 0.5)
 
-    var startPoint: CGPoint {
-        get {
-            if let cx = cx, let cy = cy {
-                return CGPoint(x: cx, y: cy)
-            }
-            return CGPoint.zero
-        }
-    }
-
-    /// Returns whether the center and radius are set and the gradient can be rendered.
+    /// Returns whether the gradient has at least one color stop and can be rendered.
     public override func isEnable() -> Bool {
-        var res: Bool = true
-        if cx == nil || cy == nil || r == nil {
-            res = false
-        }
-        return res
+        return stops.count >= 1
     }
 
     /// Builds a masked layer that draws this radial gradient.
@@ -46,37 +36,51 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         colors = spread.colors
         locations = spread.locations
 
-        if colors.count == locations.count && locations.count > 1 {
-            let newLayer: CALayer = CALayer()
-            newLayer.mask = maskLayer
-            let gradLayer = RadialGradientLayer()
-            if let cx = cx, let cy = cy, let r = r, viewBox.width > 1, viewBox.height > 1 {
-                newLayer.frame = viewBox
-                gradLayer.frame = viewBox
-                gradLayer.mask = maskLayer
-                gradLayer.anchorPoint = CGPoint(x: 0, y: 0)
-                gradLayer.position = CGPoint(x: 0, y: 0)
-                if cx > 1 || cy > 1 {
-                    gradLayer.startPoint = CGPoint(x: cx/viewBox.width, y: cy/viewBox.height)
-                } else {
-                    gradLayer.startPoint = CGPoint(x: cx, y: cy)
-                }
-                gradLayer.radius = r
-            }
+        guard colors.count == locations.count, locations.count > 1 else { return nil }
 
-            gradLayer.colors = colors
-            gradLayer.locations = locations
-            newLayer.addSublayer(gradLayer)
-            return newLayer
+        let boundsToPoints: CGRect
+        switch gradientUnits {
+        case .userSpaceOnUse:
+            boundsToPoints = viewBox
+        case .objectBoundingBox:
+            boundsToPoints = path.bounds
         }
-        return nil
+        guard boundsToPoints.width > 0, boundsToPoints.height > 0 else { return nil }
+
+        let center = CGPoint(
+            x: resolveCoordinate(cx, dimension: boundsToPoints.width),
+            y: resolveCoordinate(cy, dimension: boundsToPoints.height))
+
+        // SVG normalizes radial radius against the diagonal of the viewport.
+        let diagonal = hypot(boundsToPoints.width, boundsToPoints.height) / sqrt(2)
+        let radius: CGFloat
+        switch r {
+        case .px(let value):
+            radius = (gradientUnits == .objectBoundingBox) ? value * diagonal : value
+        case .percent(let value):
+            radius = value * diagonal
+        }
+
+        let newLayer: CALayer = CALayer()
+        newLayer.mask = maskLayer
+        let gradLayer = RadialGradientLayer()
+        newLayer.frame = boundsToPoints
+        gradLayer.frame = boundsToPoints
+        gradLayer.mask = maskLayer
+        gradLayer.anchorPoint = CGPoint(x: 0, y: 0)
+        gradLayer.position = CGPoint(x: 0, y: 0)
+        gradLayer.startPoint = center
+        gradLayer.radius = radius
+
+        gradLayer.colors = colors
+        gradLayer.locations = locations
+        newLayer.addSublayer(gradLayer)
+        return newLayer
     }
 
-    /// Creates a radial gradient by parsing center, radius, href references, and color stops.
+    /// Creates a radial gradient by parsing center/radius, href references, and color stops.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
-
-        let attributeDict: [String: String] = xmlElement.attributesDict()
 
         if let href = href {
             switch href {
@@ -95,26 +99,19 @@ open class SVGRadialGradientTag: SVGBaseGradient {
                     gradientUnits = hrefGradient.gradientUnits
                     spreadMethod = hrefGradient.spreadMethod
                 }
-                break
             case .web:
                 break
             }
         }
 
-        if let str = attributeDict["cx"], let f: Float = Float(str.trimmed) {
-            cx = CGFloat(f)
-        } else {
-            throw SVGError.parseError(text: "RadialGradient cx")
+        if let str = attributeDict["cx"] {
+            cx = try SVGLength.get(string: str)
         }
-        if let str = attributeDict["cy"], let f: Float = Float(str.trimmed) {
-            cy = CGFloat(f)
-        } else {
-            throw SVGError.parseError(text: "RadialGradient cy")
+        if let str = attributeDict["cy"] {
+            cy = try SVGLength.get(string: str)
         }
-        if let str = attributeDict["r"], let f: Float = Float(str.trimmed) {
-            r = CGFloat(f)
-        } else {
-            throw SVGError.parseError(text: "RadialGradient r")
+        if let str = attributeDict["r"] {
+            r = try SVGLength.get(string: str)
         }
 
         try parseStops(childs: xmlElement.xmlChildren)
