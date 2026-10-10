@@ -121,4 +121,64 @@ final class SVGLinearGradientTagTests: XCTestCase {
         XCTAssertEqual(gradient.startPoint.x, 0, accuracy: 1e-6)
         XCTAssertEqual(gradient.endPoint.x, 1, accuracy: 1e-6)
     }
+
+    func testNegativeStopOffsetClampsToZero() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <linearGradient id="g">
+                    <stop offset="-0.5" stop-color="#ff0000"/>
+                    <stop offset="0.5" stop-color="#0000ff"/>
+                </linearGradient>
+            </defs>
+            <rect width="100" height="100" fill="url(#g)"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let gradient = try XCTUnwrap(findGradientLayer(in: layer))
+        let locations = try XCTUnwrap(gradient.locations)
+        XCTAssertEqual(locations.count, 2)
+        XCTAssertEqual(locations[0].doubleValue, 0, accuracy: 0.0001)
+        XCTAssertEqual(locations[1].doubleValue, 0.5, accuracy: 0.0001)
+    }
+
+    func testStopOffsetAboveOneClampsToOne() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <linearGradient id="g">
+                    <stop offset="0" stop-color="#ff0000"/>
+                    <stop offset="1.5" stop-color="#0000ff"/>
+                </linearGradient>
+            </defs>
+            <rect width="100" height="100" fill="url(#g)"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let gradient = try XCTUnwrap(findGradientLayer(in: layer))
+        let locations = try XCTUnwrap(gradient.locations)
+        XCTAssertEqual(locations.count, 2)
+        XCTAssertEqual(locations[1].doubleValue, 1, accuracy: 0.0001)
+    }
+
+    func testSingleStopGradientRendersSolid() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <linearGradient id="g">
+                    <stop offset="0" stop-color="#00ff00"/>
+                </linearGradient>
+            </defs>
+            <rect width="100" height="100" fill="url(#g)"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let gradient = try XCTUnwrap(findGradientLayer(in: layer))
+        let locations = try XCTUnwrap(gradient.locations)
+        XCTAssertEqual(locations.count, 2)
+        XCTAssertEqual(gradient.colors?.count, 2)
+    }
 }

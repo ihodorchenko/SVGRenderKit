@@ -27,12 +27,16 @@ open class SVGLinearGradientTag: SVGBaseGradient {
             return f.offset < s.offset
         }
         for stop in stops {
-            if stop.offset >= 0 {
-                locations.append(CGFloat(stop.offset))
-            } else {
-                return nil
-            }
+            // SVG 1.1 clamps stop offsets to [0, 1] rather than failing the gradient.
+            let offset = max(0, min(1, stop.offset))
+            locations.append(CGFloat(offset))
             colors.append(stop.stop_color.cgColor)
+        }
+        // A single stop renders as a solid color; duplicate it so CAGradientLayer
+        // has a valid two-stop gradient.
+        if colors.count == 1 {
+            colors.append(colors[0])
+            locations.append(1)
         }
         let spread = spreadAdjusted(colors: colors, locations: locations)
         colors = spread.colors
