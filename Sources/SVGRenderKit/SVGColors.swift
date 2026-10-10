@@ -78,6 +78,7 @@ public class SVGColors {
 
 
         var _rgbString = rgbString.removeSpaces()
+        guard _rgbString.hasPrefix("rgb("), _rgbString.hasSuffix(")"), _rgbString.count >= 5 else { return nil }
         _rgbString.removeFirst("rgb(".count)
         _rgbString.removeLast()
         let arr = _rgbString.split(separator: ",")
@@ -97,6 +98,7 @@ public class SVGColors {
 
 
         var _rgbString = rgbaString.removeSpaces()
+        guard _rgbString.hasPrefix("rgba("), _rgbString.hasSuffix(")"), _rgbString.count >= 6 else { return nil }
         _rgbString.removeFirst("rgba(".count)
         _rgbString.removeLast()
         let arr = _rgbString.split(separator: ",")
@@ -115,6 +117,7 @@ public class SVGColors {
     /// - returns: The parsed color, or `nil` if the string is malformed.
     public class func getColor(argbString: String, alpha _alpha: CGFloat? = nil) -> UIColor? {
         var _rgbString = argbString.removeSpaces()
+        guard _rgbString.hasPrefix("argb("), _rgbString.hasSuffix(")"), _rgbString.count >= 6 else { return nil }
         _rgbString.removeFirst("argb(".count)
         _rgbString.removeLast()
         let arr = _rgbString.split(separator: ",")

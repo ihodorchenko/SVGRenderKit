@@ -84,6 +84,25 @@ final class SVGColorsTests: XCTestCase {
         assertColor(color, red: 1, green: 0, blue: 0, alpha: 1)
     }
 
+    func testMalformedRGBDoesNotCrash() {
+        XCTAssertNil(SVGColors.getColor(rgbString: "rgb"))
+        XCTAssertNil(SVGColors.getColor(rgbString: "rgb("))
+        XCTAssertNil(SVGColors.getColor(rgbString: "rgb()"))
+        XCTAssertNil(SVGColors.getColor(rgbString: "rgb(1,2)"))
+    }
+
+    func testMalformedRGBADoesNotCrash() {
+        XCTAssertNil(SVGColors.getColor(rgbaString: "rgba"))
+        XCTAssertNil(SVGColors.getColor(rgbaString: "rgba("))
+        XCTAssertNil(SVGColors.getColor(rgbaString: "rgba()"))
+    }
+
+    func testMalformedARGBDoesNotCrash() {
+        XCTAssertNil(SVGColors.getColor(argbString: "argb"))
+        XCTAssertNil(SVGColors.getColor(argbString: "argb("))
+        XCTAssertNil(SVGColors.getColor(argbString: "argb()"))
+    }
+
     // MARK: - Named colors
 
     func testNamedColors() {
