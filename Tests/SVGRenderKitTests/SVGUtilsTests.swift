@@ -26,6 +26,43 @@ final class SVGUtilsTests: XCTestCase {
         // The implementation returns an uppercase hex digest.
         XCTAssertEqual(SVGUtils.md5("hello"), "5D41402ABC4B2A76B9719D911017C592")
     }
+
+    // MARK: pathEndInfo
+
+    func testPathEndInfoLineTangent() {
+        let path = UIBezierPath()
+        path.move(to: CGPoint(x: 0, y: 0))
+        path.addLine(to: CGPoint(x: 10, y: 0))
+        let info = SVGUtils.pathEndInfo(path: path)
+        XCTAssertEqual(info.point.x, 10, accuracy: 0.001)
+        XCTAssertEqual(info.point.y, 0, accuracy: 0.001)
+        XCTAssertEqual(info.tangent.x, 10, accuracy: 0.001)
+        XCTAssertEqual(info.tangent.y, 0, accuracy: 0.001)
+    }
+
+    func testPathEndInfoCubicCurveTangentUsesLastControlPoint() {
+        let path = UIBezierPath()
+        path.move(to: CGPoint(x: 0, y: 0))
+        path.addCurve(to: CGPoint(x: 10, y: 0), controlPoint1: CGPoint(x: 0, y: 10), controlPoint2: CGPoint(x: 10, y: 10))
+        let info = SVGUtils.pathEndInfo(path: path)
+        XCTAssertEqual(info.point.x, 10, accuracy: 0.001)
+        XCTAssertEqual(info.point.y, 0, accuracy: 0.001)
+        // Tangent = end - control2 = (10,0) - (10,10) = (0,-10)
+        XCTAssertEqual(info.tangent.x, 0, accuracy: 0.001)
+        XCTAssertEqual(info.tangent.y, -10, accuracy: 0.001)
+    }
+
+    func testPathEndInfoQuadCurveTangentUsesControlPoint() {
+        let path = UIBezierPath()
+        path.move(to: CGPoint(x: 0, y: 0))
+        path.addQuadCurve(to: CGPoint(x: 10, y: 0), controlPoint: CGPoint(x: 10, y: 10))
+        let info = SVGUtils.pathEndInfo(path: path)
+        XCTAssertEqual(info.point.x, 10, accuracy: 0.001)
+        XCTAssertEqual(info.point.y, 0, accuracy: 0.001)
+        // Tangent = end - control = (10,0) - (10,10) = (0,-10)
+        XCTAssertEqual(info.tangent.x, 0, accuracy: 0.001)
+        XCTAssertEqual(info.tangent.y, -10, accuracy: 0.001)
+    }
 }
 
 final class MD5Tests: XCTestCase {

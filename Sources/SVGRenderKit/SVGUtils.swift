@@ -44,10 +44,12 @@ open class SVGUtils {
                 prev = last
                 last = pts[0]
             case .addQuadCurveToPoint:
-                prev = last
+                // Tangent at the end of a quadratic is end - control.
+                prev = pts[0]
                 last = pts[1]
             case .addCurveToPoint:
-                prev = last
+                // Tangent at the end of a cubic is end - controlPoint2.
+                prev = pts[1]
                 last = pts[2]
             case .closeSubpath:
                 prev = last

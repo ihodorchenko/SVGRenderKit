@@ -613,10 +613,13 @@ extension SVGSourceStyleElement {
         let markerLayer = try marker.createLayer(overrideElements: overrideElements)
         let info = SVGUtils.pathEndInfo(path: path)
         let angle = atan2(info.tangent.y, info.tangent.x)
+        // Build translate(point) · rotate(angle) · translate(-ref) so the marker's
+        // reference point lands on the path endpoint and is rotated to the tangent.
+        // CATransform3DTranslate/Rotate post-multiply, hence this construction order.
         var t = CATransform3DIdentity
-        t = CATransform3DTranslate(t, -marker.refX, -marker.refY, 0)
-        t = CATransform3DRotate(t, angle, 0, 0, 1)
         t = CATransform3DTranslate(t, info.point.x, info.point.y, 0)
+        t = CATransform3DRotate(t, angle, 0, 0, 1)
+        t = CATransform3DTranslate(t, -marker.refX, -marker.refY, 0)
         markerLayer.transform = t
         mainLayer.addSublayer(markerLayer)
     }
