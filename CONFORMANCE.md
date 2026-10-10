@@ -1,172 +1,137 @@
-# SVG Standards Conformance
+# SVG Conformance & Icon Profile
 
-This document describes how much of the three main SVG standards
-**SVGRenderKit** implements, and which one it is closest to.
+> **SVGRenderKit is an icon renderer, not a browser.** Its contract is a
+> documented **Icon Profile** — the subset of SVG that real icon sets actually
+> use — rather than formal conformance to any full W3C standard.
 
-> **Important:** these figures are *qualitative estimates* based on feature
-> coverage in the source tree, **not** the result of running the official W3C
-> SVG conformance test suites. Use them for orientation, not as a formal
-> conformance claim.
+## Guiding principles
 
-The three standards compared here are:
+1. **Target = real icon sets, not the W3C test suite.** The goal is to render
+   the SVG produced by icon sets (Feather, Lucide, Material, Font Awesome,
+   Tabler, Heroicons, …) and by Figma / Sketch / Illustrator exports correctly.
+2. **Measure by golden images, not by a conformance percentage.** "~40 % of
+   SVG 1.1" is not a useful number here: most of the remaining 60 % never
+   appears in icons. Correctness = N icon sets render pixel-accurately.
+3. **Degrade gracefully.** Unknown elements, attributes, and CSS are skipped;
+   they never fail parsing or rendering. Not breaking on real-world files is
+   more valuable than strict conformance.
 
-1. **SVG 1.1 (Full)** — W3C Recommendation (2003, 2nd ed. 2011).
-2. **SVG Tiny 1.2** — W3C Recommendation (2008), the mobile/embedded profile.
-3. **SVG 2.0** — W3C Candidate Recommendation (2018), the modern revision.
-
-## Summary
-
-| Standard | Coverage | Notes |
-|---|---|---|
-| **SVG 1.1 (Full)** | **~40 %** (35–45 %) | Covers the core: geometry, paths, gradients, `clipPath`, basic text. Missing `filter`, `mask`, `pattern`, `marker`, `symbol`, animation, scripting, advanced text, and many stroke/CSS attributes. |
-| **SVG Tiny 1.2** | **~60 %** (55–65 %) | The element set overlaps well (Tiny dropped `filter`/`mask`/`pattern`/`marker`/`symbol`). Missing Tiny's mandatory SMIL animation, multimedia, `solidColor`, and the Tiny text model. |
-| **SVG 2.0** | **~25 %** (20–30 %) | The SVG 1.1 core geometry is present, but almost all SVG 2.0 additions are absent (mesh gradients, `vector-effect`, blending, `transform-origin`, geometry-as-CSS, etc.). |
-
-## Closest standard
-
-**SVG Tiny 1.2** is the closest *in profile philosophy and element overlap*,
-because Tiny 1.2 removes exactly the "heavy" features SVGRenderKit also lacks
-(`filter`, `mask`, `pattern`, `marker`, `symbol`). However, SVGRenderKit is not
-conformant to any of the three standards: it is best described as a
-**pragmatic subset of SVG 1.1 that resembles the Tiny profile**.
-
-- Tiny 1.2 *requires* SMIL animation and multimedia — not implemented here.
-- Tiny 1.2 has its own text model (`textArea`, `tbreak`, `text-align`) — not
-  implemented here; text uses the SVG 1.1 model (single `CATextLayer`).
-- Several SVG 1.1 *Basic/Tiny* features are implemented, so it also maps well
-  onto the SVG 1.1 Tiny profile.
-
-## Target standard
-
-**SVG 1.1 is the target standard.** Conformance work is scoped to SVG 1.1
-features first. SVG Tiny 1.2 and SVG 2.0 are tracked for reference only; their
-specific additions (Tiny's `textArea`/`solidColor`/mandatory animation; 2.0's
-`vector-effect`/`transform-origin`/mesh gradients) are out of scope for now.
-
-> Note the distinction: **"closest profile"** (above) describes the current
-> element overlap, while **"target"** describes what the project aims to
-> conform to going forward. These differ — SVGRenderKit is closest to Tiny 1.2
-> today, but SVG 1.1 is the direction of travel.
-
-## Implemented features
+## The Icon Profile (contract)
 
 ### Elements
 
 | Element | Status |
 |---|---|
-| `<svg>` | ✅ root only |
-| `<g>` | ✅ |
-| `<defs>` | ✅ |
+| `<svg>` | ✅ root (`viewBox`/`width`/`height`/`preserveAspectRatio`) |
+| `<g>`, `<defs>` | ✅ |
 | `<use>` | ✅ local `#ref`, incl. `<symbol>` with `viewBox` |
 | `<clipPath>` | ✅ |
 | `<mask>` | ✅ alpha masking |
 | `<pattern>` | ✅ tiled fill |
-| `<marker>` | ✅ `marker-end` |
+| `<marker>` | ✅ `marker-end` (`auto` orientation) |
 | `<symbol>` | ✅ instantiated via `<use>` |
-| `<path>` | ✅ |
-| `<rect>` | ✅ |
-| `<circle>` | ✅ |
-| `<ellipse>` | ✅ |
-| `<line>` | ✅ |
-| `<polyline>` | ✅ |
-| `<polygon>` | ✅ |
-| `<text>` | ✅ `text-anchor` + multi-line `<tspan>` |
-| `<linearGradient>` | ✅ |
-| `<radialGradient>` | ✅ |
-| `<stop>` | ✅ (`stop-color`, `stop-opacity`, `offset`) |
-| `<style>` | ✅ (id / class / tag selectors) |
+| `<path>`, `<rect>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>` | ✅ |
+| `<linearGradient>`, `<radialGradient>`, `<stop>` | ✅ (`stop-color`, `stop-opacity`, `offset`) |
+| `<text>`, `<tspan>` | ✅ `text-anchor`, multi-line `<tspan>` |
+| `<style>` | ✅ id / class / tag selectors |
 | `<filter>` | ✅ `feGaussianBlur` + `feDropShadow` |
-| `<image>`, `<switch>`, `<a>`, `<foreignObject>`, `<font>` | ❌ |
-| `<animate>`, `<animateTransform>`, `<set>` (SMIL) | ✅ `from`/`to`/`values`/`keyTimes`/`repeatCount`/`begin` |
-| `<script>`, `<cursor>`, `<solidColor>`, `<textPath>` | ❌ |
+| `<animate>`, `<animateTransform>`, `<set>` | ✅ SMIL subset (see below) |
+| `<image>`, `<switch>`, `<a>`, `<foreignObject>`, `<font>` | ❌ out of scope |
+| `<textPath>`, `<script>`, `<cursor>`, `<solidColor>` | ❌ out of scope |
 
-### Path data commands
+### Path data
 
-All commands are implemented, including elliptical arcs:
+All path commands are supported, including elliptical arcs:
 
 `M/m L/l H/h V/v C/c S/s Q/q T/t A/a Z/z` ✅
 
-### Properties / attributes
+### Properties
 
 | Property | Status |
 |---|---|
 | `viewBox`, `width`, `height` | ✅ (`px`, `%`) |
-| `version`, `baseProfile` | ✅ parsed (stored for multi-profile) |
-| `fill` | ✅ color, `none`, gradient/pattern `url(#…)` |
+| `preserveAspectRatio` | ✅ `meet`/`slice`, all aligns, `none` |
+| `version`, `baseProfile` | ✅ parsed (stored) |
+| `fill` | ✅ color, `none`, `url(#gradient/#pattern)` |
 | `fill-rule` | ✅ `nonzero` / `evenodd` |
 | `fill-opacity` | ✅ |
 | `stroke` | ✅ color, `none` |
 | `stroke-width` | ✅ (`px`, `%`) |
 | `stroke-opacity` | ✅ |
+| `stroke-linecap`, `stroke-linejoin`, `stroke-miterlimit` | ✅ |
+| `stroke-dasharray`, `stroke-dashoffset` | ✅ |
 | `opacity` | ✅ |
-| `clip-path` | ✅ local `url(#…)` |
-| `clip-rule` | ✅ `nonzero` / `evenodd` |
+| `clip-path` / `clip-rule` | ✅ local `url(#…)` |
 | `mask` | ✅ local `url(#…)` |
 | `transform` | ✅ `matrix`, `translate`, `rotate`, `scale`, `skewX`, `skewY` |
 | `gradientTransform`, `gradientUnits`, `spreadMethod` | ✅ |
-| `xlink:href` / `href` inheritance | ✅ (both spellings) |
+| `xlink:href` / `href` inheritance | ✅ |
 | `display` | ✅ `inline` / `block` / `none` |
-| `font-family`, `font-style`, `font-weight`, `font-size` | ✅ (`px` / `%` / `em`) |
-| `preserveAspectRatio` | ✅ `meet`/`slice` + all aligns, `none` |
-| `stroke-linecap`, `stroke-linejoin`, `stroke-miterlimit` | ✅ |
-| `stroke-dasharray`, `stroke-dashoffset` | ✅ |
 | `currentColor` | ✅ resolved via `color` |
-| `color`, `paint-order`, `vector-effect` | ❌ |
-| `filter` | ✅ `feGaussianBlur` + `feDropShadow` |
-| `marker-start`/`marker-mid`/`marker-end` | ⚠️ `marker-end` applied |
+| `font-family`, `font-style`, `font-weight`, `font-size` | ✅ (`px` / `%` / `em`) |
+| `marker-end` | ✅ |
+| `marker-start`, `marker-mid` | ⚠️ parsed, not rendered |
+| `color`, `paint-order`, `vector-effect` | ❌ out of scope |
 
 ### CSS
 
-- Inline `style="…"` attribute ✅
-- `style` *element* blocks (`<style>` tag) ✅ with id / class / tag selectors
-- `<style>` pseudo-classes, `@media`, cascade/`!important`, computed values ❌
+- Inline `style="…"` ✅
+- `<style>` blocks with id / class / tag selectors ✅
+- Cascade, specificity, `inherit` resolution, descendant/combinator selectors,
+  pseudo-classes, `@media`, `@font-face` ❌ out of scope
 
-## Limitations (why it is not 100 % on any standard)
+### Animation (SMIL subset)
 
-- `<filter>` subset only: `feGaussianBlur` + `feDropShadow`.
-- `marker-start`/`marker-mid` parsed but not rendered; `orient` uses the tangent (`auto`).
-- SMIL animation: no event-based `begin`, `to`-only, `additive`/`accumulate`, or `calcMode`; no scripting.
-- No `<textPath>`; text uses `<tspan>` with absolute `x`/`y` or `dx`/`dy`.
-- External `url(...)` resources are not loaded.
-- Almost all SVG 2.0 additions are absent (see below).
+- `animate` (`opacity`/`fill`/`stroke`), `animateTransform`
+  (`rotate`/`translate`/`scale`), `set` ✅
+- `from`/`to`, `values`, `keyTimes`, `repeatCount`, `begin` ✅
+- Event-based `begin`, `to`-only, `additive`/`accumulate`, `calcMode`,
+  `fill="freeze"` ❌ out of scope
 
-## Improvement roadmap — targeting SVG 1.1
+## Explicitly out of scope (browser features)
 
-Ordered by expected **coverage gain per effort** against SVG 1.1 — the top
-items are cheap and unlock a large share of real-world SVG 1.1 content.
+- Scripting, DOM, and events.
+- External resource loading (`url(...)` to the network).
+- `<image>`, `<switch>`, `<a>`, `<foreignObject>`, `<font>`, `<solidColor>`, `<cursor>`.
+- Full text model: `textPath`, per-glyph `x`/`y` lists,
+  `alignment-baseline`/`dominant-baseline`, `textLength`/`lengthAdjust`.
+- CSS cascade: specificity, `inherit` resolution, combinators, `!important`,
+  `@media`, `@font-face`.
+- Nested `<svg>` viewports.
+- `paint-order`, `color`, `vector-effect`.
+- Full SMIL engine (event `begin`, `additive`/`accumulate`, `calcMode`, `fill="freeze"`).
+- Length units beyond `px`/`%` (and `em` for `font-size`):
+  `pt`/`pc`/`cm`/`mm`/`in`/`ex`/`rem`/`ch`/`vw`/`vh`/`vmin`/`vmax`.
 
-| # | Feature | Effort | SVG 1.1 area |
-|---|---|---|---|
-| 1 | ✅ `preserveAspectRatio` (`meet`/`slice`, `xMidYMid`, …) | Low | Viewport / layout |
-| 2 | ✅ `stroke-linecap`, `stroke-linejoin`, `stroke-miterlimit` | Low | Painting |
-| 3 | ✅ `stroke-dasharray`, `stroke-dashoffset` | Low | Painting |
-| 4 | ✅ `currentColor` resolution | Medium | Painting |
-| 5 | ✅ `clip-rule` wiring | Low | Clipping |
-| 6 | ✅ `<symbol>` + `<use>` with `viewBox`/`width`/`height` | Medium-High | Structure |
-| 7 | ✅ `text-anchor` + multi-line `<tspan>` | Medium | Text |
-| 8 | ✅ `<mask>` | Medium | Compositing |
-| 9 | ✅ gradient `spreadMethod` (`pad`/`reflect`/`repeat`) | Medium | Gradients |
-| 10 | ✅ `<pattern>` | High | Painting |
-| 11 | ✅ `<marker>` (arrowheads) | High | Painting |
-| 12 | ✅ `<filter>` subset (`feGaussianBlur`, `feDropShadow`) | High | Filters |
-| 13 | ✅ SMIL animation | Very High | Animation |
+## Degradation policy
 
-### Why this order
+- Unknown elements are skipped (not errors).
+- Unknown attributes and properties are ignored.
+- Malformed values on non-essential attributes are ignored; malformed
+  *geometry* fails loudly (it is a content bug).
+- The goal is to render as much of a real-world file as possible and never crash.
 
-- **Tier 1 (#1–5)** is the highest ROI: `CAShapeLayer` already exposes
-  `lineCap`, `lineJoin`, `miterLimit`, `lineDashPattern`, `lineDashPhase`, so
-  most of these are one-line mappings. `currentColor` dominates icon sets
-  (Feather, Material, Lucide), and `clip-rule` only needs wiring an existing
-  enum into the mask path.
-- **Tier 2 (#6–9)** unlocks sprite sheets and shaded artwork exported from
-  Illustrator/Figma, which currently relies on `clipPath` + gradients but
-  often also on `symbol`/`mask`/`spreadMethod`.
-- **Tier 3 (#10–13)** rounds out SVG 1.1 coverage but is expensive; `<filter>`
-  can be staged as a small, common subset first.
+## Relationship to the standards (reference)
 
-### Explicitly out of scope (for now)
+| Standard | Notes |
+|---|---|
+| **SVG 1.1 (Full)** | The Icon Profile is a subset of SVG 1.1. Coverage is high for the features icons use; the rest (text, filters, scripting, CSS) is intentionally omitted. |
+| **SVG Tiny 1.2** | Closest in *philosophy* (drops `filter`/`mask`/`pattern`/`marker`/`symbol`), but Tiny *mandates* SMIL animation and has its own text model — neither is adopted here. |
+| **SVG 2.0** | Almost entirely out of scope; tracked only for reference (`vector-effect`, `paint-order`, mesh gradients, geometry-as-CSS). |
 
-- **SVG Tiny 1.2** additions: `textArea`/`tbreak`, `solidColor`, mandatory
-  SMIL animation, `handler`/`listener`.
-- **SVG 2.0** additions: `vector-effect`, `transform-origin`, mesh gradients,
-  `paint-order`, geometry-as-CSS.
+> These standards are for orientation only. SVGRenderKit does not claim formal
+> conformance to any of them — it implements the **Icon Profile** above.
+
+## How conformance is measured
+
+Conformance to the Icon Profile is measured by **golden-image / snapshot tests**
+over real icon sets, not by the W3C SVG test suite:
+
+- A test fixture bundles a corpus of real icons (Feather, Lucide, Material,
+  Tabler, and Figma / Sketch / Illustrator exports).
+- Each icon is rendered off-screen and compared to a reference PNG (per-pixel
+  tolerance, multiple `scale` factors: 1x / 2x / 3x).
+- The pass metric is "icon sets that render pixel-accurately", tracked in CI.
+- New icons that fail are triaged as either bugs or new profile features.
+
+See `Task.md` (Phase 9) for the concrete work items.
