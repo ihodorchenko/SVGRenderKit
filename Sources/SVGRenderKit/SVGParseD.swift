@@ -78,19 +78,19 @@ internal class HorizontalLineTo: PathCommand {
     }
 
     override func execute(forPath: UIBezierPath, previousCommand: PathCommand? = nil) -> SVGError? {
-        if numberOfRequiredParameters != parameters.count {
-            return SVGError.parseError(text: "HorizontalLineTo: parameters.count (\(parameters.count) != \(numberOfRequiredParameters))")
+        guard self.parameters.count > 0 else {
+            return SVGError.parseError(text: "HorizontalLineTo: parameters.count == 0")
         }
 
-        let x = self.parameters[0]
-        let point: CGPoint
-        if self.pathType == PathType.absolute {
-            point = CGPoint(x: x, y: forPath.currentPoint.y)
-        } else {
-            point = CGPoint(x: forPath.currentPoint.x + x, y: forPath.currentPoint.y)
+        for x in self.parameters {
+            let point: CGPoint
+            if self.pathType == PathType.absolute {
+                point = CGPoint(x: x, y: forPath.currentPoint.y)
+            } else {
+                point = CGPoint(x: forPath.currentPoint.x + x, y: forPath.currentPoint.y)
+            }
+            forPath.addLine(to: point)
         }
-
-        forPath.addLine(to: point)
         return nil
     }
 }
@@ -104,18 +104,19 @@ internal class VerticalLineTo: PathCommand {
     }
 
     override func execute(forPath: UIBezierPath, previousCommand: PathCommand? = nil) -> SVGError? {
-        if numberOfRequiredParameters != parameters.count {
-            return SVGError.parseError(text: "VerticalLineTo: parameters.count (\(parameters.count) != (numberOfRequiredParameters))")
-        }
-        let y = self.parameters[0]
-        let point: CGPoint
-        if self.pathType == PathType.absolute {
-            point = CGPoint(x: forPath.currentPoint.x, y: y)
-        } else {
-            point = CGPoint(x: forPath.currentPoint.x, y: forPath.currentPoint.y + y)
+        guard self.parameters.count > 0 else {
+            return SVGError.parseError(text: "VerticalLineTo: parameters.count == 0")
         }
 
-        forPath.addLine(to: point)
+        for y in self.parameters {
+            let point: CGPoint
+            if self.pathType == PathType.absolute {
+                point = CGPoint(x: forPath.currentPoint.x, y: y)
+            } else {
+                point = CGPoint(x: forPath.currentPoint.x, y: forPath.currentPoint.y + y)
+            }
+            forPath.addLine(to: point)
+        }
         return nil
     }
 }
@@ -320,6 +321,10 @@ internal class QuadraticCurveTo: PathCommand {
 
 internal class SmoothQuadraticCurveTo: PathCommand {
 
+    /// The absolute control point of the most recently emitted segment, used to
+    /// reflect it when the following command is another `T`/`t`.
+    var lastReflectedControlPoint: CGPoint?
+
     override var numberOfRequiredParameters: Int {
         get {
             return 2
@@ -327,33 +332,62 @@ internal class SmoothQuadraticCurveTo: PathCommand {
     }
 
     override func execute(forPath: UIBezierPath, previousCommand: PathCommand? = nil) -> SVGError? {
-        if numberOfRequiredParameters != parameters.count {
-            return SVGError.parseError(text: "SmoothQuadraticCurveTo: parameters.count (\(parameters.count) != (numberOfRequiredParameters))")
+        guard self.parameters.count > 0 && self.parameters.count % self.numberOfRequiredParameters == 0 else {
+            return SVGError.parseError(text: "SmoothQuadraticCurveTo: parameters.count (\(parameters.count) % (\(numberOfRequiredParameters))")
         }
 
-        if let previousParams = previousCommand?.parameters {
+        let groups = self.getGroups()
+        for index in 0..<groups.count {
+            let group = groups[index]
+            let currentPoint = forPath.currentPoint
 
-            let point = self.pointForPathType(CGPoint(x: self.parameters[0], y: self.parameters[1]))
-            var controlPoint = forPath.currentPoint
-
-            if let previousChar = previousCommand?.character {
-                let currentPoint = forPath.currentPoint
-
-                if previousChar == "Q" {
-                    controlPoint = CGPoint(x: (2.0 * currentPoint.x) - previousParams[0], y: (2.0 * currentPoint.y) - previousParams[1])
-                } else {
-                    let oldCurrentPoint = CGPoint(x: currentPoint.x - previousParams[2], y: currentPoint.y - previousParams[3])
-                    controlPoint = CGPoint(x: (2.0 * currentPoint.x) - (previousParams[0] + oldCurrentPoint.x), y: (2.0 * currentPoint.y) - (previousParams[1] + oldCurrentPoint.y))
-                }
-            } else {
-                return SVGError.parseError(text: "Must supply previous command for SmoothQuadraticCurveTo")
+            let point: CGPoint
+            switch self.pathType {
+            case .absolute:
+                point = CGPoint(x: group[0], y: group[1])
+            case .relative:
+                point = CGPoint(x: currentPoint.x + group[0], y: currentPoint.y + group[1])
             }
 
-            forPath.addQuadCurve(to: point, controlPoint: controlPoint)
+            let previousControl: CGPoint?
+            if index == 0 {
+                previousControl = SmoothQuadraticCurveTo.previousControlPoint(
+                    for: previousCommand, currentPoint: currentPoint)
+            } else {
+                previousControl = self.lastReflectedControlPoint
+            }
 
-        } else {
-            return SVGError.parseError(text: "Must supply previous parameters for SmoothQuadraticCurveTo")
+            // Reflect the previous control point across the current point. When
+            // there is no meaningful previous control point (first segment with
+            // no Q/q/T/t before it), the control point is coincident with the
+            // current point, per SVG 1.1 §8.3.3.
+            let controlPoint = CGPoint(
+                x: (2.0 * currentPoint.x) - (previousControl?.x ?? currentPoint.x),
+                y: (2.0 * currentPoint.y) - (previousControl?.y ?? currentPoint.y))
+
+            forPath.addQuadCurve(to: point, controlPoint: controlPoint)
+            self.lastReflectedControlPoint = controlPoint
         }
         return nil
+    }
+
+    private static func previousControlPoint(for previousCommand: PathCommand?, currentPoint: CGPoint) -> CGPoint? {
+        guard let previousCommand = previousCommand,
+              let previousChar = previousCommand.character else {
+            return nil
+        }
+        switch previousChar {
+        case "Q":
+            guard let params = previousCommand.getGroups().last, params.count >= 2 else { return nil }
+            return CGPoint(x: params[0], y: params[1])
+        case "q":
+            guard let params = previousCommand.getGroups().last, params.count >= 4 else { return nil }
+            let start = CGPoint(x: currentPoint.x - params[2], y: currentPoint.y - params[3])
+            return CGPoint(x: start.x + params[0], y: start.y + params[1])
+        case "T", "t":
+            return (previousCommand as? SmoothQuadraticCurveTo)?.lastReflectedControlPoint
+        default:
+            return nil
+        }
     }
 }

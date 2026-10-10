@@ -286,6 +286,8 @@ public class SVGParseString {
             return SeparatorCharacter(character: " ")
         case ",":
             return SeparatorCharacter(character: ",")
+        case "\n", "\t", "\r", "\u{0B}", "\u{0C}":
+            return SeparatorCharacter(character: char)
         default:
             return nil
         }
