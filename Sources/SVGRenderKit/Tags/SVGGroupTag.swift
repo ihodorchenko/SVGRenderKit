@@ -46,6 +46,10 @@ extension SVGGTag: SVGRendering {
             mainLayer.transform = transform
         }
 
+        for anim in animations {
+            anim.apply(to: mainLayer, pathLayer: nil)
+        }
+
         return mainLayer
     }
 }

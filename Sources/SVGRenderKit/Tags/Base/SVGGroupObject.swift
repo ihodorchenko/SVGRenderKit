@@ -18,6 +18,8 @@ open class SVGGroupObject: SVGChildObject, SVGGroupProtocol {
     var sourceStyle: SVGSourceStyleElement?
     var styleTag: SVGStyleTag?
 
+    var animations: [SVGAnimation] = []
+
     /// Initializes a group object from its XML element, parsing its children.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
@@ -32,6 +34,7 @@ open class SVGGroupObject: SVGChildObject, SVGGroupProtocol {
         if let str = attributeDict["transform"] {
             transform = try SVGTransform.get(string: str)
         }
+        self.animations = SVGAnimation.parse(children: xmlElement.xmlChildren)
         
         for children in xmlElement.xmlChildren {
             try parse(children: children)

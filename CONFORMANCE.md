@@ -77,7 +77,7 @@ specific additions (Tiny's `textArea`/`solidColor`/mandatory animation; 2.0's
 | `<style>` | ✅ (id / class / tag selectors) |
 | `<filter>` | ✅ `feGaussianBlur` + `feDropShadow` |
 | `<image>`, `<switch>`, `<a>`, `<foreignObject>`, `<font>` | ❌ |
-| `<animate>`, `<set>`, `<animateTransform>`, etc. (SMIL) | ❌ |
+| `<animate>`, `<animateTransform>` (SMIL) | ⚠️ first pass: `from`/`to`/`dur` |
 | `<script>`, `<cursor>`, `<solidColor>`, `<textPath>` | ❌ |
 
 ### Path data commands
@@ -125,7 +125,7 @@ All commands are implemented, including elliptical arcs:
 
 - `<filter>` subset only: `feGaussianBlur` + `feDropShadow`.
 - `marker-start`/`marker-mid` parsed but not rendered; `orient` uses the tangent (`auto`).
-- No SMIL animation or scripting.
+- SMIL animation: first pass only (`animate`/`animateTransform`, `from`/`to`/`dur`); no scripting.
 - No `<textPath>`; text uses `<tspan>` with absolute `x`/`y` or `dx`/`dy`.
 - External `url(...)` resources are not loaded.
 - Almost all SVG 2.0 additions are absent (see below).
@@ -149,7 +149,7 @@ items are cheap and unlock a large share of real-world SVG 1.1 content.
 | 10 | ✅ `<pattern>` | High | Painting |
 | 11 | ✅ `<marker>` (arrowheads) | High | Painting |
 | 12 | ✅ `<filter>` subset (`feGaussianBlur`, `feDropShadow`) | High | Filters |
-| 13 | SMIL animation | Very High | Animation |
+| 13 | ⚠️ SMIL animation (first pass) | Very High | Animation |
 
 ### Why this order
 

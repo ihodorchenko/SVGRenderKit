@@ -11,6 +11,8 @@ open class SVGShapeObject: SVGObject, SVGRendering {
 
     weak var lastLayer: CALayer?
 
+    var animations: [SVGAnimation] = []
+
     /// Initializes a shape object from an XML element and its parent shapes container.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         self.parent = parent
@@ -27,6 +29,7 @@ open class SVGShapeObject: SVGObject, SVGRendering {
         if let str = attributeDict["transform"] {
             transform = try SVGTransform.get(string: str)
         }
+        self.animations = SVGAnimation.parse(children: xmlElement.xmlChildren)
     }
 
     /// Builds and returns the `CALayer` that renders this shape's path with the combined styles applied.
@@ -59,6 +62,10 @@ open class SVGShapeObject: SVGObject, SVGRendering {
 
         if let transform = transform {
             mainLayer.transform = transform
+        }
+
+        for anim in animations {
+            anim.apply(to: mainLayer, pathLayer: pathLayer)
         }
 
         self.lastLayer = mainLayer
