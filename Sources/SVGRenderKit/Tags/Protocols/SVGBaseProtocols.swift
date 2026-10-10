@@ -39,6 +39,9 @@ public protocol SVGShapesContainer {
 
     /// Returns the marker matching the key, optionally searching parent containers.
     func getMarker(byKey: String, fromParents: Bool) -> SVGMarker?
+
+    /// Returns the filter matching the key, optionally searching parent containers.
+    func getFilter(byKey: String, fromParents: Bool) -> SVGFilter?
 }
 
 extension SVGShapesContainer {

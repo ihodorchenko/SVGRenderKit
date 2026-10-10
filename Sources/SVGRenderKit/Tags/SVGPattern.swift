@@ -139,6 +139,10 @@ extension SVGPattern: SVGShapesContainer {
         return nil
     }
 
+    public func getFilter(byKey: String, fromParents: Bool) -> SVGFilter? {
+        return nil
+    }
+
     public func getRendering(byKey: String, fromParents: Bool) -> SVGRendering? {
         return parent.getRendering(byKey: byKey, fromParents: true)
     }

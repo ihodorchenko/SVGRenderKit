@@ -89,6 +89,10 @@ extension SVGGroupObject {
             let marker: SVGMarker = try SVGMarker(xmlElement: children, parent: self)
             try self.add(markers: [marker])
             break
+        case SVGFilter.key:
+            let filter: SVGFilter = try SVGFilter(xmlElement: children, parent: self)
+            try self.add(filters: [filter])
+            break
         default:
             if let shapeTag = try SVGShapeObject.create(xml: children, parent: self) {
                 try self.add(shapes: [shapeTag])
@@ -191,6 +195,15 @@ extension SVGGroupObject {
         for marker in markers {
             marker.parent = self
             self.all.add(item: marker)
+        }
+    }
+
+    /// Adds the given filters to this group. Filters are registered for lookup
+    /// but are not rendered directly.
+    public func add(filters: [SVGFilter]) throws {
+        for filter in filters {
+            filter.parent = self
+            self.all.add(item: filter)
         }
     }
 
@@ -403,5 +416,18 @@ extension SVGGroupObject {
             return m
         }
         return fromParents ? parent.getMarker(byKey: byKey, fromParents: fromParents) : nil
+    }
+
+    /// Returns the filter matching the key, optionally searching parent groups.
+    public func getFilter(byKey: String, fromParents: Bool) -> SVGFilter? {
+        if let defs = defs {
+            if let f = defs.getFilter(byKey: byKey, fromParents: false) {
+                return f
+            }
+        }
+        if let f = all.get(key: byKey) as? SVGFilter {
+            return f
+        }
+        return fromParents ? parent.getFilter(byKey: byKey, fromParents: fromParents) : nil
     }
 }

@@ -292,6 +292,11 @@ extension SVGRoot: SVGGroupProtocol {
         return nil
     }
 
+    /// Looks up a filter by key. The root has no parent elements and returns `nil`.
+    public func getFilter(byKey: String, fromParents: Bool) -> SVGFilter? {
+        return nil
+    }
+
     /// Looks up an object by key. The root has no parent elements and returns `nil`.
     public func getObject(byKey: String, fromParents: Bool) -> SVGObject? {
         return nil

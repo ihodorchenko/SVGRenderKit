@@ -104,6 +104,8 @@ extension SVGMarker: SVGShapesContainer {
     public func getPattern(byKey: String, fromParents: Bool) -> SVGPattern? { return nil }
     public func getMarker(byKey: String, fromParents: Bool) -> SVGMarker? { return nil }
 
+    public func getFilter(byKey: String, fromParents: Bool) -> SVGFilter? { return nil }
+
     public func getRendering(byKey: String, fromParents: Bool) -> SVGRendering? {
         return parent.getRendering(byKey: byKey, fromParents: true)
     }

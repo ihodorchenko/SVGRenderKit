@@ -68,6 +68,9 @@ open class SVGSourceStyleElement {
     /// The marker drawn at the end vertex of the shape.
     open var markerEnd: SVGFuncIRI?
 
+    /// A reference to the filter applied to the element.
+    open var filter: SVGFuncIRI?
+
     var fontFamily: String?
     var fontStyle: SVGFontStyle?
     var fontWeight: Float?
@@ -111,6 +114,7 @@ open class SVGSourceStyleElement {
         if let markerStart = child.markerStart { newElem.markerStart = markerStart }
         if let markerMid = child.markerMid { newElem.markerMid = markerMid }
         if let markerEnd = child.markerEnd { newElem.markerEnd = markerEnd }
+        if let filter = child.filter { newElem.filter = filter }
 
         if let fontFamily = child.fontFamily { newElem.fontFamily = fontFamily }
         if let fontStyle = child.fontStyle { newElem.fontStyle = fontStyle }
@@ -145,6 +149,7 @@ open class SVGSourceStyleElement {
         markerStart = element.markerStart
         markerMid = element.markerMid
         markerEnd = element.markerEnd
+        filter = element.filter
 
         fontFamily = element.fontFamily
         fontStyle = element.fontStyle
@@ -192,6 +197,7 @@ open class SVGSourceStyleElement {
         if let str = attributeDict["marker-start"], !str.isEmpty { try setMarkerStart(str: str) }
         if let str = attributeDict["marker-mid"], !str.isEmpty { try setMarkerMid(str: str) }
         if let str = attributeDict["marker-end"], !str.isEmpty { try setMarkerEnd(str: str) }
+        if let str = attributeDict["filter"], !str.isEmpty { try setFilter(str: str) }
 
         if let str = attributeDict["font-family"], !str.isEmpty { setFontFamily(str: str) }
         if let str = attributeDict["font-style"], !str.isEmpty { try setFontStyle(str: str) }
@@ -346,6 +352,10 @@ open class SVGSourceStyleElement {
 
     func setMarkerEnd(str: String) throws {
         self.markerEnd = try SVGFuncIRI.get(fullStr: str)
+    }
+
+    func setFilter(str: String) throws {
+        self.filter = try SVGFuncIRI.get(fullStr: str)
     }
 
     func setFontFamily(str: String) {
@@ -576,6 +586,19 @@ extension SVGSourceStyleElement {
                 }
             case .web(let url):
                 throw SVGError.content(text: "web marker not supported: \(url)")
+            }
+        }
+
+        if let filter = self.filter {
+            switch filter {
+            case .local(let key):
+                if let filter = group.getFilter(byKey: key, fromParents: true) {
+                    filter.apply(to: mainLayer)
+                } else {
+                    throw SVGError.content(text: "filter not found: \(key)")
+                }
+            case .web(let url):
+                throw SVGError.content(text: "web filter not supported: \(url)")
             }
         }
     }
