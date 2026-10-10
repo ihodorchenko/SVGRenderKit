@@ -316,17 +316,17 @@ extension SVGGroupObject {
         return fromParents ? parent.getRadialGradients(byKey: byKey, fromParents: fromParents) : nil
     }
 
-    /// Resolves the style for a shape by combining inherited, tag, class, id, and override styles.
+    /// Resolves the style for a shape: inherited group styles + `<style>`-block
+    /// selectors (tag/class/id) + override elements.
     public func getStyle(
         forObject: SVGShapeObject,
         overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement
     {
-        var style: SVGSourceStyleElement = self.parent.getStyle(
-            forObject: forObject, overrideElements: overrideElements)
-        if let selfStyle = self.sourceStyle {
-            style = style.combine(child: selfStyle)
-        }
-        func styleTagFunc(styleTag: SVGStyleTag) {
+        var style = inheritedStyle(forObject: forObject, overrideElements: overrideElements)
+
+        // `<style>`-block selectors target the shape itself, so they override
+        // inherited group styles. Applied root→leaf so a nested `<style>` wins.
+        for styleTag in styleTags() {
             if let tagStyle = styleTag.byTagDict[forObject.key] {
                 style = style.combine(child: tagStyle)
             }
@@ -337,25 +337,51 @@ extension SVGGroupObject {
                 style = style.combine(child: idStyle)
             }
         }
-        if let styleTag = self.styleTag {
-            styleTagFunc(styleTag: styleTag)
-        }
-        if let defs = self.defs, let styleTag = defs.styleTag {
-            styleTagFunc(styleTag: styleTag)
-        }
-        if let overrideElements = overrideElements {
-            if let tagElem = overrideElements[self.key] {
-                style = style.combine(child: tagElem)
-            }
-            if let classStr = self.classStr, let idElem = overrideElements[classStr] {
-                style = style.combine(child: idElem)
-            }
-            if let id = self.id, let idElem = overrideElements[id] {
-                style = style.combine(child: idElem)
-            }
-        }
 
         return style
+    }
+
+    /// Walks up the group chain combining inherited group styles (no selectors).
+    private func inheritedStyle(
+        forObject: SVGShapeObject,
+        overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement
+    {
+        var style: SVGSourceStyleElement
+        if let groupParent = parent as? SVGGroupObject {
+            style = groupParent.inheritedStyle(forObject: forObject, overrideElements: overrideElements)
+        } else {
+            style = parent.getStyle(forObject: forObject, overrideElements: overrideElements)
+        }
+        if let selfStyle = sourceStyle {
+            style = style.combine(child: selfStyle)
+        }
+        if let overrideElements = overrideElements {
+            if let tagElem = overrideElements[key] {
+                style = style.combine(child: tagElem)
+            }
+            if let classStr = classStr, let idElem = overrideElements[classStr] {
+                style = style.combine(child: idElem)
+            }
+            if let id = id, let idElem = overrideElements[id] {
+                style = style.combine(child: idElem)
+            }
+        }
+        return style
+    }
+
+    /// Returns the `<style>` blocks in the ancestor chain, root first.
+    private func styleTags() -> [SVGStyleTag] {
+        var tags: [SVGStyleTag] = []
+        if let groupParent = parent as? SVGGroupObject {
+            tags = groupParent.styleTags()
+        }
+        if let styleTag = styleTag {
+            tags.append(styleTag)
+        }
+        if let defs = defs, let styleTag = defs.styleTag {
+            tags.append(styleTag)
+        }
+        return tags
     }
 
     /// Returns the gradient (linear or radial) matching the key, optionally searching parent groups.

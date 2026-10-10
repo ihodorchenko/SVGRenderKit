@@ -60,6 +60,48 @@ final class SVGStylesTests: XCTestCase {
         XCTAssertEqual(shape.miterLimit, 5, accuracy: 0.0001)
     }
 
+    func testStyleClassSelectorOverridesInheritedFill() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <style type="text/css">.st0{fill:#0F754E;}</style>
+            <g fill="none">
+                <path class="st0" d="M0 0 H100 V100 H0 Z"/>
+            </g>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let shape = try XCTUnwrap(findFilledShapeLayer(in: layer))
+        let fill = try XCTUnwrap(shape.fillColor)
+        let color = UIColor(cgColor: fill)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        XCTAssertTrue(color.getRed(&r, green: &g, blue: &b, alpha: &a))
+        XCTAssertEqual(r, 0x0F / 255.0, accuracy: 0.01)
+        XCTAssertEqual(g, 0x75 / 255.0, accuracy: 0.01)
+        XCTAssertEqual(b, 0x4E / 255.0, accuracy: 0.01)
+    }
+
+    func testStyleIdSelectorOverridesClassSelector() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <style type="text/css">.st0{fill:#0F754E;} #main{fill:#FF0000;}</style>
+            <g fill="none">
+                <path id="main" class="st0" d="M0 0 H100 V100 H0 Z"/>
+            </g>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let shape = try XCTUnwrap(findFilledShapeLayer(in: layer))
+        let fill = try XCTUnwrap(shape.fillColor)
+        let color = UIColor(cgColor: fill)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        XCTAssertTrue(color.getRed(&r, green: &g, blue: &b, alpha: &a))
+        XCTAssertEqual(r, 1.0, accuracy: 0.01)
+        XCTAssertEqual(g, 0.0, accuracy: 0.01)
+        XCTAssertEqual(b, 0.0, accuracy: 0.01)
+    }
+
     // MARK: Stroke dash
 
     func testStrokeDasharrayParsed() throws {
