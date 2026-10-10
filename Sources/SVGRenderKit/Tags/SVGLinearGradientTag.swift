@@ -57,7 +57,10 @@ open class SVGLinearGradientTag: SVGBaseGradient {
             newLayer.addSublayer(gradLayer)
 
             gradLayer.masksToBounds = false
-            if viewBox.width > 1, viewBox.height > 1 {
+            // The gradient is set up in `boundsToPoints` (viewBox for user-space,
+            // path bounds for object-bounding-box), so guard on that resolved rect
+            // — not on `viewBox`. A viewBox of 1x1 or smaller must still render.
+            if boundsToPoints.width > 0, boundsToPoints.height > 0 {
                 gradLayer.anchorPoint = CGPoint.zero
                 gradLayer.position = CGPoint.zero
                 gradLayer.mask = localizedMask(maskLayer, origin: boundsToPoints.origin)

@@ -50,6 +50,17 @@ enum ParityFixtures {
             <rect x="40" y="10" width="50" height="30" fill="url(#g)"/>
         </svg>
         """),
+        ParityFixture(name: "gradient-tiny-viewbox", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1">
+            <defs>
+                <linearGradient id="g">
+                    <stop offset="0" stop-color="#ff0000"/>
+                    <stop offset="1" stop-color="#0000ff"/>
+                </linearGradient>
+            </defs>
+            <rect width="1" height="1" fill="url(#g)"/>
+        </svg>
+        """),
         ParityFixture(name: "clip-path", svg: """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <defs>
