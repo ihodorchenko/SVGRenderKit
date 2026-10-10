@@ -73,4 +73,22 @@ final class SVGSymbolTests: XCTestCase {
         """
         XCTAssertThrowsError(try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil))
     }
+
+    func testUseXYAppliedInParentSpace() throws {
+        // `x`/`y` must be applied AFTER the element's own transform, so the
+        // referenced content lands at x=10, not x=20 (scale(2) must not affect it).
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs><rect id="r" width="10" height="10" fill="#000000"/></defs>
+            <use href="#r" x="10" transform="scale(2)"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let transformed = try XCTUnwrap(findTransformedLayer(in: layer))
+        let affine = CATransform3DGetAffineTransform(transformed.transform)
+        let mapped = CGPoint(x: 0, y: 0).applying(affine)
+        XCTAssertEqual(mapped.x, 10, accuracy: 0.001)
+        XCTAssertEqual(mapped.y, 0, accuracy: 0.001)
+    }
 }

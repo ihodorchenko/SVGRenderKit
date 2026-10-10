@@ -72,8 +72,11 @@ open class SVGUseTag: SVGObject, SVGRendering {
                     if let transform = transform {
                         _transform = CATransform3DConcat(transform, _transform)
                     }
+                    // `x`/`y` on `<use>` is a translate applied in the *parent*
+                    // coordinate space, i.e. after the element's own transform.
+                    // CATransform3DConcat(a,b) == a·b, so we post-multiply here.
                     if x != 0 || y != 0 {
-                        _transform = CATransform3DTranslate(_transform, x, y, 0)
+                        _transform = CATransform3DConcat(_transform, CATransform3DMakeTranslation(x, y, 0))
                     }
                     if !CATransform3DIsIdentity(_transform) {
                         layer.transform = _transform
