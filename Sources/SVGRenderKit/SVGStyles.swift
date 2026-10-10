@@ -446,13 +446,13 @@ extension SVGSourceStyleElement {
         case .currentColor:
             let resolvedColor = self.color ?? .black
             if let fillOpacity = fillOpacity {
-                pathLayer.fillColor = resolvedColor.withAlphaComponent(fillOpacity).cgColor
+                pathLayer.fillColor = resolvedColor.withAlphaComponent(resolvedColor.cgColor.alpha * fillOpacity).cgColor
             } else {
                 pathLayer.fillColor = resolvedColor.cgColor
             }
         case .color(let color):
             if let fillOpacity = fillOpacity {
-                pathLayer.fillColor = color.withAlphaComponent(fillOpacity).cgColor
+                pathLayer.fillColor = color.withAlphaComponent(color.cgColor.alpha * fillOpacity).cgColor
             } else {
                 pathLayer.fillColor = color.cgColor
             }
@@ -497,7 +497,7 @@ extension SVGSourceStyleElement {
             case .percent(let value):
                 pathLayer.lineWidth = 1 * value
             }
-            pathLayer.strokeColor = resolvedColor.withAlphaComponent(strokeOpacity).cgColor
+            pathLayer.strokeColor = resolvedColor.withAlphaComponent(resolvedColor.cgColor.alpha * strokeOpacity).cgColor
         case .color(let color):
             switch strokeWidth {
             case .px(let value):
@@ -505,7 +505,7 @@ extension SVGSourceStyleElement {
             case .percent(let value):
                 pathLayer.lineWidth = 1 * value
             }
-            pathLayer.strokeColor = color.withAlphaComponent(strokeOpacity).cgColor
+            pathLayer.strokeColor = color.withAlphaComponent(color.cgColor.alpha * strokeOpacity).cgColor
         case .funcIRI(let iri):
             throw SVGError.content(text: "stroke iri not supported: \(iri)")
         }

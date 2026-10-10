@@ -131,4 +131,29 @@ final class SVGStylesTests: XCTestCase {
         }
         return nil
     }
+
+    private func findFilledShapeLayer(in layer: CALayer) -> CAShapeLayer? {
+        if let shape = layer as? CAShapeLayer, shape.path != nil, shape.fillColor != nil {
+            return shape
+        }
+        for sublayer in layer.sublayers ?? [] {
+            if let found = findFilledShapeLayer(in: sublayer) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    func testFillOpacityMultipliesAlpha() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <rect width="50" height="50" fill="rgba(255,0,0,0.5)" fill-opacity="0.5"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let shape = try XCTUnwrap(findFilledShapeLayer(in: layer))
+        let alpha = try XCTUnwrap(shape.fillColor).alpha
+        XCTAssertEqual(alpha, 0.25, accuracy: 0.01)
+    }
 }
