@@ -23,6 +23,11 @@ enum ParityFixtures {
             <circle cx="50" cy="50" r="25" fill="#ffffff"/>
         </svg>
         """),
+        ParityFixture(name: "rounded-rect-oversized-radius", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <rect x="5" y="5" width="90" height="20" rx="100" ry="100" fill="#e67e22"/>
+        </svg>
+        """),
         ParityFixture(name: "linear-gradient", svg: """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <defs>

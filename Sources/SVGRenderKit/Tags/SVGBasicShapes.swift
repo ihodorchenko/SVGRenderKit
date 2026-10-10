@@ -61,12 +61,63 @@ open class SVGShapeRect: SVGShapeObject {
                 cornerRadii = CGSize(width: ry, height: ry)
             }
             if let cornerRadii = cornerRadii {
-                path = UIBezierPath(roundedRect: CGRect(x: x, y: y, width: width, height: height), byRoundingCorners: UIRectCorner.allCorners, cornerRadii: cornerRadii)
+                path = SVGShapeRect.roundedRectPath(
+                    rect: CGRect(x: x, y: y, width: width, height: height),
+                    rx: cornerRadii.width,
+                    ry: cornerRadii.height)
             } else {
                 path = UIBezierPath(rect: CGRect(x: x, y: y, width: width, height: height))
             }
             self.path = path
         }
+    }
+
+    /// Builds a rounded-rectangle path with true elliptical corners.
+    ///
+    /// `UIBezierPath(roundedRect:byRoundingCorners:cornerRadii:)` collapses an
+    /// oversized or non-square radius into a single circular radius, but SVG clamps
+    /// `rx`/`ry` independently (to half width / half height) and draws elliptical
+    /// corners. Each 90° corner is approximated with a cubic Bézier using the
+    /// standard circle constant κ ≈ 0.5523, which is accurate to well under a pixel.
+    private static func roundedRectPath(rect: CGRect, rx: CGFloat, ry: CGFloat) -> UIBezierPath {
+        let rx = min(max(0, rx), rect.width / 2)
+        let ry = min(max(0, ry), rect.height / 2)
+        guard rx > 0, ry > 0 else { return UIBezierPath(rect: rect) }
+
+        let kappa: CGFloat = 0.552284749831
+        let minX = rect.minX
+        let minY = rect.minY
+        let maxX = rect.maxX
+        let maxY = rect.maxY
+
+        let path = UIBezierPath()
+        path.move(to: CGPoint(x: minX + rx, y: minY))
+        path.addLine(to: CGPoint(x: maxX - rx, y: minY))
+        // top-right corner
+        path.addCurve(
+            to: CGPoint(x: maxX, y: minY + ry),
+            controlPoint1: CGPoint(x: maxX - rx + rx * kappa, y: minY),
+            controlPoint2: CGPoint(x: maxX, y: minY + ry - ry * kappa))
+        path.addLine(to: CGPoint(x: maxX, y: maxY - ry))
+        // bottom-right corner
+        path.addCurve(
+            to: CGPoint(x: maxX - rx, y: maxY),
+            controlPoint1: CGPoint(x: maxX, y: maxY - ry + ry * kappa),
+            controlPoint2: CGPoint(x: maxX - rx + rx * kappa, y: maxY))
+        path.addLine(to: CGPoint(x: minX + rx, y: maxY))
+        // bottom-left corner
+        path.addCurve(
+            to: CGPoint(x: minX, y: maxY - ry),
+            controlPoint1: CGPoint(x: minX + rx - rx * kappa, y: maxY),
+            controlPoint2: CGPoint(x: minX, y: maxY - ry + ry * kappa))
+        path.addLine(to: CGPoint(x: minX, y: minY + ry))
+        // top-left corner
+        path.addCurve(
+            to: CGPoint(x: minX + rx, y: minY),
+            controlPoint1: CGPoint(x: minX, y: minY + ry - ry * kappa),
+            controlPoint2: CGPoint(x: minX + rx - rx * kappa, y: minY))
+        path.close()
+        return path
     }
 }
 
