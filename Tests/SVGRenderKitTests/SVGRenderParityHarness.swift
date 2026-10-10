@@ -157,6 +157,13 @@ enum KitRenderer {
         view.setNeedsLayout()
         view.layoutIfNeeded()
 
+        // `CALayer.render(in:)` rasterizes the layer tree's current contents but
+        // does not run the Core Animation display pass. Layers with a custom
+        // `draw(in:)` (e.g. the radial gradient layer) built on a background
+        // thread never materialize their contents otherwise, so force display
+        // first to match what a real on-screen `SVGView` renders.
+        forceDisplay(view.layer)
+
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         format.opaque = false
@@ -164,6 +171,15 @@ enum KitRenderer {
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
         return renderer.image { context in
             view.layer.render(in: context.cgContext)
+        }
+    }
+
+    /// Recursively materializes each layer's contents by running its display pass.
+    private static func forceDisplay(_ layer: CALayer) {
+        layer.setNeedsDisplay()
+        layer.displayIfNeeded()
+        for sublayer in layer.sublayers ?? [] {
+            forceDisplay(sublayer)
         }
     }
 }

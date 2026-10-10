@@ -64,8 +64,48 @@ final class SVGRadialGradientTests: XCTestCase {
         let parser = try SVGParser(svgString: svg, parsedRoot: nil)
         let layer = try parser.getLayer(overrideElements: nil)
         let radial = try XCTUnwrap(findRadialGradientLayer(in: layer))
-        XCTAssertEqual(radial.startPoint.x, 10, accuracy: 0.001)
-        XCTAssertEqual(radial.startPoint.y, 0, accuracy: 0.001)
+        XCTAssertEqual(radial.center.x, 10, accuracy: 0.001)
+        XCTAssertEqual(radial.center.y, 0, accuracy: 0.001)
         XCTAssertEqual(radial.radius, 50, accuracy: 0.001)
+    }
+
+    func testRadialGradientFocalPoint() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <radialGradient id="g" cx="0.5" cy="0.5" r="0.5" fx="0.2" fy="0.3">
+                    <stop offset="0" stop-color="#ff0000"/>
+                    <stop offset="1" stop-color="#0000ff"/>
+                </radialGradient>
+            </defs>
+            <rect width="100" height="100" fill="url(#g)"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let radial = try XCTUnwrap(findRadialGradientLayer(in: layer))
+        XCTAssertEqual(radial.center.x, 50, accuracy: 0.001)
+        XCTAssertEqual(radial.center.y, 50, accuracy: 0.001)
+        XCTAssertEqual(radial.focalPoint?.x ?? -1, 20, accuracy: 0.001)
+        XCTAssertEqual(radial.focalPoint?.y ?? -1, 30, accuracy: 0.001)
+    }
+
+    func testRadialGradientFocalDefaultsToCenter() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <radialGradient id="g" cx="0.5" cy="0.5" r="0.5">
+                    <stop offset="0" stop-color="#ff0000"/>
+                    <stop offset="1" stop-color="#0000ff"/>
+                </radialGradient>
+            </defs>
+            <rect width="100" height="100" fill="url(#g)"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let radial = try XCTUnwrap(findRadialGradientLayer(in: layer))
+        XCTAssertEqual(radial.focalPoint?.x ?? -1, 50, accuracy: 0.001)
+        XCTAssertEqual(radial.focalPoint?.y ?? -1, 50, accuracy: 0.001)
     }
 }

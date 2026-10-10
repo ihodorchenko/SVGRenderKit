@@ -10,6 +10,10 @@ open class SVGRadialGradientTag: SVGBaseGradient {
     var cy: SVGLength = SVGLength.percent(value: 0.5)
     /// Radius, defaults to 50%.
     var r: SVGLength = SVGLength.percent(value: 0.5)
+    /// Focal x; defaults to `cx` when unspecified.
+    var fx: SVGLength?
+    /// Focal y; defaults to `cy` when unspecified.
+    var fy: SVGLength?
 
     /// Returns whether the gradient has at least one color stop and can be rendered.
     public override func isEnable() -> Bool {
@@ -55,6 +59,11 @@ open class SVGRadialGradientTag: SVGBaseGradient {
             x: resolveCoordinate(cx, dimension: boundsToPoints.width),
             y: resolveCoordinate(cy, dimension: boundsToPoints.height))
 
+        // The focal point defaults to the center when fx/fy are not specified.
+        let focal = CGPoint(
+            x: resolveCoordinate(fx ?? cx, dimension: boundsToPoints.width),
+            y: resolveCoordinate(fy ?? cy, dimension: boundsToPoints.height))
+
         // SVG normalizes radial radius against the diagonal of the viewport.
         let diagonal = hypot(boundsToPoints.width, boundsToPoints.height) / sqrt(2)
         let radius: CGFloat
@@ -66,10 +75,12 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         }
 
         var finalCenter = center
+        var finalFocal = focal
         var finalRadius = radius
         if let transform = transform {
             let affine = CATransform3DGetAffineTransform(transform)
             finalCenter = center.applying(affine)
+            finalFocal = focal.applying(affine)
             // Scale the radius by the transform's geometric-mean scale factor.
             let scale = sqrt(abs(affine.a * affine.d - affine.b * affine.c))
             finalRadius = radius * scale
@@ -83,7 +94,8 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         gradLayer.mask = localizedMask(maskLayer, origin: boundsToPoints.origin)
         gradLayer.anchorPoint = CGPoint(x: 0, y: 0)
         gradLayer.position = CGPoint(x: 0, y: 0)
-        gradLayer.startPoint = finalCenter
+        gradLayer.center = finalCenter
+        gradLayer.focalPoint = finalFocal
         gradLayer.radius = finalRadius
 
         gradLayer.colors = colors
@@ -103,6 +115,8 @@ open class SVGRadialGradientTag: SVGBaseGradient {
                     cx = hrefGradient.cx
                     cy = hrefGradient.cy
                     r = hrefGradient.r
+                    fx = hrefGradient.fx
+                    fy = hrefGradient.fy
 
                     stops = hrefGradient.stops
                     if let hrefTransform = hrefGradient.transform, let selfTransform = transform {
@@ -126,6 +140,12 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         }
         if let str = attributeDict["r"] {
             r = try SVGLength.get(string: str)
+        }
+        if let str = attributeDict["fx"] {
+            fx = try SVGLength.get(string: str)
+        }
+        if let str = attributeDict["fy"] {
+            fy = try SVGLength.get(string: str)
         }
 
         try parseStops(childs: xmlElement.xmlChildren)

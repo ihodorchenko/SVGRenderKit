@@ -146,8 +146,10 @@ open class RadialGradientLayer: CALayer {
     var colors = [UIColor.red.cgColor, UIColor.blue.cgColor]
     /// The color-stop locations, expressed as fractions of the gradient radius.
     public var locations: [CGFloat] = [0, 1]
-    /// The center point from which the gradient radiates.
-    public var startPoint: CGPoint = CGPoint(x: 0, y: 0)
+    /// The center of the outer circle (the gradient's end center).
+    public var center: CGPoint = CGPoint(x: 0, y: 0)
+    /// The focal point the gradient starts from; `nil` means it coincides with `center`.
+    public var focalPoint: CGPoint?
     /// The distance over which the gradient is drawn.
     public var radius: CGFloat = 1
 
@@ -163,14 +165,18 @@ open class RadialGradientLayer: CALayer {
             return
         }
 
-        let center = startPoint
+        // The focal point (offset 0) may sit away from the outer circle center
+        // (offset 1), producing SVG's focal radial gradient. The drawing options
+        // extend the first/last stops so the default `pad` spread method fills
+        // the area outside the radius with the endpoint colors.
+        let startCenter = focalPoint ?? center
         ctx.drawRadialGradient(
             gradient,
-            startCenter: center,
+            startCenter: startCenter,
             startRadius: 0.0,
             endCenter: center,
             endRadius: radius,
-            options: CGGradientDrawingOptions(rawValue: 0))
+            options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
     }
 }
 
