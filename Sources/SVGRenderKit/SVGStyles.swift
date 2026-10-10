@@ -301,7 +301,7 @@ open class SVGSourceStyleElement {
 
         var values: [CGFloat] = []
         for part in parts {
-            guard let f = Float(part) else {
+            guard let f = Float(part), f >= 0 else {
                 throw SVGError.content(text: "wrong stroke-dasharray value: \(part)")
             }
             values.append(CGFloat(f))

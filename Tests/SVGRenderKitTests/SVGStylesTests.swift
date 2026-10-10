@@ -93,6 +93,11 @@ final class SVGStylesTests: XCTestCase {
         XCTAssertThrowsError(try style.set(attributeDict: ["stroke-dasharray": "foo"]))
     }
 
+    func testStrokeDasharrayNegativeThrows() {
+        let style = SVGSourceStyleElement()
+        XCTAssertThrowsError(try style.set(attributeDict: ["stroke-dasharray": "5 -5"]))
+    }
+
     func testStrokeDashoffsetParsed() throws {
         let style = SVGSourceStyleElement()
         try style.set(attributeDict: ["stroke-dashoffset": "3"])
