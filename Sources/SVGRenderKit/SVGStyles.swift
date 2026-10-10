@@ -429,8 +429,9 @@ extension SVGSourceStyleElement {
         let opacity = self.opacity ?? 1.0
         let stroke = self.stroke ?? .none
         let strokeOpacity = self.strokeOpacity ?? 1
-        let strokeWidth = self.strokeWidth ?? .px(value: 1)
         let clipPath = self.clipPath
+        let strokeViewBox = group.getSvgOptions().viewBox
+        let resolvedStrokeWidth = strokeWidthPixels(viewBox: strokeViewBox)
 
         switch display {
         case .inline, .block:
@@ -491,20 +492,10 @@ extension SVGSourceStyleElement {
             break
         case .currentColor:
             let resolvedColor = self.color ?? .black
-            switch strokeWidth {
-            case .px(let value):
-                pathLayer.lineWidth = value
-            case .percent(let value):
-                pathLayer.lineWidth = 1 * value
-            }
+            pathLayer.lineWidth = resolvedStrokeWidth
             pathLayer.strokeColor = resolvedColor.withAlphaComponent(resolvedColor.cgColor.alpha * strokeOpacity).cgColor
         case .color(let color):
-            switch strokeWidth {
-            case .px(let value):
-                pathLayer.lineWidth = value
-            case .percent(let value):
-                pathLayer.lineWidth = 1 * value
-            }
+            pathLayer.lineWidth = resolvedStrokeWidth
             pathLayer.strokeColor = color.withAlphaComponent(color.cgColor.alpha * strokeOpacity).cgColor
         case .funcIRI(let iri):
             switch iri {
@@ -512,7 +503,7 @@ extension SVGSourceStyleElement {
                 if let gradient = group.getGradient(byKey: key, fromParents: true) {
                     try applyStrokeGradient(mainLayer: mainLayer, path: path, gradient: gradient, group: group)
                 } else if let pattern = group.getPattern(byKey: key, fromParents: true) {
-                    applyStrokePattern(mainLayer: mainLayer, path: path, pattern: pattern)
+                    applyStrokePattern(mainLayer: mainLayer, path: path, pattern: pattern, viewBox: strokeViewBox)
                 } else {
                     throw SVGError.content(text: "local stroke iri not found by key: \(key)")
                 }
@@ -620,14 +611,19 @@ extension SVGSourceStyleElement {
         }
     }
 
-    private func strokeLineWidth() -> CGFloat {
+    /// Resolves the stroke width to pixels. A percentage refers to the normalized
+    /// diagonal of the viewport — `sqrt((w^2 + h^2) / 2)` — per the SVG spec.
+    private func strokeWidthPixels(viewBox: CGRect) -> CGFloat {
         switch self.strokeWidth ?? .px(value: 1) {
-        case .px(let value): return value
-        case .percent(let value): return 1 * value
+        case .px(let value):
+            return value
+        case .percent(let value):
+            let diagonal = sqrt((viewBox.width * viewBox.width + viewBox.height * viewBox.height) / 2)
+            return value * diagonal
         }
     }
 
-    private func strokedPath(from path: UIBezierPath) -> CGPath {
+    private func strokedPath(from path: UIBezierPath, viewBox: CGRect) -> CGPath {
         let lineCap: CGLineCap
         switch self.strokeLinecap ?? .butt {
         case .butt: lineCap = .butt
@@ -641,7 +637,7 @@ extension SVGSourceStyleElement {
         case .bevel: lineJoin = .bevel
         }
         return path.cgPath.copy(
-            strokingWithWidth: strokeLineWidth(),
+            strokingWithWidth: strokeWidthPixels(viewBox: viewBox),
             lineCap: lineCap,
             lineJoin: lineJoin,
             miterLimit: self.strokeMiterlimit ?? 4)
@@ -650,7 +646,7 @@ extension SVGSourceStyleElement {
     private func applyStrokeGradient(mainLayer: CAShapeLayer, path: UIBezierPath, gradient: SVGBaseGradient, group: SVGShapesContainer) throws {
         guard gradient.isEnable() else { throw SVGError.content(text: "wrong content in gradient") }
         let options = group.getSvgOptions()
-        let stroked = strokedPath(from: path)
+        let stroked = strokedPath(from: path, viewBox: options.viewBox)
         let maskLayer = CAShapeLayer()
         maskLayer.path = stroked
         if let gradLayer = gradient.getGradientLayer(maskLayer: maskLayer, path: UIBezierPath(cgPath: stroked), viewBox: options.viewBox, currentColor: self.color ?? .black) {
@@ -658,9 +654,9 @@ extension SVGSourceStyleElement {
         }
     }
 
-    private func applyStrokePattern(mainLayer: CAShapeLayer, path: UIBezierPath, pattern: SVGPattern) {
+    private func applyStrokePattern(mainLayer: CAShapeLayer, path: UIBezierPath, pattern: SVGPattern, viewBox: CGRect) {
         guard let image = pattern.tileImage() else { return }
-        let stroked = strokedPath(from: path)
+        let stroked = strokedPath(from: path, viewBox: viewBox)
         let patternLayer = CAShapeLayer()
         patternLayer.path = stroked
         patternLayer.fillColor = UIColor(patternImage: image).cgColor

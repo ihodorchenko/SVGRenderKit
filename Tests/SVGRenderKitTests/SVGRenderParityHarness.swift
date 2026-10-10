@@ -76,6 +76,11 @@ enum ParityFixtures {
             <rect x="30" y="30" width="40" height="40" fill="#2ecc71" opacity="0.5"/>
         </svg>
         """),
+        ParityFixture(name: "percent-stroke-width", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <line x1="10" y1="50" x2="90" y2="50" stroke="#2c3e50" stroke-width="10%"/>
+        </svg>
+        """),
     ]
 }
 
