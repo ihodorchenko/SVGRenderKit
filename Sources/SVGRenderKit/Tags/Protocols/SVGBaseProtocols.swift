@@ -46,6 +46,9 @@ public protocol SVGGroupProtocol: SVGShapesContainer {
     /// Returns the shape matching the key, optionally searching parent groups.
     func getShape(byKey: String, fromParents: Bool) -> SVGShapeObject?
 
+    /// Returns the symbol matching the key, optionally searching parent groups.
+    func getSymbol(byKey: String, fromParents: Bool) -> SVGSymbol?
+
     /// Returns the linear gradient matching the key, optionally searching parent groups.
     func getLinearGradient(byKey: String, fromParents: Bool) -> SVGLinearGradientTag?
 

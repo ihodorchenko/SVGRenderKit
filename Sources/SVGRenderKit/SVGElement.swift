@@ -231,6 +231,9 @@ extension SVGSVGTag: SVGRendering {
             } else if let path = layerElement as? SVGShapeObject {
                 let layer = try path.createLayer(overrideElements: overrideElements)
                 mainLayer.addSublayer(layer)
+            } else if let use = layerElement as? SVGUseTag {
+                let layer = try use.createLayer(overrideElements: overrideElements)
+                mainLayer.addSublayer(layer)
             }
         }
 
@@ -286,6 +289,11 @@ extension SVGRoot: SVGGroupProtocol {
 
     /// Looks up a shape by key. The root has no parent elements and returns `nil`.
     public func getShape(byKey: String, fromParents: Bool) -> SVGShapeObject? {
+        return nil
+    }
+
+    /// Looks up a symbol by key. The root has no parent elements and returns `nil`.
+    public func getSymbol(byKey: String, fromParents: Bool) -> SVGSymbol? {
         return nil
     }
 

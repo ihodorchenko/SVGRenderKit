@@ -57,8 +57,9 @@ specific additions (Tiny's `textArea`/`solidColor`/mandatory animation; 2.0's
 | `<svg>` | ✅ root only |
 | `<g>` | ✅ |
 | `<defs>` | ✅ |
-| `<use>` | ✅ local `#ref` only |
+| `<use>` | ✅ local `#ref`, incl. `<symbol>` with `viewBox` |
 | `<clipPath>` | ✅ |
+| `<symbol>` | ✅ instantiated via `<use>` |
 | `<path>` | ✅ |
 | `<rect>` | ✅ |
 | `<circle>` | ✅ |
@@ -71,7 +72,7 @@ specific additions (Tiny's `textArea`/`solidColor`/mandatory animation; 2.0's
 | `<radialGradient>` | ✅ |
 | `<stop>` | ✅ (`stop-color`, `stop-opacity`, `offset`) |
 | `<style>` | ✅ (id / class / tag selectors) |
-| `<mask>`, `<pattern>`, `<marker>`, `<symbol>`, `<filter>` | ❌ |
+| `<mask>`, `<pattern>`, `<marker>`, `<filter>` | ❌ |
 | `<image>`, `<switch>`, `<a>`, `<foreignObject>`, `<font>` | ❌ |
 | `<animate>`, `<set>`, `<animateTransform>`, etc. (SMIL) | ❌ |
 | `<script>`, `<cursor>`, `<solidColor>`, `<textPath>`, `<tspan>` (multi) | ❌ |
@@ -116,7 +117,7 @@ All commands are implemented, including elliptical arcs:
 
 ## Limitations (why it is not 100 % on any standard)
 
-- No `filter`, `mask`, `pattern`, `marker`, `symbol`.
+- No `filter`, `mask`, `pattern`, `marker`.
 - No SMIL animation or scripting.
 - Basic text only: no `textPath`, no `text-anchor`, no multi-line `<tspan>`.
 - External `url(...)` resources are not loaded.
@@ -134,7 +135,7 @@ items are cheap and unlock a large share of real-world SVG 1.1 content.
 | 3 | ✅ `stroke-dasharray`, `stroke-dashoffset` | Low | Painting |
 | 4 | ✅ `currentColor` resolution | Medium | Painting |
 | 5 | ✅ `clip-rule` wiring | Low | Clipping |
-| 6 | `<symbol>` + `<use>` with `viewBox`/`width`/`height` | Medium-High | Structure |
+| 6 | ✅ `<symbol>` + `<use>` with `viewBox`/`width`/`height` | Medium-High | Structure |
 | 7 | `text-anchor` + multi-line `<tspan>` | Medium | Text |
 | 8 | `<mask>` | Medium | Compositing |
 | 9 | gradient `spreadMethod` (`pad`/`reflect`/`repeat`) | Medium | Gradients |

@@ -73,6 +73,10 @@ extension SVGGroupObject {
             let cp: SVGClipPath = try SVGClipPath(xmlElement: children, parent: self)
             try self.add(clipPaths: [cp])
             break
+        case SVGSymbol.key:
+            let symbol: SVGSymbol = try SVGSymbol(xmlElement: children, parent: self)
+            try self.add(symbols: [symbol])
+            break
         default:
             if let shapeTag = try SVGShapeObject.create(xml: children, parent: self) {
                 try self.add(shapes: [shapeTag])
@@ -142,6 +146,15 @@ extension SVGGroupObject {
         }
     }
 
+    /// Adds the given symbols to this group. Symbols are registered for lookup
+    /// but are not rendered directly.
+    public func add(symbols: [SVGSymbol]) throws {
+        for symbol in symbols {
+            symbol.parent = self
+            self.all.add(item: symbol)
+        }
+    }
+
     /// Adds the given linear gradients to this group.
     public func add(linearGradients: [SVGLinearGradientTag]) throws {
         for gradient in linearGradients {
@@ -195,13 +208,29 @@ extension SVGGroupObject {
         return fromParents ? parent.getShape(byKey: byKey, fromParents: fromParents) : nil
     }
 
-    /// Returns a renderable (shape or group) matching the key, optionally searching parent groups.
+    /// Returns the symbol matching the key, optionally searching parent groups.
+    public func getSymbol(byKey: String, fromParents: Bool) -> SVGSymbol? {
+        if let defs = defs {
+            if let s = defs.getSymbol(byKey: byKey, fromParents: false) {
+                return s
+            }
+        }
+        if let s = all.get(key: byKey) as? SVGSymbol {
+            return s
+        }
+        return fromParents ? parent.getSymbol(byKey: byKey, fromParents: fromParents) : nil
+    }
+
+    /// Returns a renderable (shape, group, or symbol) matching the key, optionally searching parent groups.
     public func getRendering(byKey: String, fromParents: Bool) -> SVGRendering? {
         if let share = getShape(byKey: byKey, fromParents: true) {
             return share
         }
         if let gr = getG(byKey: byKey, fromParents: true) {
             return gr
+        }
+        if let symbol = getSymbol(byKey: byKey, fromParents: true) {
+            return symbol
         }
         return fromParents ? parent.getRendering(byKey: byKey, fromParents: fromParents) : nil
     }

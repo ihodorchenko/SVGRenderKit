@@ -11,6 +11,8 @@ open class SVGUseTag: SVGObject, SVGRendering {
 
     var x: CGFloat = 0
     var y: CGFloat = 0
+    var width: CGFloat?
+    var height: CGFloat?
 
     /// Initializes a `<use>` tag by parsing its `href`, `x`, `y`, and `transform` attributes.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
@@ -34,6 +36,12 @@ open class SVGUseTag: SVGObject, SVGRendering {
                 throw SVGError.parseError(text: "invalid convert 'y' to float '\(str)'")
             }
         }
+        if let str = attributeDict["width"], let f = Float(str.trimmed) {
+            width = CGFloat(f)
+        }
+        if let str = attributeDict["height"], let f = Float(str.trimmed) {
+            height = CGFloat(f)
+        }
 
         if let str = attributeDict["transform"] {
             transform = try SVGTransform.get(string: str)
@@ -52,8 +60,17 @@ open class SVGUseTag: SVGObject, SVGRendering {
                 if let rendering = parent.getRendering(byKey: key, fromParents: true) {
                     let layer = try rendering.createLayer(addStyle: sourceStyle, overrideElements: overrideElements)
                     var _transform: CATransform3D = CATransform3DIdentity
+
+                    if let symbol = rendering as? SVGSymbol, let viewBox = symbol.viewBox {
+                        let containerSize = CGSize(width: width ?? viewBox.width, height: height ?? viewBox.height)
+                        let resolved = symbol.preserveAspectRatio.resolve(viewBox: viewBox, containerSize: containerSize)
+                        _transform = CATransform3DTranslate(_transform, -viewBox.origin.x, -viewBox.origin.y, 0)
+                        _transform = CATransform3DScale(_transform, resolved.scaleX, resolved.scaleY, 1)
+                        _transform = CATransform3DTranslate(_transform, resolved.translateX, resolved.translateY, 0)
+                    }
+
                     if let transform = transform {
-                        _transform = transform
+                        _transform = CATransform3DConcat(transform, _transform)
                     }
                     if x != 0 || y != 0 {
                         _transform = CATransform3DTranslate(_transform, x, y, 0)
