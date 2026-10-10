@@ -13,7 +13,10 @@
 		4A2788F61EC71DE900D47036 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2788F51EC71DE900D47036 /* SceneDelegate.swift */; };
 		4A2788F91EC71DE900D47036 /* SVGRenderKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4A2788F81EC71DE900D47036 /* SVGRenderKit */; };
 		4A319DFB1EEE8E3000F84AE3 /* VC2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A319DFA1EEE8E3000F84AE3 /* VC2.swift */; };
-		4AFB5F601EDF3079004DFCB4 /* svg in Resources */ = {isa = PBXBuildFile; fileRef = 4AFB5F5F1EDF3079004DFCB4 /* svg */; };
+		AB0100000000000000000011 /* svg_0.0 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000001 /* svg_0.0 */; };
+		AB0100000000000000000012 /* svg_1.0 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000002 /* svg_1.0 */; };
+		AB0100000000000000000013 /* svg_2.0 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000003 /* svg_2.0 */; };
+		AB0100000000000000000014 /* svg_3.0 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000004 /* svg_3.0 */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,7 +28,10 @@
 		4A2788F51EC71DE900D47036 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		4A319DFA1EEE8E3000F84AE3 /* VC2.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = VC2.swift; sourceTree = "<group>"; };
 		4AE6111F25666BC800AD1F6A /* Example.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Example.entitlements; sourceTree = "<group>"; };
-		4AFB5F5F1EDF3079004DFCB4 /* svg */ = {isa = PBXFileReference; lastKnownFileType = folder; path = svg; sourceTree = "<group>"; };
+		AB0100000000000000000001 /* svg_0.0 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = svg_0.0; sourceTree = "<group>"; };
+		AB0100000000000000000002 /* svg_1.0 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = svg_1.0; sourceTree = "<group>"; };
+		AB0100000000000000000003 /* svg_2.0 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = svg_2.0; sourceTree = "<group>"; };
+		AB0100000000000000000004 /* svg_3.0 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = svg_3.0; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -74,7 +80,10 @@
 		4A2788F21EC71DE900D47036 /* data */ = {
 			isa = PBXGroup;
 			children = (
-				4AFB5F5F1EDF3079004DFCB4 /* svg */,
+				AB0100000000000000000001 /* svg_0.0 */,
+				AB0100000000000000000002 /* svg_1.0 */,
+				AB0100000000000000000003 /* svg_2.0 */,
+				AB0100000000000000000004 /* svg_3.0 */,
 			);
 			path = data;
 			sourceTree = "<group>";
@@ -147,7 +156,10 @@
 			files = (
 				4A2788EB1EC71DCE00D47036 /* LaunchScreen.storyboard in Resources */,
 				4A2788E81EC71DCE00D47036 /* Assets.xcassets in Resources */,
-				4AFB5F601EDF3079004DFCB4 /* svg in Resources */,
+				AB0100000000000000000011 /* svg_0.0 in Resources */,
+				AB0100000000000000000012 /* svg_1.0 in Resources */,
+				AB0100000000000000000013 /* svg_2.0 in Resources */,
+				AB0100000000000000000014 /* svg_3.0 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

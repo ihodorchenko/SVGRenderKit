@@ -1,0 +1,12 @@
+<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<style type="text/css">
+	.st0{fill:#1B1B1B;}
+	.st1{fill:none;}
+    .st2{fill:#FFFFFF;}
+</style>
+<g id="Number=plus1">
+<path class="st1" id="circle" d="M24 12C24 18.6274 18.6274 24 12 24C5.37258 24 0 18.6274 0 12C0 5.37258 5.37258 0 12 0C18.6274 0 24 5.37258 24 12Z" fill="none"/>
+<path class="st1" id="countour (Stroke)" fill-rule="evenodd" clip-rule="evenodd" d="M12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23ZM12 24C18.6274 24 24 18.6274 24 12C24 5.37258 18.6274 0 12 0C5.37258 0 0 5.37258 0 12C0 18.6274 5.37258 24 12 24Z" fill="none"/>
+<path class="st0" id="Text" d="M5.55018 13.9404H8.35584V16.7461H9.61268V13.9404H12.4247V12.6772H9.61268V9.87158H8.35584V12.6772H5.55018V13.9404ZM16.1774 17H17.5992V7.84033H16.1774L13.7653 9.5542V10.9507L16.0695 9.30664H16.1774V17Z" fill="#1B1B1B"/>
+</g>
+</svg>

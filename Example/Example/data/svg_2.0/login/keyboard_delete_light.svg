@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 49.2 (51160) - http://www.bohemiancoding.com/sketch -->
+    <title>icons/light/keyboard_delete</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="icons/light/keyboard_delete" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <path d="M21.5,3 C22.9,3 24,4.10614525 24,5.51396648 L24,18.4860335 C24,19.8938547 22.9,21 21.5,21 L7.6,21 C6.7,21 6,20.5977654 5.5,19.8938547 L0,11.9497207 L5.5,4.00558659 C6,3.40223464 6.7,3 7.6,3 L21.5,3 Z M20.7395718,4 L8.1716547,4 C7.35790467,4 6.72498798,4.3575419 6.27290463,4.89385475 L1.29998779,11.9553073 L6.27290463,19.0167598 C6.72498798,19.6424581 7.35790467,20 8.1716547,20 L20.7395718,20 C22.0054052,20 22.9999886,19.0167598 22.9999886,17.7653631 L22.9999886,6.23463687 C22.9999886,4.98324022 22.0054052,4 20.7395718,4 Z M16.6,8.1 L13.9,10.8 L11.2,8.1 L10.1,9.2 L12.8,11.9 L10.1,14.6 L11.2,15.7 L13.9,13 L16.6,15.7 L17.7,14.6 L15,11.9 L17.7,9.2 L16.6,8.1 Z" id="Shape-Copy" fill="#FFFFFF" fill-rule="nonzero"></path>
+    </g>
+</svg>

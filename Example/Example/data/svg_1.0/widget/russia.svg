@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="45px" height="30px" viewBox="0 0 45 30" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 46.2 (44496) - http://www.bohemiancoding.com/sketch -->
+    <title>svgflag/russia</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Symbols" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="flag/russia" fill-rule="nonzero">
+            <g id="Flag_of_Russia">
+                <rect id="Rectangle-path" fill="#FFFFFF" x="0" y="0" width="45" height="15"></rect>
+                <rect id="Rectangle-path" fill="#D52B1E" x="0" y="15" width="45" height="15"></rect>
+                <rect id="Rectangle-path" fill="#0039A6" x="0" y="10" width="45" height="10"></rect>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="45px" height="30px" viewBox="0 0 45 30" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 46.2 (44496) - http://www.bohemiancoding.com/sketch -->
+    <title>svgflag/america</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Symbols" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="flag/america">
+            <rect id="Rectangle-path" fill="#B22234" fill-rule="nonzero" x="0" y="0" width="45" height="30"></rect>
+            <rect id="Rectangle" fill="#FFFFFF" x="0" y="2" width="45" height="2.33636371"></rect>
+            <rect id="Rectangle" fill="#FFFFFF" x="0" y="6.67272741" width="45" height="2.33636371"></rect>
+            <rect id="Rectangle" fill="#FFFFFF" x="0" y="11.3454548" width="45" height="2.33636371"></rect>
+            <rect id="Rectangle" fill="#FFFFFF" x="0" y="16.0181822" width="45" height="2.33636371"></rect>
+            <rect id="Rectangle" fill="#FFFFFF" x="0" y="20.6909096" width="45" height="2.33636371"></rect>
+            <rect id="Rectangle" fill="#FFFFFF" x="0" y="25.3636371" width="45" height="2.33636371"></rect>
+            <rect id="Rectangle-path" fill="#3C3B6E" fill-rule="nonzero" x="0" y="0" width="23" height="16.0200005"></rect>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="1.91071429 0.693173097 2.4563449 2.36512231 1.02786541 1.33180087 2.79356316 1.33180087 1.36508367 2.36512231"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="1.91071429 3.92798088 2.4563449 5.5999301 1.02786541 4.56660866 2.79356316 4.56660866 1.36508367 5.5999301"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="1.91071429 7.16278867 2.4563449 8.83473788 1.02786541 7.80141644 2.79356316 7.80141644 1.36508367 8.83473788"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="1.91071429 10.3975965 2.4563449 12.0695457 1.02786541 11.0362242 2.79356316 11.0362242 1.36508367 12.0695457"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="1.91071429 13.6324042 2.4563449 15.3043534 1.02786541 14.271032 2.79356316 14.271032 1.36508367 15.3043534"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="3.82142857 2.31057699 4.36705918 3.9825262 2.93857969 2.94920476 4.70427745 2.94920476 3.27579796 3.9825262"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="3.82142857 5.54538477 4.36705918 7.21733399 2.93857969 6.18401255 4.70427745 6.18401255 3.27579796 7.21733399"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="3.82142857 8.78019256 4.36705918 10.4521418 2.93857969 9.41882033 4.70427745 9.41882033 3.27579796 10.4521418"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="3.82142857 12.0150003 4.36705918 13.6869496 2.93857969 12.6536281 4.70427745 12.6536281 3.27579796 13.6869496"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="5.73214286 0.693173097 6.27777347 2.36512231 4.84929398 1.33180087 6.61499173 1.33180087 5.18651225 2.36512231"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="5.73214286 3.92798088 6.27777347 5.5999301 4.84929398 4.56660866 6.61499173 4.56660866 5.18651225 5.5999301"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="5.73214286 7.16278867 6.27777347 8.83473788 4.84929398 7.80141644 6.61499173 7.80141644 5.18651225 8.83473788"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="5.73214286 10.3975965 6.27777347 12.0695457 4.84929398 11.0362242 6.61499173 11.0362242 5.18651225 12.0695457"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="5.73214286 13.6324042 6.27777347 15.3043534 4.84929398 14.271032 6.61499173 14.271032 5.18651225 15.3043534"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="7.64285714 2.31057699 8.18848775 3.9825262 6.76000827 2.94920476 8.52570602 2.94920476 7.09722653 3.9825262"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="7.64285714 5.54538477 8.18848775 7.21733399 6.76000827 6.18401255 8.52570602 6.18401255 7.09722653 7.21733399"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="7.64285714 8.78019256 8.18848775 10.4521418 6.76000827 9.41882033 8.52570602 9.41882033 7.09722653 10.4521418"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="7.64285714 12.0150003 8.18848775 13.6869496 6.76000827 12.6536281 8.52570602 12.6536281 7.09722653 13.6869496"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="9.55357143 0.693173097 10.099202 2.36512231 8.67072255 1.33180087 10.4364203 1.33180087 9.00794082 2.36512231"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="9.55357143 3.92798088 10.099202 5.5999301 8.67072255 4.56660866 10.4364203 4.56660866 9.00794082 5.5999301"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="9.55357143 7.16278867 10.099202 8.83473788 8.67072255 7.80141644 10.4364203 7.80141644 9.00794082 8.83473788"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="9.55357143 10.3975965 10.099202 12.0695457 8.67072255 11.0362242 10.4364203 11.0362242 9.00794082 12.0695457"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="9.55357143 13.6324042 10.099202 15.3043534 8.67072255 14.271032 10.4364203 14.271032 9.00794082 15.3043534"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="11.4642857 2.31057699 12.0099163 3.9825262 10.5814368 2.94920476 12.3471346 2.94920476 10.9186551 3.9825262"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="11.4642857 5.54538477 12.0099163 7.21733399 10.5814368 6.18401255 12.3471346 6.18401255 10.9186551 7.21733399"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="11.4642857 8.78019256 12.0099163 10.4521418 10.5814368 9.41882033 12.3471346 9.41882033 10.9186551 10.4521418"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="11.4642857 12.0150003 12.0099163 13.6869496 10.5814368 12.6536281 12.3471346 12.6536281 10.9186551 13.6869496"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="13.375 0.693173097 13.9206306 2.36512231 12.4921511 1.33180087 14.2578489 1.33180087 12.8293694 2.36512231"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="13.375 3.92798088 13.9206306 5.5999301 12.4921511 4.56660866 14.2578489 4.56660866 12.8293694 5.5999301"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="13.375 7.16278867 13.9206306 8.83473788 12.4921511 7.80141644 14.2578489 7.80141644 12.8293694 8.83473788"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="13.375 10.3975965 13.9206306 12.0695457 12.4921511 11.0362242 14.2578489 11.0362242 12.8293694 12.0695457"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="13.375 13.6324042 13.9206306 15.3043534 12.4921511 14.271032 14.2578489 14.271032 12.8293694 15.3043534"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="15.2857143 2.31057699 15.8313449 3.9825262 14.4028654 2.94920476 16.1685632 2.94920476 14.7400837 3.9825262"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="15.2857143 5.54538477 15.8313449 7.21733399 14.4028654 6.18401255 16.1685632 6.18401255 14.7400837 7.21733399"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="15.2857143 8.78019256 15.8313449 10.4521418 14.4028654 9.41882033 16.1685632 9.41882033 14.7400837 10.4521418"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="15.2857143 12.0150003 15.8313449 13.6869496 14.4028654 12.6536281 16.1685632 12.6536281 14.7400837 13.6869496"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="17.1964286 0.693173097 17.7420592 2.36512231 16.3135797 1.33180087 18.0792774 1.33180087 16.650798 2.36512231"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="17.1964286 3.92798088 17.7420592 5.5999301 16.3135797 4.56660866 18.0792774 4.56660866 16.650798 5.5999301"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="17.1964286 7.16278867 17.7420592 8.83473788 16.3135797 7.80141644 18.0792774 7.80141644 16.650798 8.83473788"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="17.1964286 10.3975965 17.7420592 12.0695457 16.3135797 11.0362242 18.0792774 11.0362242 16.650798 12.0695457"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="17.1964286 13.6324042 17.7420592 15.3043534 16.3135797 14.271032 18.0792774 14.271032 16.650798 15.3043534"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="19.1071429 2.31057699 19.6527735 3.9825262 18.224294 2.94920476 19.9899917 2.94920476 18.5615122 3.9825262"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="19.1071429 5.54538477 19.6527735 7.21733399 18.224294 6.18401255 19.9899917 6.18401255 18.5615122 7.21733399"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="19.1071429 8.78019256 19.6527735 10.4521418 18.224294 9.41882033 19.9899917 9.41882033 18.5615122 10.4521418"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="19.1071429 12.0150003 19.6527735 13.6869496 18.224294 12.6536281 19.9899917 12.6536281 18.5615122 13.6869496"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="21.0178571 0.693173097 21.5634878 2.36512231 20.1350083 1.33180087 21.900706 1.33180087 20.4722265 2.36512231"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="21.0178571 3.92798088 21.5634878 5.5999301 20.1350083 4.56660866 21.900706 4.56660866 20.4722265 5.5999301"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="21.0178571 7.16278867 21.5634878 8.83473788 20.1350083 7.80141644 21.900706 7.80141644 20.4722265 8.83473788"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="21.0178571 10.3975965 21.5634878 12.0695457 20.1350083 11.0362242 21.900706 11.0362242 20.4722265 12.0695457"></polygon>
+            <polygon id="s" fill="#FFFFFF" fill-rule="nonzero" points="21.0178571 13.6324042 21.5634878 15.3043534 20.1350083 14.271032 21.900706 14.271032 20.4722265 15.3043534"></polygon>
+        </g>
+    </g>
+</svg>
