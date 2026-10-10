@@ -61,6 +61,7 @@ specific additions (Tiny's `textArea`/`solidColor`/mandatory animation; 2.0's
 | `<clipPath>` | ✅ |
 | `<mask>` | ✅ alpha masking |
 | `<pattern>` | ✅ tiled fill |
+| `<marker>` | ✅ `marker-end` |
 | `<symbol>` | ✅ instantiated via `<use>` |
 | `<path>` | ✅ |
 | `<rect>` | ✅ |
@@ -74,7 +75,7 @@ specific additions (Tiny's `textArea`/`solidColor`/mandatory animation; 2.0's
 | `<radialGradient>` | ✅ |
 | `<stop>` | ✅ (`stop-color`, `stop-opacity`, `offset`) |
 | `<style>` | ✅ (id / class / tag selectors) |
-| `<marker>`, `<filter>` | ❌ |
+| `<filter>` | ❌ |
 | `<image>`, `<switch>`, `<a>`, `<foreignObject>`, `<font>` | ❌ |
 | `<animate>`, `<set>`, `<animateTransform>`, etc. (SMIL) | ❌ |
 | `<script>`, `<cursor>`, `<solidColor>`, `<textPath>` | ❌ |
@@ -109,8 +110,8 @@ All commands are implemented, including elliptical arcs:
 | `stroke-linecap`, `stroke-linejoin`, `stroke-miterlimit` | ✅ |
 | `stroke-dasharray`, `stroke-dashoffset` | ✅ |
 | `currentColor` | ✅ resolved via `color` |
-| `color`, `paint-order`, `vector-effect`, `marker-*`, `filter` | ❌ |
-| `text-anchor`, multi-line `<tspan>` layout | ✅ |
+| `color`, `paint-order`, `vector-effect`, `filter` | ❌ |
+| `marker-start`/`marker-mid`/`marker-end` | ⚠️ `marker-end` applied |
 
 ### CSS
 
@@ -120,7 +121,8 @@ All commands are implemented, including elliptical arcs:
 
 ## Limitations (why it is not 100 % on any standard)
 
-- No `filter`, `marker`.
+- No `filter`.
+- `marker-start`/`marker-mid` parsed but not rendered; `orient` uses the tangent (`auto`).
 - No SMIL animation or scripting.
 - No `<textPath>`; text uses `<tspan>` with absolute `x`/`y` or `dx`/`dy`.
 - External `url(...)` resources are not loaded.
@@ -143,7 +145,7 @@ items are cheap and unlock a large share of real-world SVG 1.1 content.
 | 8 | ✅ `<mask>` | Medium | Compositing |
 | 9 | ✅ gradient `spreadMethod` (`pad`/`reflect`/`repeat`) | Medium | Gradients |
 | 10 | ✅ `<pattern>` | High | Painting |
-| 11 | `<marker>` (arrowheads) | High | Painting |
+| 11 | ✅ `<marker>` (arrowheads) | High | Painting |
 | 12 | `<filter>` subset (`feGaussianBlur`, `feDropShadow`) | High | Filters |
 | 13 | SMIL animation | Very High | Animation |
 

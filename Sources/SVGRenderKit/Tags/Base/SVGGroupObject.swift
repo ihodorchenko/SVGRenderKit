@@ -85,6 +85,10 @@ extension SVGGroupObject {
             let pattern: SVGPattern = try SVGPattern(xmlElement: children, parent: self)
             try self.add(patterns: [pattern])
             break
+        case SVGMarker.key:
+            let marker: SVGMarker = try SVGMarker(xmlElement: children, parent: self)
+            try self.add(markers: [marker])
+            break
         default:
             if let shapeTag = try SVGShapeObject.create(xml: children, parent: self) {
                 try self.add(shapes: [shapeTag])
@@ -178,6 +182,15 @@ extension SVGGroupObject {
         for pattern in patterns {
             pattern.parent = self
             self.all.add(item: pattern)
+        }
+    }
+
+    /// Adds the given markers to this group. Markers are registered for lookup
+    /// but are not rendered directly.
+    public func add(markers: [SVGMarker]) throws {
+        for marker in markers {
+            marker.parent = self
+            self.all.add(item: marker)
         }
     }
 
@@ -377,5 +390,18 @@ extension SVGGroupObject {
             return p
         }
         return fromParents ? parent.getPattern(byKey: byKey, fromParents: fromParents) : nil
+    }
+
+    /// Returns the marker matching the key, optionally searching parent groups.
+    public func getMarker(byKey: String, fromParents: Bool) -> SVGMarker? {
+        if let defs = defs {
+            if let m = defs.getMarker(byKey: byKey, fromParents: false) {
+                return m
+            }
+        }
+        if let m = all.get(key: byKey) as? SVGMarker {
+            return m
+        }
+        return fromParents ? parent.getMarker(byKey: byKey, fromParents: fromParents) : nil
     }
 }

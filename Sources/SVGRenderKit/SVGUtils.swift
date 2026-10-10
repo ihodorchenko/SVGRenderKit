@@ -27,4 +27,35 @@ open class SVGUtils {
     open class func md5(_ string: String) -> String {
         return MD5(string)
     }
+
+    /// Returns the end point and the tangent direction of the last segment of a path.
+    open class func pathEndInfo(path: UIBezierPath) -> (point: CGPoint, tangent: CGPoint) {
+        var last = CGPoint.zero
+        var prev = CGPoint.zero
+        var first = CGPoint.zero
+        path.cgPath.applyWithBlock { element in
+            let pts = element.pointee.points
+            switch element.pointee.type {
+            case .moveToPoint:
+                prev = pts[0]
+                last = pts[0]
+                first = pts[0]
+            case .addLineToPoint:
+                prev = last
+                last = pts[0]
+            case .addQuadCurveToPoint:
+                prev = last
+                last = pts[1]
+            case .addCurveToPoint:
+                prev = last
+                last = pts[2]
+            case .closeSubpath:
+                prev = last
+                last = first
+            default:
+                break
+            }
+        }
+        return (last, CGPoint(x: last.x - prev.x, y: last.y - prev.y))
+    }
 }

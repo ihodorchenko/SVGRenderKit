@@ -120,6 +120,10 @@ extension SVGMask: SVGShapesContainer {
         return nil
     }
 
+    public func getMarker(byKey: String, fromParents: Bool) -> SVGMarker? {
+        return nil
+    }
+
     public func getRendering(byKey: String, fromParents: Bool) -> SVGRendering? {
         return parent.getRendering(byKey: byKey, fromParents: true)
     }

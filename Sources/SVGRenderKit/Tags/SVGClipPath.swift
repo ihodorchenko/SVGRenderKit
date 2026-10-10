@@ -121,6 +121,11 @@ extension SVGClipPath: SVGShapesContainer {
         return nil
     }
 
+    /// Returns `nil`, since a clip path does not define markers.
+    public func getMarker(byKey: String, fromParents: Bool) -> SVGMarker? {
+        return nil
+    }
+
     /// Resolves a renderable object by key from the parent container.
     public func getRendering(byKey: String, fromParents: Bool) -> SVGRendering? {
         return parent.getRendering(byKey: byKey, fromParents: true)

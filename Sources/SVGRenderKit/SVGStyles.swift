@@ -61,6 +61,13 @@ open class SVGSourceStyleElement {
     /// A reference to the mask applied to the element.
     open var mask: SVGFuncIRI?
 
+    /// The marker drawn at the start vertex of the shape.
+    open var markerStart: SVGFuncIRI?
+    /// The marker drawn at intermediate vertices of the shape.
+    open var markerMid: SVGFuncIRI?
+    /// The marker drawn at the end vertex of the shape.
+    open var markerEnd: SVGFuncIRI?
+
     var fontFamily: String?
     var fontStyle: SVGFontStyle?
     var fontWeight: Float?
@@ -101,6 +108,9 @@ open class SVGSourceStyleElement {
         if let clipPath = child.clipPath { newElem.clipPath = clipPath }
         if let clipRule = child.clipRule { newElem.clipRule = clipRule }
         if let mask = child.mask { newElem.mask = mask }
+        if let markerStart = child.markerStart { newElem.markerStart = markerStart }
+        if let markerMid = child.markerMid { newElem.markerMid = markerMid }
+        if let markerEnd = child.markerEnd { newElem.markerEnd = markerEnd }
 
         if let fontFamily = child.fontFamily { newElem.fontFamily = fontFamily }
         if let fontStyle = child.fontStyle { newElem.fontStyle = fontStyle }
@@ -132,6 +142,9 @@ open class SVGSourceStyleElement {
         clipPath = element.clipPath
         clipRule = element.clipRule
         mask = element.mask
+        markerStart = element.markerStart
+        markerMid = element.markerMid
+        markerEnd = element.markerEnd
 
         fontFamily = element.fontFamily
         fontStyle = element.fontStyle
@@ -176,6 +189,9 @@ open class SVGSourceStyleElement {
         if let str = attributeDict["clip-path"], !str.isEmpty { try setClipPath(str: str) }
         if let str = attributeDict["clip-rule"], !str.isEmpty { setClipRule(str: str) }
         if let str = attributeDict["mask"], !str.isEmpty { try setMask(str: str) }
+        if let str = attributeDict["marker-start"], !str.isEmpty { try setMarkerStart(str: str) }
+        if let str = attributeDict["marker-mid"], !str.isEmpty { try setMarkerMid(str: str) }
+        if let str = attributeDict["marker-end"], !str.isEmpty { try setMarkerEnd(str: str) }
 
         if let str = attributeDict["font-family"], !str.isEmpty { setFontFamily(str: str) }
         if let str = attributeDict["font-style"], !str.isEmpty { try setFontStyle(str: str) }
@@ -318,6 +334,18 @@ open class SVGSourceStyleElement {
 
     func setMask(str: String) throws {
         self.mask = try SVGFuncIRI.get(fullStr: str)
+    }
+
+    func setMarkerStart(str: String) throws {
+        self.markerStart = try SVGFuncIRI.get(fullStr: str)
+    }
+
+    func setMarkerMid(str: String) throws {
+        self.markerMid = try SVGFuncIRI.get(fullStr: str)
+    }
+
+    func setMarkerEnd(str: String) throws {
+        self.markerEnd = try SVGFuncIRI.get(fullStr: str)
     }
 
     func setFontFamily(str: String) {
@@ -537,12 +565,37 @@ extension SVGSourceStyleElement {
                 throw SVGError.content(text: "web mask not supported: \(url)")
             }
         }
+
+        if let markerEnd = self.markerEnd {
+            switch markerEnd {
+            case .local(let key):
+                if let marker = group.getMarker(byKey: key, fromParents: true) {
+                    try applyMarker(mainLayer: mainLayer, path: path, marker: marker, overrideElements: overrideElements)
+                } else {
+                    throw SVGError.content(text: "marker not found: \(key)")
+                }
+            case .web(let url):
+                throw SVGError.content(text: "web marker not supported: \(url)")
+            }
+        }
     }
 
     private func applyPattern(pathLayer: CAShapeLayer, pattern: SVGPattern) {
         if let image = pattern.tileImage() {
             pathLayer.fillColor = UIColor(patternImage: image).cgColor
         }
+    }
+
+    private func applyMarker(mainLayer: CAShapeLayer, path: UIBezierPath, marker: SVGMarker, overrideElements: [String: SVGSourceStyleElement]?) throws {
+        let markerLayer = try marker.createLayer(overrideElements: overrideElements)
+        let info = SVGUtils.pathEndInfo(path: path)
+        let angle = atan2(info.tangent.y, info.tangent.x)
+        var t = CATransform3DIdentity
+        t = CATransform3DTranslate(t, -marker.refX, -marker.refY, 0)
+        t = CATransform3DRotate(t, angle, 0, 0, 1)
+        t = CATransform3DTranslate(t, info.point.x, info.point.y, 0)
+        markerLayer.transform = t
+        mainLayer.addSublayer(markerLayer)
     }
 
     private func applyGradient(
