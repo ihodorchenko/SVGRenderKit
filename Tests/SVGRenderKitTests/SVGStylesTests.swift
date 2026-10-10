@@ -38,9 +38,10 @@ final class SVGStylesTests: XCTestCase {
         XCTAssertNil(style.strokeLinecap)
     }
 
-    func testStrokeLinecapInvalidThrows() {
+    func testStrokeLinecapInvalidLeavesNil() throws {
         let style = SVGSourceStyleElement()
-        XCTAssertThrowsError(try style.set(attributeDict: ["stroke-linecap": "bogus"]))
+        try style.set(attributeDict: ["stroke-linecap": "bogus"])
+        XCTAssertNil(style.strokeLinecap)
     }
 
     func testStrokeAttributesAppliedToLayer() throws {
@@ -88,14 +89,16 @@ final class SVGStylesTests: XCTestCase {
         XCTAssertNil(style.strokeDasharray)
     }
 
-    func testStrokeDasharrayInvalidThrows() {
+    func testStrokeDasharrayInvalidLeavesNil() throws {
         let style = SVGSourceStyleElement()
-        XCTAssertThrowsError(try style.set(attributeDict: ["stroke-dasharray": "foo"]))
+        try style.set(attributeDict: ["stroke-dasharray": "foo"])
+        XCTAssertNil(style.strokeDasharray)
     }
 
-    func testStrokeDasharrayNegativeThrows() {
+    func testStrokeDasharrayNegativeLeavesNil() throws {
         let style = SVGSourceStyleElement()
-        XCTAssertThrowsError(try style.set(attributeDict: ["stroke-dasharray": "5 -5"]))
+        try style.set(attributeDict: ["stroke-dasharray": "5 -5"])
+        XCTAssertNil(style.strokeDasharray)
     }
 
     func testStrokeDashoffsetParsed() throws {

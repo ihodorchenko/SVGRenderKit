@@ -142,8 +142,36 @@ final class SVGLengthTests: XCTestCase {
         XCTAssertEqual(value, 10)
     }
 
-    func testInvalidThrows() {
-        XCTAssertThrowsError(try SVGLength.get(string: "abc"))
+    func testInvalidDegradesGracefully() throws {
+        let length = try SVGLength.get(string: "abc")
+        guard case .px(let value) = length else {
+            return XCTFail("expected .px, got \(length)")
+        }
+        XCTAssertEqual(value, 0)
+    }
+
+    func testPtConvertsToPixels() throws {
+        let length = try SVGLength.get(string: "72pt")
+        guard case .px(let value) = length else {
+            return XCTFail("expected .px, got \(length)")
+        }
+        XCTAssertEqual(value, 96, accuracy: 0.001)
+    }
+
+    func testAbsoluteUnitsConvertToPixels() throws {
+        let cases: [(String, CGFloat)] = [
+            ("1in", 96),
+            ("1cm", 96 / 2.54),
+            ("1mm", 96 / 25.4),
+            ("1pc", 16),
+        ]
+        for (str, expected) in cases {
+            let length = try SVGLength.get(string: str)
+            guard case .px(let value) = length else {
+                return XCTFail("expected .px for \(str), got \(length)")
+            }
+            XCTAssertEqual(value, expected, accuracy: 0.001, "for \(str)")
+        }
     }
 }
 

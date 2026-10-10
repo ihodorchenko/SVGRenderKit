@@ -267,17 +267,15 @@ open class SVGSourceStyleElement {
     func setStrokeLinecap(str: String) throws {
         if let value = SVGLineCap(rawValue: str) {
             strokeLinecap = value
-        } else if str != "inherit" {
-            throw SVGError.content(text: "wrong stroke-linecap: \(str)")
         }
+        // Unknown values (including "inherit" and exporters' "null") are ignored.
     }
 
     func setStrokeLinejoin(str: String) throws {
         if let value = SVGLineJoin(rawValue: str) {
             strokeLinejoin = value
-        } else if str != "inherit" {
-            throw SVGError.content(text: "wrong stroke-linejoin: \(str)")
         }
+        // Unknown values (including "inherit" and exporters' "null") are ignored.
     }
 
     func setStrokeMiterlimit(str: String) throws {
@@ -302,7 +300,9 @@ open class SVGSourceStyleElement {
         var values: [CGFloat] = []
         for part in parts {
             guard let f = Float(part), f >= 0 else {
-                throw SVGError.content(text: "wrong stroke-dasharray value: \(part)")
+                // Invalid dash value (e.g. an exporter's "null"): treat as no dash.
+                strokeDasharray = nil
+                return
             }
             values.append(CGFloat(f))
         }
