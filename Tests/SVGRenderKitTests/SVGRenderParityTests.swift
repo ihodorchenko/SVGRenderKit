@@ -56,4 +56,56 @@ final class SVGRenderParityTests: XCTestCase {
             }
         }
     }
+
+    /// Triage harness: renders the entire Example icon corpus and prints a
+    /// pass/fail summary. It does not hard-fail — out-of-scope features are
+    /// expected to differ and are reported for triage, not as regressions.
+    func testCorpusParity() throws {
+        let fixtures = CorpusLoader.load()
+        guard !fixtures.isEmpty else {
+            throw XCTSkip("No SVG corpus found under Example/Example/data")
+        }
+
+        let probeSVG = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">
+            <rect width="10" height="10" fill="#ff0000"/>
+        </svg>
+        """
+        let probeOK = ReferenceRenderer.render(probeSVG, size: size).map { ImageComparator.hasOpaquePixels($0) } ?? false
+        guard probeOK else {
+            throw XCTSkip("CoreSVG reference rendering is unavailable in this environment")
+        }
+
+        var pass = 0, fail = 0, referenceMissing = 0, kitError = 0
+        var lines: [String] = []
+
+        for fixture in fixtures {
+            guard let reference = ReferenceRenderer.render(fixture.svg, size: size) else {
+                referenceMissing += 1
+                lines.append("REF-MISSING \(fixture.name)")
+                continue
+            }
+            guard let actual = try? KitRenderer.render(fixture.svg, size: size) else {
+                kitError += 1
+                lines.append("KIT-ERROR \(fixture.name)")
+                continue
+            }
+            guard let cmp = ImageComparator.compare(actual, reference, size: size, tolerance: tolerance) else {
+                kitError += 1
+                lines.append("COMPARE-ERROR \(fixture.name)")
+                continue
+            }
+            if cmp.passed(maxDifferingFraction: maxDifferingFraction) {
+                pass += 1
+            } else {
+                fail += 1
+                lines.append("FAIL \(fixture.name) differing=\(String(format: "%.3f", cmp.differingFraction)) maxDelta=\(cmp.maxChannelDelta) mae=\(String(format: "%.4f", cmp.meanAbsoluteError))")
+            }
+        }
+
+        print("CORPUS_SUMMARY pass=\(pass) fail=\(fail) referenceMissing=\(referenceMissing) kitError=\(kitError) total=\(fixtures.count)")
+        for line in lines {
+            print("CORPUS_\(line)")
+        }
+    }
 }

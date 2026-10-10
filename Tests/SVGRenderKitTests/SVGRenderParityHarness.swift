@@ -63,6 +63,46 @@ enum ParityFixtures {
     ]
 }
 
+// MARK: - Corpus loader
+
+/// Loads the real icon corpus shipped with the Example app so the parity test can
+/// run against it without duplicating the files in the test target.
+///
+/// The corpus is discovered on disk relative to the repository root (derived from
+/// `#filePath`), which works for local development and CI on a full checkout.
+enum CorpusLoader {
+    /// Enumerates every `.svg` under `Example/Example/data` and returns it as a
+    /// fixture named by its path relative to that directory.
+    static func load(relativePath: String = "Example/Example/data") -> [ParityFixture] {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+        let repoRoot = sourceURL
+            .deletingLastPathComponent() // SVGRenderKitTests
+            .deletingLastPathComponent() // Tests
+            .deletingLastPathComponent() // repo root
+        let dataDirectory = repoRoot.appendingPathComponent(relativePath)
+
+        guard FileManager.default.fileExists(atPath: dataDirectory.path) else { return [] }
+
+        var fixtures: [ParityFixture] = []
+        let keys: [URLResourceKey] = [.isRegularFileKey]
+        guard let enumerator = FileManager.default.enumerator(
+            at: dataDirectory,
+            includingPropertiesForKeys: keys,
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+
+        for case let url as URL in enumerator {
+            guard url.pathExtension.lowercased() == "svg",
+                  let data = try? Data(contentsOf: url),
+                  let svg = String(data: data, encoding: .utf8) else { continue }
+            let name = url.path.replacingOccurrences(of: dataDirectory.path + "/", with: "")
+            fixtures.append(ParityFixture(name: name, svg: svg))
+        }
+
+        return fixtures.sorted { $0.name < $1.name }
+    }
+}
+
 // MARK: - Kit renderer
 
 /// Renders an SVG with the library under test (`SVGView`).
