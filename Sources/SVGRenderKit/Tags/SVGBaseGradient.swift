@@ -7,8 +7,15 @@ open class SVGBaseGradient: SVGChildObject {
         case objectBoundingBox = "objectBoundingBox"
     }
 
+    enum SVGSpreadMethod: String {
+        case pad = "pad"
+        case reflect = "reflect"
+        case `repeat` = "repeat"
+    }
+
     var stops: [SVGGradientStop] = []
     var gradientUnits: GradientUnits = GradientUnits.userSpaceOnUse
+    var spreadMethod: SVGSpreadMethod = SVGSpreadMethod.pad
 
     var transform: CATransform3D?
 
@@ -30,6 +37,37 @@ open class SVGBaseGradient: SVGChildObject {
         }
         if let str = attributeDict["gradientUnits"], let gradientUnits = GradientUnits(rawValue: str.trimmed) {
             self.gradientUnits = gradientUnits
+        }
+        if let str = attributeDict["spreadMethod"], let spreadMethod = SVGSpreadMethod(rawValue: str.trimmed) {
+            self.spreadMethod = spreadMethod
+        }
+    }
+
+    /// Adjusts the color-stop arrays for the gradient's `spreadMethod`.
+    /// `reflect` mirrors the stops; `repeat` tiles them with a hard seam.
+    func spreadAdjusted(colors: [CGColor], locations: [CGFloat]) -> (colors: [CGColor], locations: [CGFloat]) {
+        guard colors.count == locations.count, colors.count >= 2 else {
+            return (colors, locations)
+        }
+        switch spreadMethod {
+        case .pad:
+            return (colors, locations)
+        case .reflect:
+            var newColors = colors
+            var newLocations = locations.map { $0 / 2 }
+            for i in stride(from: colors.count - 2, through: 0, by: -1) {
+                newColors.append(colors[i])
+                newLocations.append(1 - locations[i] / 2)
+            }
+            return (newColors, newLocations)
+        case .`repeat`:
+            var newColors = colors
+            var newLocations = locations.map { $0 / 2 }
+            for i in 0..<colors.count {
+                newColors.append(colors[i])
+                newLocations.append((1 + locations[i]) / 2)
+            }
+            return (newColors, newLocations)
         }
     }
 

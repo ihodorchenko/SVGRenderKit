@@ -42,6 +42,9 @@ open class SVGRadialGradientTag: SVGBaseGradient {
             }
             colors.append(stop.stop_color.cgColor)
         }
+        let spread = spreadAdjusted(colors: colors, locations: locations)
+        colors = spread.colors
+        locations = spread.locations
 
         if colors.count == locations.count && locations.count > 1 {
             let newLayer: CALayer = CALayer()
@@ -90,6 +93,7 @@ open class SVGRadialGradientTag: SVGBaseGradient {
                         self.transform = hrefTransform
                     }
                     gradientUnits = hrefGradient.gradientUnits
+                    spreadMethod = hrefGradient.spreadMethod
                 }
                 break
             case .web:

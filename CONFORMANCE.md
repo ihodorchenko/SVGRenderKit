@@ -100,7 +100,7 @@ All commands are implemented, including elliptical arcs:
 | `clip-rule` | ✅ `nonzero` / `evenodd` |
 | `mask` | ✅ local `url(#…)` |
 | `transform` | ✅ `matrix`, `translate`, `rotate`, `scale`, `skewX`, `skewY` |
-| `gradientTransform`, `gradientUnits` | ✅ |
+| `gradientTransform`, `gradientUnits`, `spreadMethod` | ✅ |
 | `xlink:href` / `href` inheritance | ✅ (both spellings) |
 | `display` | ✅ `inline` / `block` / `none` |
 | `font-family`, `font-style`, `font-weight`, `font-size` | ✅ (`px` / `%` / `em`) |
@@ -140,7 +140,7 @@ items are cheap and unlock a large share of real-world SVG 1.1 content.
 | 6 | ✅ `<symbol>` + `<use>` with `viewBox`/`width`/`height` | Medium-High | Structure |
 | 7 | ✅ `text-anchor` + multi-line `<tspan>` | Medium | Text |
 | 8 | ✅ `<mask>` | Medium | Compositing |
-| 9 | gradient `spreadMethod` (`pad`/`reflect`/`repeat`) | Medium | Gradients |
+| 9 | ✅ gradient `spreadMethod` (`pad`/`reflect`/`repeat`) | Medium | Gradients |
 | 10 | `<pattern>` | High | Painting |
 | 11 | `<marker>` (arrowheads) | High | Painting |
 | 12 | `<filter>` subset (`feGaussianBlur`, `feDropShadow`) | High | Filters |

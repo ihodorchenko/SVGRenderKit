@@ -21,19 +21,22 @@ open class SVGLinearGradientTag: SVGBaseGradient {
     /// Builds a masked layer that draws this linear gradient along its axis.
     open override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect) -> CALayer? {
         var colors: [CGColor] = []
-        var locations: [NSNumber] = []
+        var locations: [CGFloat] = []
 
         stops.sort { (f, s) -> Bool in
             return f.offset < s.offset
         }
         for stop in stops {
             if stop.offset >= 0 {
-                locations.append(NSNumber(value: Float(stop.offset)))
+                locations.append(CGFloat(stop.offset))
             } else {
                 return nil
             }
             colors.append(stop.stop_color.cgColor)
         }
+        let spread = spreadAdjusted(colors: colors, locations: locations)
+        colors = spread.colors
+        locations = spread.locations
 
         if colors.count == locations.count && locations.count > 1 {
             let newLayer: CALayer = CALayer()
@@ -115,7 +118,7 @@ open class SVGLinearGradientTag: SVGBaseGradient {
             }
 
             gradLayer.colors = colors
-            gradLayer.locations = locations
+            gradLayer.locations = locations.map { NSNumber(value: $0) }
 
             return newLayer
         }
@@ -142,6 +145,7 @@ open class SVGLinearGradientTag: SVGBaseGradient {
                         self.transform = hrefTransform
                     }
                     gradientUnits = hrefGradient.gradientUnits
+                    spreadMethod = hrefGradient.spreadMethod
                 }
                 break
             case .web:
