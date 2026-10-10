@@ -61,6 +61,16 @@ open class SVGRadialGradientTag: SVGBaseGradient {
             radius = value * diagonal
         }
 
+        var finalCenter = center
+        var finalRadius = radius
+        if let transform = transform {
+            let affine = CATransform3DGetAffineTransform(transform)
+            finalCenter = center.applying(affine)
+            // Scale the radius by the transform's geometric-mean scale factor.
+            let scale = sqrt(abs(affine.a * affine.d - affine.b * affine.c))
+            finalRadius = radius * scale
+        }
+
         let newLayer: CALayer = CALayer()
         newLayer.mask = maskLayer
         let gradLayer = RadialGradientLayer()
@@ -69,8 +79,8 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         gradLayer.mask = maskLayer
         gradLayer.anchorPoint = CGPoint(x: 0, y: 0)
         gradLayer.position = CGPoint(x: 0, y: 0)
-        gradLayer.startPoint = center
-        gradLayer.radius = radius
+        gradLayer.startPoint = finalCenter
+        gradLayer.radius = finalRadius
 
         gradLayer.colors = colors
         gradLayer.locations = locations

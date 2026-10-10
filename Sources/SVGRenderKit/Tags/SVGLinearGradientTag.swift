@@ -66,20 +66,12 @@ open class SVGLinearGradientTag: SVGBaseGradient {
 
                 var _startPoint = CGPoint(x: x1, y: y1)
                 var _endPoint = CGPoint(x: x2, y: y2)
-                var finalBoundsToPoints = boundsToPoints
                 if let transform = transform {
-                    let originDegree: CGFloat = atan2(y2 - y1, x2 - x1)
+                    // Apply the full affine `gradientTransform` (translation, rotation,
+                    // scale, and skew) to the gradient axis, not just rotation.
                     let affineTransform = CATransform3DGetAffineTransform(transform)
-                    let tempStartPoint = _startPoint.applying(affineTransform)
-                    let tempEndPoint = _endPoint.applying(affineTransform)
-
-                    finalBoundsToPoints = finalBoundsToPoints.applying(affineTransform)
-
-                    let transformedDegree: CGFloat = atan2(tempEndPoint.y - tempStartPoint.y, tempEndPoint.x - tempStartPoint.x)
-                    let affineTransformRotate = affineTransform.rotated(by: (originDegree - transformedDegree))
-                    _startPoint = _startPoint.applying(affineTransformRotate)
-                    _endPoint = _endPoint.applying(affineTransformRotate)
-
+                    _startPoint = _startPoint.applying(affineTransform)
+                    _endPoint = _endPoint.applying(affineTransform)
                 }
 
                 let points = LinearGradientFixer.fixPoints(
