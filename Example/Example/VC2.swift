@@ -149,6 +149,7 @@ final class SVGDetailViewController: UIViewController, UIGestureRecognizerDelega
     private let svgView = SVGView()
     private let titleLabel = UILabel()
     private let closeButton = UIButton(type: .system)
+    private let cardView = UIView()
 
     init(name: String) {
         self.name = name
@@ -161,7 +162,7 @@ final class SVGDetailViewController: UIViewController, UIGestureRecognizerDelega
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(white: 0.08, alpha: 1)
+        view.backgroundColor = UIColor.white
 
         setupTitleLabel()
         setupSVGView()
@@ -175,13 +176,13 @@ final class SVGDetailViewController: UIViewController, UIGestureRecognizerDelega
     }
 
     override var preferredStatusBarStyle: UIStatusBarStyle {
-        return .lightContent
+        return .default
     }
 
     private func setupTitleLabel() {
         titleLabel.text = name
         titleLabel.font = UIFont.systemFont(ofSize: 13)
-        titleLabel.textColor = UIColor.lightGray
+        titleLabel.textColor = UIColor.darkGray
         titleLabel.textAlignment = .center
         titleLabel.lineBreakMode = .byTruncatingMiddle
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -195,22 +196,33 @@ final class SVGDetailViewController: UIViewController, UIGestureRecognizerDelega
     }
 
     private func setupSVGView() {
+        cardView.backgroundColor = UIColor(white: 0.95, alpha: 1)
+        cardView.layer.cornerRadius = 8
+        cardView.clipsToBounds = true
+        cardView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(cardView)
+
         svgView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(svgView)
+        cardView.addSubview(svgView)
 
         NSLayoutConstraint.activate([
-            svgView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
-            svgView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
-            svgView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
-            svgView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24)
+            cardView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
+            cardView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
+            cardView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
+            cardView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24),
+
+            svgView.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 16),
+            svgView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 16),
+            svgView.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -16),
+            svgView.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -16)
         ])
     }
 
     private func setupCloseButton() {
         closeButton.setTitle("✕", for: .normal)
         closeButton.titleLabel?.font = UIFont.systemFont(ofSize: 24, weight: .medium)
-        closeButton.setTitleColor(.white, for: .normal)
-        closeButton.backgroundColor = UIColor(white: 1, alpha: 0.15)
+        closeButton.setTitleColor(UIColor.darkGray, for: .normal)
+        closeButton.backgroundColor = UIColor(white: 0, alpha: 0.06)
         closeButton.layer.cornerRadius = 22
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
