@@ -31,6 +31,11 @@ final class SVGTextLayoutTests: XCTestCase {
         return try XCTUnwrap(findTextLayers(in: layer).first)
     }
 
+    private func font(of layer: CATextLayer) throws -> UIFont {
+        let attributed = try XCTUnwrap(layer.string as? NSAttributedString)
+        return try XCTUnwrap(attributed.attribute(.font, at: 0, effectiveRange: nil) as? UIFont)
+    }
+
     // MARK: tspan
 
     func testMultilineTspanRendersAllLines() throws {
@@ -55,8 +60,36 @@ final class SVGTextLayoutTests: XCTestCase {
         </svg>
         """
         let layer = try firstTextLayer(svg)
+        let font = try font(of: layer)
         XCTAssertEqual(layer.transform.m41, 15, accuracy: 0.0001)
-        XCTAssertEqual(layer.transform.m42, 30, accuracy: 0.0001)
+        // y=20 + dy=10, baseline-corrected by the font ascent.
+        XCTAssertEqual(layer.transform.m42, 30 - font.ascender, accuracy: 0.0001)
+    }
+
+    // MARK: frame / anchor / baseline (T49)
+
+    func testTextLayerHasNonZeroFrame() throws {
+        let layer = try firstTextLayer("""
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="10" y="20">Hi</text></svg>
+        """)
+        XCTAssertGreaterThan(layer.frame.width, 0)
+        XCTAssertGreaterThan(layer.frame.height, 0)
+    }
+
+    func testTextLayerAnchorPointIsTopLeft() throws {
+        let layer = try firstTextLayer("""
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="10" y="20">Hi</text></svg>
+        """)
+        XCTAssertEqual(layer.anchorPoint.x, 0, accuracy: 0.0001)
+        XCTAssertEqual(layer.anchorPoint.y, 0, accuracy: 0.0001)
+    }
+
+    func testTextBaselineAdjustedToY() throws {
+        let layer = try firstTextLayer("""
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="0" y="20">Hi</text></svg>
+        """)
+        let font = try font(of: layer)
+        XCTAssertEqual(layer.transform.m42, 20 - font.ascender, accuracy: 0.0001)
     }
 
     // MARK: text-anchor

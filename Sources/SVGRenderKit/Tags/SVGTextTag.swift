@@ -85,12 +85,20 @@ open class SVGTextTag: SVGShapeObject {
         textLayer.string = attributedString
         textLayer.contentsScale = UIScreen.main.scale
 
+        // CATextLayer does not auto-size: with a zero frame it draws nothing.
+        // Size it to the rendered text so the glyphs have a drawing area.
+        let size = textLayer.preferredFrameSize()
+        textLayer.frame = CGRect(origin: .zero, size: size)
+        // Anchor at the top-left so the `transform` translation below places the
+        // text origin (and its baseline) precisely, instead of its center.
+        textLayer.anchorPoint = CGPoint(x: 0, y: 0)
+
         var offsetX: CGFloat = 0
         switch textAnchor {
         case "middle":
-            offsetX = -attributedString.size().width / 2
+            offsetX = -size.width / 2
         case "end":
-            offsetX = -attributedString.size().width
+            offsetX = -size.width
         default:
             offsetX = 0
         }
@@ -100,8 +108,11 @@ open class SVGTextTag: SVGShapeObject {
             _transform = transform
         }
         let px = x + offsetX
-        if px != 0 || y != 0 {
-            _transform = CATransform3DTranslate(_transform, px, y, 0)
+        // SVG `y` is the text baseline; CATextLayer's top edge sits one ascent
+        // above the baseline, so shift up accordingly.
+        let py = y - font.ascender
+        if px != 0 || py != 0 {
+            _transform = CATransform3DTranslate(_transform, px, py, 0)
         }
         if !CATransform3DIsIdentity(_transform) {
             textLayer.transform = _transform
