@@ -24,7 +24,9 @@ public enum SVGFuncIRI {
     /// Parses the inner content of a `url(...)` reference into an `SVGFuncIRI`.
     /// - parameter str: The content between the parentheses of a `url(...)` reference.
     public static func get(content str: String) throws -> SVGFuncIRI {
-        let str = str.trimmed
+        var str = str.trimmed
+        str = str.trimmingCharacters(in: CharacterSet(charactersIn: "'\""))
+        str = str.trimmed
         if str.hasPrefix("#") || str.hasPrefix(".") {
             return SVGFuncIRI.local(key: str)
         } else {

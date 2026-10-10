@@ -27,6 +27,22 @@ final class SVGFuncIRITests: XCTestCase {
         XCTAssertEqual(key, "#grad")
     }
 
+    func testSingleQuotedURLString() throws {
+        let iri = try SVGFuncIRI.get(fullStr: "url('#grad')")
+        guard case .local(let key) = iri else {
+            return XCTFail("expected .local, got \(iri)")
+        }
+        XCTAssertEqual(key, "#grad")
+    }
+
+    func testDoubleQuotedURLString() throws {
+        let iri = try SVGFuncIRI.get(fullStr: "url(\"#grad\")")
+        guard case .local(let key) = iri else {
+            return XCTFail("expected .local, got \(iri)")
+        }
+        XCTAssertEqual(key, "#grad")
+    }
+
     func testNonURLStringThrows() {
         XCTAssertThrowsError(try SVGFuncIRI.get(fullStr: "not-a-url"))
     }
