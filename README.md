@@ -11,7 +11,7 @@ and has since been rewritten around an object-tree parser (powered by
 ## Documentation
 
 API documentation is generated with [DocC](https://www.swift.org/documentation/docc/)
-from the `///` comments in the source and published to GitHub Pages.
+from the `///` comments in the source and published to [GitHub Pages](https://ihodorchenko.github.io/SVGRenderKit/).
 
 ## Requirements
 
