@@ -69,6 +69,16 @@ enum ParityFixtures {
             <rect width="100" height="100" fill="#e74c3c" clip-path="url(#c)"/>
         </svg>
         """),
+        ParityFixture(name: "clip-path-object-bounding-box", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <clipPath id="c" clipPathUnits="objectBoundingBox">
+                    <rect x="0.25" y="0.25" width="0.5" height="0.5"/>
+                </clipPath>
+            </defs>
+            <rect x="10" y="10" width="80" height="80" fill="#e67e22" clip-path="url(#c)"/>
+        </svg>
+        """),
         ParityFixture(name: "transform", svg: """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <g transform="translate(50 50)">

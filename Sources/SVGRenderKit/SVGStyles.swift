@@ -545,7 +545,8 @@ extension SVGSourceStyleElement {
         if let clipPath = clipPath {
             switch clipPath {
             case .local(let key):
-                if let rendering = try group.getClipPath(byKey: key, fromParents: true)?.createLayer(overrideElements: overrideElements) {
+                if let clipPathObj = group.getClipPath(byKey: key, fromParents: true) {
+                    let rendering = try clipPathObj.createLayer(overrideElements: overrideElements)
                     if let rendering = rendering as? CAShapeLayer {
                         switch self.clipRule ?? .nonzero {
                         case .nonzero:
@@ -555,6 +556,17 @@ extension SVGSourceStyleElement {
                         case .inherit:
                             rendering.fillRule = .nonZero
                         }
+                    }
+                    if clipPathObj.clipPathUnits == .objectBoundingBox {
+                        // The clip path's coordinates are in [0,1] object-bounding-box
+                        // units; map them onto the element's bbox via
+                        // translate(origin) · scale(size). CATransform3D helpers
+                        // post-multiply, so emit translate first, then scale.
+                        let bbox = path.bounds
+                        var t = CATransform3DIdentity
+                        t = CATransform3DTranslate(t, bbox.origin.x, bbox.origin.y, 0)
+                        t = CATransform3DScale(t, bbox.width, bbox.height, 1)
+                        rendering.transform = CATransform3DConcat(t, rendering.transform)
                     }
                     mainLayer.mask = rendering
                 } else {
