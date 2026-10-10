@@ -168,6 +168,17 @@ internal class EllipticalArcTo: PathCommand {
         let rx: Scalar = Scalar(parameters[0])
         let ry: Scalar = Scalar(parameters[1])
 
+        // Per SVG 1.1:
+        // - If the endpoints are identical, the arc is omitted entirely.
+        // - If rx or ry is 0, the arc is treated as a straight line (lineto).
+        if startPoint.x == endPoint.x && startPoint.y == endPoint.y {
+            return nil
+        }
+        if rx == 0 || ry == 0 {
+            forPath.addLine(to: endPoint)
+            return nil
+        }
+
         let curves = self.ellipseArcToCurves.a2c(
             startPoint: startPoint.vector, endPoint: endPoint.vector,
             rx: rx, ry: ry, largeArcFlag: largeArcFlag, sweepFlag: sweepFlag, phi: xAngle)

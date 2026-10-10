@@ -27,6 +27,20 @@ final class SVGParseStringTests: XCTestCase {
         XCTAssertEqual(elementCount(path!), 2)
     }
 
+    func testArcWithZeroRadiusRendersLine() throws {
+        let result = SVGParseString.parseSVGPath(pathString: "M0 0 A0 50 0 0 1 100 100")
+        XCTAssertNil(result.error)
+        let path = try XCTUnwrap(result.path)
+        XCTAssertEqual(elementCount(path), 2) // M + lineto (zero-radius arc → line)
+    }
+
+    func testArcWithCoincidentEndpointsIsSkipped() throws {
+        let result = SVGParseString.parseSVGPath(pathString: "M10 10 A5 5 0 0 1 10 10")
+        XCTAssertNil(result.error)
+        let path = try XCTUnwrap(result.path)
+        XCTAssertEqual(elementCount(path), 1) // M only (coincident arc omitted)
+    }
+
     func testParsesRelativeMoveAndLine() {
         let result = SVGParseString.parseSVGPath(pathString: "m0 0 l10 10")
         XCTAssertNil(result.error)
