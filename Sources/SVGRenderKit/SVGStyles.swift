@@ -507,7 +507,18 @@ extension SVGSourceStyleElement {
             }
             pathLayer.strokeColor = color.withAlphaComponent(color.cgColor.alpha * strokeOpacity).cgColor
         case .funcIRI(let iri):
-            throw SVGError.content(text: "stroke iri not supported: \(iri)")
+            switch iri {
+            case .local(let key):
+                if let gradient = group.getGradient(byKey: key, fromParents: true) {
+                    try applyStrokeGradient(mainLayer: mainLayer, path: path, gradient: gradient, group: group)
+                } else if let pattern = group.getPattern(byKey: key, fromParents: true) {
+                    applyStrokePattern(mainLayer: mainLayer, path: path, pattern: pattern)
+                } else {
+                    throw SVGError.content(text: "local stroke iri not found by key: \(key)")
+                }
+            case .web(let url):
+                throw SVGError.content(text: "web stroke iri not supported: \(url)")
+            }
         }
 
         if let strokeLinecap = self.strokeLinecap {
@@ -607,6 +618,53 @@ extension SVGSourceStyleElement {
         if let image = pattern.tileImage() {
             pathLayer.fillColor = UIColor(patternImage: image).cgColor
         }
+    }
+
+    private func strokeLineWidth() -> CGFloat {
+        switch self.strokeWidth ?? .px(value: 1) {
+        case .px(let value): return value
+        case .percent(let value): return 1 * value
+        }
+    }
+
+    private func strokedPath(from path: UIBezierPath) -> CGPath {
+        let lineCap: CGLineCap
+        switch self.strokeLinecap ?? .butt {
+        case .butt: lineCap = .butt
+        case .round: lineCap = .round
+        case .square: lineCap = .square
+        }
+        let lineJoin: CGLineJoin
+        switch self.strokeLinejoin ?? .miter {
+        case .miter: lineJoin = .miter
+        case .round: lineJoin = .round
+        case .bevel: lineJoin = .bevel
+        }
+        return path.cgPath.copy(
+            strokingWithWidth: strokeLineWidth(),
+            lineCap: lineCap,
+            lineJoin: lineJoin,
+            miterLimit: self.strokeMiterlimit ?? 4)
+    }
+
+    private func applyStrokeGradient(mainLayer: CAShapeLayer, path: UIBezierPath, gradient: SVGBaseGradient, group: SVGShapesContainer) throws {
+        guard gradient.isEnable() else { throw SVGError.content(text: "wrong content in gradient") }
+        let options = group.getSvgOptions()
+        let stroked = strokedPath(from: path)
+        let maskLayer = CAShapeLayer()
+        maskLayer.path = stroked
+        if let gradLayer = gradient.getGradientLayer(maskLayer: maskLayer, path: UIBezierPath(cgPath: stroked), viewBox: options.viewBox, currentColor: self.color ?? .black) {
+            mainLayer.insertSublayer(gradLayer, at: 0)
+        }
+    }
+
+    private func applyStrokePattern(mainLayer: CAShapeLayer, path: UIBezierPath, pattern: SVGPattern) {
+        guard let image = pattern.tileImage() else { return }
+        let stroked = strokedPath(from: path)
+        let patternLayer = CAShapeLayer()
+        patternLayer.path = stroked
+        patternLayer.fillColor = UIColor(patternImage: image).cgColor
+        mainLayer.insertSublayer(patternLayer, at: 0)
     }
 
     private func applyMarker(mainLayer: CAShapeLayer, path: UIBezierPath, marker: SVGMarker, overrideElements: [String: SVGSourceStyleElement]?) throws {

@@ -206,4 +206,22 @@ final class SVGLinearGradientTagTests: XCTestCase {
         XCTAssertEqual(green, 0, accuracy: 1e-6)
         XCTAssertEqual(blue, 0, accuracy: 1e-6)
     }
+
+    func testStrokeGradientRenders() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stop-color="#ff0000"/>
+                    <stop offset="1" stop-color="#0000ff"/>
+                </linearGradient>
+            </defs>
+            <line x1="0" y1="50" x2="100" y2="50" stroke="url(#g)" stroke-width="4"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let gradient = try XCTUnwrap(findGradientLayer(in: layer))
+        XCTAssertNotNil(gradient)
+    }
 }
