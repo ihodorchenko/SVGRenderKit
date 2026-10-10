@@ -120,7 +120,7 @@ struct SVGAnimation {
         }
         animation.duration = duration
         animation.repeatCount = repeatCount
-        animation.beginTime = begin
+        animation.beginTime = CACurrentMediaTime() + begin
         targetLayer.add(animation, forKey: keyPath)
     }
 

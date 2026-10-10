@@ -119,6 +119,21 @@ final class SVGAnimationTests: XCTestCase {
         XCTAssertEqual(anim.repeatCount, .infinity)
     }
 
+    func testBeginDelayUsesHostTime() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <rect width="50" height="50" fill="#ff0000">
+                <animate attributeName="opacity" from="0" to="1" dur="1s" begin="2s"/>
+            </rect>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let animated = try XCTUnwrap(findLayerWithAnimation(in: layer, key: "opacity"))
+        let anim = try XCTUnwrap(animated.animation(forKey: "opacity"))
+        XCTAssertGreaterThan(anim.beginTime, 2)
+    }
+
     private func findFilledShapeLayer(in layer: CALayer) -> CAShapeLayer? {
         if let shape = layer as? CAShapeLayer, shape.path != nil, shape.fillColor != nil {
             return shape
