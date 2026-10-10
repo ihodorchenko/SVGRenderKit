@@ -77,6 +77,13 @@ extension ViewController2: UICollectionViewDataSource, UICollectionViewDelegateF
         let width = floor((collectionView.bounds.width - totalSpacing) / CGFloat(columns))
         return CGSize(width: width, height: cellHeight)
     }
+
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        let detail = SVGDetailViewController(name: names[indexPath.item])
+        detail.modalPresentationStyle = .fullScreen
+        detail.modalTransitionStyle = .crossDissolve
+        present(detail, animated: true)
+    }
 }
 
 final class SVGCell: UICollectionViewCell {
@@ -133,5 +140,102 @@ final class SVGCell: UICollectionViewCell {
         super.prepareForReuse()
         svgView.clear()
         label.text = nil
+    }
+}
+
+final class SVGDetailViewController: UIViewController, UIGestureRecognizerDelegate {
+
+    private let name: String
+    private let svgView = SVGView()
+    private let titleLabel = UILabel()
+    private let closeButton = UIButton(type: .system)
+
+    init(name: String) {
+        self.name = name
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = UIColor(white: 0.08, alpha: 1)
+
+        setupTitleLabel()
+        setupSVGView()
+        setupCloseButton()
+
+        let tap = UITapGestureRecognizer(target: self, action: #selector(backgroundTapped))
+        tap.delegate = self
+        view.addGestureRecognizer(tap)
+
+        svgView.set(SVGName: name)
+    }
+
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        return .lightContent
+    }
+
+    private func setupTitleLabel() {
+        titleLabel.text = name
+        titleLabel.font = UIFont.systemFont(ofSize: 13)
+        titleLabel.textColor = UIColor.lightGray
+        titleLabel.textAlignment = .center
+        titleLabel.lineBreakMode = .byTruncatingMiddle
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(titleLabel)
+
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 72),
+            titleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -72)
+        ])
+    }
+
+    private func setupSVGView() {
+        svgView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(svgView)
+
+        NSLayoutConstraint.activate([
+            svgView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
+            svgView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
+            svgView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
+            svgView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24)
+        ])
+    }
+
+    private func setupCloseButton() {
+        closeButton.setTitle("✕", for: .normal)
+        closeButton.titleLabel?.font = UIFont.systemFont(ofSize: 24, weight: .medium)
+        closeButton.setTitleColor(.white, for: .normal)
+        closeButton.backgroundColor = UIColor(white: 1, alpha: 0.15)
+        closeButton.layer.cornerRadius = 22
+        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
+        view.addSubview(closeButton)
+
+        NSLayoutConstraint.activate([
+            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            closeButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            closeButton.widthAnchor.constraint(equalToConstant: 44),
+            closeButton.heightAnchor.constraint(equalToConstant: 44)
+        ])
+    }
+
+    @objc private func closeTapped() {
+        dismiss(animated: true)
+    }
+
+    @objc private func backgroundTapped() {
+        dismiss(animated: true)
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        if let view = touch.view, view.isDescendant(of: closeButton) {
+            return false
+        }
+        return true
     }
 }
