@@ -1,11 +1,22 @@
 import UIKit
 
+/// A single text run (direct `<text>` content or a `<tspan>` child).
+struct SVGTextSpan {
+    var text: String
+    var x: CGFloat?
+    var y: CGFloat?
+    var dx: CGFloat = 0
+    var dy: CGFloat = 0
+}
+
 /// A drawable shape that renders an SVG `<text>` element.
 open class SVGTextTag: SVGShapeObject {
     class override var key: String { get { return "text" }}
 
     var x: CGFloat = 0
     var y: CGFloat = 0
+    var textAnchor: String = "start"
+    private(set) var tspans: [SVGTextSpan] = []
 
     /// Initializes a text element by parsing its `x` and `y` attributes.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
@@ -21,39 +32,76 @@ open class SVGTextTag: SVGShapeObject {
                 throw SVGError.parseError(text: "invalid convert 'y' to float '\(str)'")
             }
         }
+        if let str = attributeDict["text-anchor"] {
+            textAnchor = str.trimmed
+        }
+        for child in xmlElement.xmlChildren where child.name == "tspan" {
+            var span = SVGTextSpan(text: child.text, x: nil, y: nil)
+            if let str = child.attribute(by: "x")?.text, let f = Float(str.trimmed) { span.x = CGFloat(f) }
+            if let str = child.attribute(by: "y")?.text, let f = Float(str.trimmed) { span.y = CGFloat(f) }
+            if let str = child.attribute(by: "dx")?.text, let f = Float(str.trimmed) { span.dx = CGFloat(f) }
+            if let str = child.attribute(by: "dy")?.text, let f = Float(str.trimmed) { span.dy = CGFloat(f) }
+            tspans.append(span)
+        }
     }
 
     /// Builds and returns a text layer positioned at the element's `x` and `y` coordinates.
     public override func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
-        let textLayer = CATextLayer()
+        let container = CALayer()
 
-        // Resolve the effective style: inherited + element's own + overrides.
         var sourceStyle: SVGSourceStyleElement = self.sourceStyle
         sourceStyle = parent.getStyle(forObject: self, overrideElements: overrideElements).combine(child: sourceStyle)
         if let addStyle = addStyle {
             sourceStyle = sourceStyle.combine(child: addStyle)
         }
 
-        // Resolve the text color from the resolved fill.
         var textColor = UIColor.black
         if let fill = sourceStyle.fill, case .color(let color) = fill {
             textColor = color
         }
+        let font = makeFont(from: sourceStyle)
 
-        let attributedString = NSAttributedString(string: xmlElement.text, attributes: [
-            .font: makeFont(from: sourceStyle),
-            .foregroundColor: textColor
+        let mainText = xmlElement.text
+        if !mainText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            container.addSublayer(makeTextLayer(text: mainText, font: font, color: textColor, x: x, y: y))
+        }
+
+        for span in tspans {
+            let spanX = span.x ?? (x + span.dx)
+            let spanY = span.y ?? (y + span.dy)
+            container.addSublayer(makeTextLayer(text: span.text, font: font, color: textColor, x: spanX, y: spanY))
+        }
+
+        return container
+    }
+
+    /// Builds a positioned `CATextLayer` for a single text run, applying `text-anchor` alignment.
+    private func makeTextLayer(text: String, font: UIFont, color: UIColor, x: CGFloat, y: CGFloat) -> CATextLayer {
+        let textLayer = CATextLayer()
+        let attributedString = NSAttributedString(string: text, attributes: [
+            .font: font,
+            .foregroundColor: color
         ])
-
         textLayer.string = attributedString
         textLayer.contentsScale = UIScreen.main.scale
+
+        var offsetX: CGFloat = 0
+        switch textAnchor {
+        case "middle":
+            offsetX = -attributedString.size().width / 2
+        case "end":
+            offsetX = -attributedString.size().width
+        default:
+            offsetX = 0
+        }
 
         var _transform: CATransform3D = CATransform3DIdentity
         if let transform = transform {
             _transform = transform
         }
-        if x != 0 || y != 0 {
-            _transform = CATransform3DTranslate(_transform, x, y, 0)
+        let px = x + offsetX
+        if px != 0 || y != 0 {
+            _transform = CATransform3DTranslate(_transform, px, y, 0)
         }
         if !CATransform3DIsIdentity(_transform) {
             textLayer.transform = _transform

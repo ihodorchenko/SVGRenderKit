@@ -67,7 +67,7 @@ specific additions (Tiny's `textArea`/`solidColor`/mandatory animation; 2.0's
 | `<line>` | ✅ |
 | `<polyline>` | ✅ |
 | `<polygon>` | ✅ |
-| `<text>` | ✅ basic, single line |
+| `<text>` | ✅ `text-anchor` + multi-line `<tspan>` |
 | `<linearGradient>` | ✅ |
 | `<radialGradient>` | ✅ |
 | `<stop>` | ✅ (`stop-color`, `stop-opacity`, `offset`) |
@@ -75,7 +75,7 @@ specific additions (Tiny's `textArea`/`solidColor`/mandatory animation; 2.0's
 | `<mask>`, `<pattern>`, `<marker>`, `<filter>` | ❌ |
 | `<image>`, `<switch>`, `<a>`, `<foreignObject>`, `<font>` | ❌ |
 | `<animate>`, `<set>`, `<animateTransform>`, etc. (SMIL) | ❌ |
-| `<script>`, `<cursor>`, `<solidColor>`, `<textPath>`, `<tspan>` (multi) | ❌ |
+| `<script>`, `<cursor>`, `<solidColor>`, `<textPath>` | ❌ |
 
 ### Path data commands
 
@@ -107,7 +107,7 @@ All commands are implemented, including elliptical arcs:
 | `stroke-dasharray`, `stroke-dashoffset` | ✅ |
 | `currentColor` | ✅ resolved via `color` |
 | `color`, `paint-order`, `vector-effect`, `marker-*`, `mask`, `filter` | ❌ |
-| `text-anchor`, multi-line `<tspan>` layout | ❌ |
+| `text-anchor`, multi-line `<tspan>` layout | ✅ |
 
 ### CSS
 
@@ -119,7 +119,7 @@ All commands are implemented, including elliptical arcs:
 
 - No `filter`, `mask`, `pattern`, `marker`.
 - No SMIL animation or scripting.
-- Basic text only: no `textPath`, no `text-anchor`, no multi-line `<tspan>`.
+- No `<textPath>`; text uses `<tspan>` with absolute `x`/`y` or `dx`/`dy`.
 - External `url(...)` resources are not loaded.
 - Almost all SVG 2.0 additions are absent (see below).
 
@@ -136,7 +136,7 @@ items are cheap and unlock a large share of real-world SVG 1.1 content.
 | 4 | ✅ `currentColor` resolution | Medium | Painting |
 | 5 | ✅ `clip-rule` wiring | Low | Clipping |
 | 6 | ✅ `<symbol>` + `<use>` with `viewBox`/`width`/`height` | Medium-High | Structure |
-| 7 | `text-anchor` + multi-line `<tspan>` | Medium | Text |
+| 7 | ✅ `text-anchor` + multi-line `<tspan>` | Medium | Text |
 | 8 | `<mask>` | Medium | Compositing |
 | 9 | gradient `spreadMethod` (`pad`/`reflect`/`repeat`) | Medium | Gradients |
 | 10 | `<pattern>` | High | Painting |
