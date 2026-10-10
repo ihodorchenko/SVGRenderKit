@@ -91,6 +91,7 @@ All commands are implemented, including elliptical arcs:
 | Property | Status |
 |---|---|
 | `viewBox`, `width`, `height` | ✅ (`px`, `%`) |
+| `version`, `baseProfile` | ✅ parsed (stored for multi-profile) |
 | `fill` | ✅ color, `none`, gradient/pattern `url(#…)` |
 | `fill-rule` | ✅ `nonzero` / `evenodd` |
 | `fill-opacity` | ✅ |

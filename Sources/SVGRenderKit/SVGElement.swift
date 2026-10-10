@@ -96,10 +96,18 @@ open class SVGOptions {
     /// How the `viewBox` is fitted and aligned within the viewport.
     var preserveAspectRatio: SVGPreserveAspectRatio = SVGPreserveAspectRatio()
 
-    /// Initializes options by parsing the `viewBox`, `width`, `height`, and `preserveAspectRatio` attributes.
+    /// The `version` attribute of the root `<svg>` element (e.g. `"1.1"`).
+    var version: String?
+    /// The `baseProfile` attribute of the root `<svg>` element (e.g. `"tiny"`).
+    var baseProfile: String?
+
+    /// Initializes options by parsing the `viewBox`, `width`, `height`, `preserveAspectRatio`,
+    /// `version`, and `baseProfile` attributes.
     /// - parameter attributeDict: The attributes of the root `svg` element.
     public init(attributeDict: [String : String]) throws {
         self.preserveAspectRatio = SVGPreserveAspectRatio.get(string: attributeDict["preserveAspectRatio"])
+        self.version = attributeDict["version"]
+        self.baseProfile = attributeDict["baseProfile"]
 
         var viewBox: CGRect?
         if let viewBoxStr = attributeDict["viewBox"] {
