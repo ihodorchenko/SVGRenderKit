@@ -132,14 +132,18 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 
 ## How conformance is measured
 
-Conformance to the Icon Profile is measured by **golden-image / snapshot tests**
-over real icon sets, not by the W3C SVG test suite:
+Conformance to the Icon Profile is measured by **on-the-fly render-parity tests**
+against Apple's CoreSVG over a corpus of real icons, not by the W3C SVG test suite:
 
-- A test fixture bundles a corpus of real icons (Feather, Lucide, Material,
-  Tabler, and Figma / Sketch / Illustrator exports).
-- Each icon is rendered off-screen and compared to a reference PNG (per-pixel
-  tolerance, multiple `scale` factors: 1x / 2x / 3x).
-- The pass metric is "icon sets that render pixel-accurately", tracked in CI.
+- A test fixture bundles a corpus of real icons (Illustrator, Sketch, and
+  Figma exports, plus hand-crafted edge cases) under `Example/Example/data`.
+- Each icon is rendered off-screen by both `SVGView` (under test) and CoreSVG
+  (the oracle), then compared pixel-by-pixel within a tolerance. No committed
+  golden PNGs — the reference is produced at test time to keep the repo small.
+- The pass metric is "icons that render pixel-accurately vs CoreSVG", tracked in CI
+  (iPhone + iPad) and surfaced in the GitHub step summary.
+- Fixtures that use features CoreSVG does not implement (`display:none`, `<switch>`,
+  8-digit hex) are classified as *reference-limited* rather than failures.
 - New icons that fail are triaged as either bugs or new profile features.
 
-See `Task.md` (Phase 9) for the concrete work items.
+See `Task.md` for the concrete work items and the live parity numbers.

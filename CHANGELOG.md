@@ -8,22 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
-- Figma/Sketch drop-shadows: the `feOffset` + `feColorMatrix` tint chain is now
-  recognized and drives the `CALayer` shadow (color + opacity from the color matrix).
+- Group-compositing of `opacity`/`clip-path`/`mask`/`filter` + `visibility` on `<g>`.
+- `<image>` inline data-URI rasters.
+- `hsl()`/`hsla()` colors.
+- `feOffset`/`feFlood` drop-shadow primitive chain (SVG 1.1) and `feDropShadow` (SVG 2.0).
+- Figma/Sketch drop-shadows: the `feOffset` + `feColorMatrix` tint chain drives the
+  `CALayer` shadow (color + opacity from the color matrix).
 - `<switch>` conditional processing: renders the first child without
   `requiredFeatures`/`requiredExtensions`/`systemLanguage`, so Illustrator
-  exports (which wrap the fallback art in `<switch>` + `<foreignObject>`)
-  now render instead of being dropped.
+  exports (fallback art wrapped in `<switch>` + `<foreignObject>`) now render.
 
 ### Fixed
+- 8-digit hex colors parsed as `#RRGGBBAA` (CSS/SVG 2.0 order).
 - Gradient `xlink:href` inheritance now honors attributes explicitly set on the
-  referencing gradient (`gradientUnits`, `spreadMethod`, `gradientTransform`) instead
-  of unconditionally overriding them with the referenced gradient's values.
+  referencing gradient (`gradientUnits`, `spreadMethod`, `gradientTransform`).
+- `gray_ruble.svg` — removed a duplicate `id` attribute that CoreSVG rejected.
 
 ### Changed
-- Parity triage classifies `display:none` and `<switch>` fixtures as
-  *reference-limited*: CoreSVG does not implement these SVG 1.1 features, so it
-  renders elements our renderer correctly handles differently.
+- CI now gates corpus parity on regressions (crash, reference parse failure, or an
+  un-annotated divergence) and emits the annotated summary into the GitHub step summary.
+- Parity triage classifies `display:none` and `<switch>` fixtures as *reference-limited*:
+  CoreSVG does not implement these SVG 1.1 features.
 
 ## 1.0.1
 

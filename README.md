@@ -138,25 +138,62 @@ SVGLog.logger = MyLogger()
 
 ## Features
 
-- `<path>`, `<rect>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>`, `<text>`
-- `<g>` groups, `<defs>`, `<use>`, and `<clipPath>`
-- `<linearGradient>` and `<radialGradient>` (including `gradientTransform` and `xlink:href` inheritance)
-- CSS via inline `style`, the `style` attribute, and `<style>` blocks (id / class / tag selectors)
-- `fill`, `stroke`, `fill-rule`, `clip-rule`, `opacity`, `fill-opacity`, `stroke-opacity`, `stroke-width`
-- `transform` on shapes and groups (`matrix`, `translate`, `rotate`, `scale`, `skewX`, `skewY`)
-- Fonts: `font-family`, `font-style`, `font-weight`, `font-size` (`px` / `%` / `em`)
+### Elements
+
+- Shapes: `<path>`, `<rect>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>`, `<text>`, `<image>` (inline data-URI)
+- Structure: `<g>`, `<defs>`, `<use>`, `<symbol>`, `<switch>` (fallback child)
+- Paint servers: `<linearGradient>`, `<radialGradient>`, `<pattern>`, `<mask>`, `<clipPath>`, `<marker>`
+- Filters: `feGaussianBlur`, `feDropShadow`, and the `feOffset`/`feFlood`/`feColorMatrix` drop-shadow chain (Figma/Sketch)
+- Animation: SMIL subset (`<animate>`, `<animateTransform>`, `<set>`)
+
+### Properties
+
+- `fill`, `stroke`, `fill-rule`, `clip-rule`, `opacity`, `fill-opacity`, `stroke-opacity`
+- `stroke-width` (`px`/`%`), `stroke-linecap`/`linejoin`/`miterlimit`, `stroke-dasharray`/`dashoffset`
+- `clip-path`, `mask`, `filter` (local `url(#…)`)
+- `transform` (`matrix`, `translate`, `rotate`, `scale`, `skewX`, `skewY`) and `gradientTransform`
+- `gradientUnits`, `spreadMethod`, `xlink:href` inheritance
+- `display`, `visibility`, `currentColor` (resolved via `color`)
+
+### Colors
+
+Hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba()`, `argb()`, `hsl()`, `hsla()`, and `currentColor`.
+
+### CSS
+
+Inline `style="…"`, the `style` attribute, and `<style>` blocks with id / class / tag selectors.
+
+### Fonts
+
+`font-family`, `font-style`, `font-weight`, `font-size` (`px`/`%`/`em`), `text-anchor`, and multi-line `<tspan>`.
+
+### Convenience
+
 - Parser caching keyed by MD5
-- Runtime re-coloring by element id / class, plus a global color-override mechanism
+- Runtime re-coloring by element `id` / `class`, plus a global color-override mechanism
 
 ## Limitations
 
 - iOS only (no macOS, tvOS, watchOS, or visionOS).
-- No `<filter>`, `<mask>`, `<pattern>`, `<symbol>`, or `<marker>`; only `<clipPath>` is used for masking.
 - External resources (web `url(...)` references) are not loaded.
-- `currentColor` is parsed but not resolved.
-- `font-size` supports `px`, `%`, and `em`; other units (`pt`, `rem`, `ex`) are not supported.
-- Text layout is basic: a single `CATextLayer` with no `text-anchor`, multi-line `<tspan>` layout, or per-glyph styling.
-- No animation support.
+- CSS cascade is out of scope: specificity, `inherit` resolution, combinators,
+  pseudo-classes, `@media`, and `@font-face` are not evaluated.
+- Full text model is out of scope: `textPath`, per-glyph `x`/`y` lists, and
+  `alignment-baseline`/`dominant-baseline`.
+- SMIL is a subset: event-based `begin`, `additive`/`accumulate`, `calcMode`, and
+  `fill="freeze"` are not supported.
+- Relative length units (`em`/`ex`/`rem`/`ch`/`vw`/`vh`) are not supported
+  (`em` only for `font-size`).
+- The full filter pipeline (`feMorphology`, `feComposite` operators beyond
+  `in`/`out`, `feBlend` modes) is out of scope; Figma/Sketch drop-shadows are
+  approximated without the `feMorphology` erosion step.
+- Conditional-processing attributes on `<switch>` (`requiredFeatures`/
+  `requiredExtensions`/`systemLanguage`) are not evaluated; the first child
+  without them is rendered.
+- `paint-order`, `vector-effect`, `color`, and `non-scaling-stroke` are not
+  supported.
+
+See [CONFORMANCE.md](CONFORMANCE.md) for the full icon-profile contract.
 
 ## Architecture
 
@@ -167,14 +204,17 @@ SVGLog.logger = MyLogger()
 
 ## Example app
 
-The `Example` project is a gallery that renders every SVG bundled in its `svg`
-folder. Open `Example/Example.xcodeproj` and run the `Example` scheme — it consumes
-the library as a local Swift Package.
+The `Example` project is a gallery that renders every SVG bundled under
+`Example/Example/data` (`svg_0.0` … `svg_3.0`). Open `Example/Example.xcodeproj`
+and run the `Example` scheme — it consumes the library as a local Swift Package.
+The gallery supports a light/dark/gray substrate color picker and a full-screen
+detail view.
 
 ## Tests
 
-The package includes a unit test suite covering the parsing, data-model, color,
-and vector-math APIs. Run it from the repository root:
+The package includes a unit test suite covering parsing, the data model, colors,
+vector math, filters, masks, patterns, gradients, and an on-the-fly render-parity
+harness. Run it from the repository root:
 
 ```sh
 xcodebuild test \
@@ -184,10 +224,14 @@ xcodebuild test \
 
 (Adjust the `name=` value to a simulator available on your machine.)
 
-The tests cover `SVGColors`/`HTMLColors`, `SVGUtils`/`MD5`, `SVGFuncIRI`,
-`SVGPaint`, `SVGLength`, `SVGError`, `Vector2`, `SVGParseString`,
-`LinearGradientFixer`, font handling, configuration, and an end-to-end
-parse-and-render smoke test. CI runs the suite on iPhone and iPad simulators.
+The render-parity test (`SVGRenderParityTests`) renders every icon in the bundled
+corpus against Apple's CoreSVG on the fly (no committed golden images) and
+compares them pixel-by-pixel within a tolerance. It gates on regressions — a crash,
+a reference parse failure, or a divergence not accounted for in the triage
+allowlist fails the build — while known limitations (text metrics, anti-aliasing,
+8-digit hex, filter erosion) are reported without failing. CI runs the suite on
+iPhone and iPad simulators and emits the corpus summary into the GitHub step
+summary.
 
 ## License
 
