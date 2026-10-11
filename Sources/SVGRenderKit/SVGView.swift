@@ -53,12 +53,14 @@ open class SVGView: UIView {
     }
 
     /// Renders the bundled SVG resource with the given name, overriding fill colors by element name.
+    /// - parameter SVGName: The name of the bundled SVG resource to render.
     /// - parameter fill_colors: A dictionary mapping SVG element names to fill colors.
     open func set(SVGName: String, fill_colors: [String: UIColor]?) {
         self.set(SVGName: SVGName, overrideElements: overrideElements(from: fill_colors))
     }
 
     /// Renders the bundled SVG resource with the given name, overriding the style of specific elements.
+    /// - parameter SVGName: The name of the bundled SVG resource to render.
     /// - parameter overrideElements: A dictionary mapping element names to their override styles.
     open func set(SVGName: String, overrideElements: [String: SVGSourceStyleElement]?) {
         _SVGName = SVGName
@@ -89,6 +91,7 @@ open class SVGView: UIView {
     }
 
     /// Renders the given SVG markup, overriding fill colors by element name.
+    /// - parameter svgString: The raw SVG markup to render.
     /// - parameter name: An optional identifier used for caching.
     /// - parameter fill_colors: A dictionary mapping element names to fill colors.
     open func set(svgString: String, name: String? = nil, fill_colors: [String: UIColor]? = nil) {
@@ -96,6 +99,7 @@ open class SVGView: UIView {
     }
 
     /// Renders the given SVG markup, overriding the style of specific elements.
+    /// - parameter svgString: The raw SVG markup to render.
     /// - parameter name: An optional identifier used for caching.
     /// - parameter overrideElements: A dictionary mapping element names to their override styles.
     open func set(svgString: String, name: String?, overrideElements: [String: SVGSourceStyleElement]?) {
@@ -104,6 +108,7 @@ open class SVGView: UIView {
     }
 
     /// Renders the given SVG data, overriding fill colors by element name.
+    /// - parameter svgData: The raw SVG data to render.
     /// - parameter name: An optional identifier used for caching.
     /// - parameter fill_colors: A dictionary mapping element names to fill colors.
     open func set(svgData: Data, name: String? = nil, fill_colors: [String: UIColor]? = nil) {
@@ -111,6 +116,7 @@ open class SVGView: UIView {
     }
 
     /// Renders the given SVG data, overriding the style of specific elements.
+    /// - parameter svgData: The raw SVG data to render.
     /// - parameter name: An optional identifier used for caching.
     /// - parameter overrideElements: A dictionary mapping element names to their override styles.
     open func set(svgData: Data, name: String? = nil, overrideElements: [String: SVGSourceStyleElement]? = nil) {

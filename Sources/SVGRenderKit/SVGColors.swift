@@ -40,6 +40,7 @@ public class SVGColors {
     }
 
     /// Resolves a color string to a `UIColor`, applying any registered overrides.
+    /// - parameter string: The color string to resolve (named, hex, `rgb`, `rgba`, or `argb`).
     /// - parameter alpha: An optional alpha value that overrides any alpha encoded in the string.
     /// - returns: The resolved color, or `UIColor.clear` if the string cannot be parsed.
     public class func getColor(string: String, alpha: CGFloat? = nil) -> UIColor {
@@ -72,6 +73,7 @@ public class SVGColors {
     }
 
     /// Parses an `rgb(r, g, b)` string into a `UIColor`.
+    /// - parameter rgbString: An `rgb(r, g, b)` string to parse.
     /// - parameter alpha: An optional alpha value that overrides the default of `1.0`.
     /// - returns: The parsed color, or `nil` if the string is malformed.
     public class func getColor(rgbString: String, alpha: CGFloat? = nil) -> UIColor? {
@@ -131,6 +133,7 @@ public class SVGColors {
     }
 
     /// Parses a hexadecimal color string (3, 4, 6, or 8 digits, with or without a leading `#`) into a `UIColor`.
+    /// - parameter hexString: A hexadecimal color string to parse.
     /// - parameter alpha: An optional alpha value that overrides any alpha encoded in the string.
     /// - returns: The parsed color, or `nil` if the string is malformed.
     public class func getColor(hexString: String, alpha: CGFloat? = nil) -> UIColor? {

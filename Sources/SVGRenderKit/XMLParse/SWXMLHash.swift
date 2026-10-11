@@ -681,8 +681,8 @@ public enum XMLIndexer {
     
     /**
      Initializes the XMLIndexer
-     - parameter _: should be an instance of XMLElement, but supports other values for error handling
-     - throws: an Error if the object passed in isn't an XMLElement or LaxyXMLParser
+     - parameter rawObject: should be an instance of XMLElement, but supports other values for error handling
+     - throws: an Error if the object passed in isn't an XMLElement or LazyXMLParser
      */
     public init(_ rawObject: AnyObject) throws {
         switch rawObject {
@@ -697,7 +697,7 @@ public enum XMLIndexer {
     
     /**
      Initializes the XMLIndexer
-     - parameter _: an instance of XMLElement
+     - parameter elem: an instance of XMLElement
      */
     public init(_ elem: XMLElement) {
         self = .element(elem)
