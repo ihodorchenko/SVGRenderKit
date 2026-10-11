@@ -229,9 +229,10 @@ enum KitRenderer {
     /// Renders `svg` offscreen at the given size and returns a rasterized image.
     ///
     /// The timeout is generous because a few corpus fixtures are large (e.g.
-    /// `PASSPORT_33_gray.svg`, ~250 KB of vectorized glyphs) and parse slowly on
-    /// shared CI runners; a too-tight timeout would misreport them as crashes.
-    static func render(_ svg: String, size: CGSize, timeout: TimeInterval = 60) throws -> UIImage {
+    /// `PASSPORT_33_gray.svg`, ~250 KB of vectorized glyphs) and parse slowly —
+    /// ~8.5s of object-tree building locally, and well over a minute on shared
+    /// CI runners. A too-tight timeout would misreport them as crashes.
+    static func render(_ svg: String, size: CGSize, timeout: TimeInterval = 300) throws -> UIImage {
         let view = SVGView(frame: CGRect(origin: .zero, size: size))
         view.svgString = svg
 
