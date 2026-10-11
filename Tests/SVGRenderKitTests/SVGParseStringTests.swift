@@ -153,4 +153,15 @@ final class SVGParseStringTests: XCTestCase {
         let path = try XCTUnwrap(result.path)
         XCTAssertEqual(path.currentPoint.x, 100, accuracy: 0.001)
     }
+
+    // MARK: Leading-zero integer (B15)
+
+    func testLeadingZeroIsSingleNumber() throws {
+        // "05" must parse as the single coordinate 5, not as 0 and 5.
+        let result = SVGParseString.parseSVGPath(pathString: "M0 0 L05 0")
+        XCTAssertNil(result.error)
+        let path = try XCTUnwrap(result.path)
+        XCTAssertEqual(elementCount(path), 2) // move + line (not move + 2 lines)
+        XCTAssertEqual(path.currentPoint.x, 5, accuracy: 0.001)
+    }
 }

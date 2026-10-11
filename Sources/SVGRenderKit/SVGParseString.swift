@@ -391,9 +391,6 @@ public class SVGParseString {
                     }
 
                     if currentNumberStack.isEmpty == false {
-                        if currentNumberStack.characterStack == "0" && thisCharacter != "." {
-                            pushCoordinateAndClear()
-                        }
                         currentNumberStack.push(thisCharacter)
                     } else {
                         currentNumberStack = NumberStack(startCharacter: thisCharacter)
