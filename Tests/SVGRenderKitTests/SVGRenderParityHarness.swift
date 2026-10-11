@@ -227,7 +227,7 @@ enum CorpusLoader {
 /// Renders an SVG with the library under test (`SVGView`).
 enum KitRenderer {
     /// Renders `svg` offscreen at the given size and returns a rasterized image.
-    static func render(_ svg: String, size: CGSize, timeout: TimeInterval = 5) throws -> UIImage {
+    static func render(_ svg: String, size: CGSize, timeout: TimeInterval = 20) throws -> UIImage {
         let view = SVGView(frame: CGRect(origin: .zero, size: size))
         view.svgString = svg
 

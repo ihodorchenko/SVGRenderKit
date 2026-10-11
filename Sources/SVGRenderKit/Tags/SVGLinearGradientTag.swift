@@ -114,13 +114,18 @@ open class SVGLinearGradientTag: SVGBaseGradient {
                     y2 = hrefGradient.y2
 
                     stops = hrefGradient.stops
-                    if let hrefTransform = hrefGradient.transform, let selfTransform = transform {
-                        transform = CATransform3DConcat(hrefTransform, selfTransform)
-                    } else if let hrefTransform = hrefGradient.transform {
-                        self.transform = hrefTransform
+                    // Attributes explicitly set on the referencing gradient take
+                    // precedence over the referenced (href) gradient; only inherit
+                    // when the referencing element leaves them unset (SVG 1.1 §13.2.4).
+                    if attributeDict["gradientTransform"] == nil {
+                        transform = hrefGradient.transform
                     }
-                    gradientUnits = hrefGradient.gradientUnits
-                    spreadMethod = hrefGradient.spreadMethod
+                    if attributeDict["gradientUnits"] == nil {
+                        gradientUnits = hrefGradient.gradientUnits
+                    }
+                    if attributeDict["spreadMethod"] == nil {
+                        spreadMethod = hrefGradient.spreadMethod
+                    }
                 }
                 break
             case .web:
