@@ -100,6 +100,21 @@ extension SVGGroupObject {
             let image: SVGImage = try SVGImage(xmlElement: children, parent: self)
             try self.add(images: [image])
             break
+        case "switch":
+            // `<switch>` renders only the first child whose conditional-processing
+            // attributes we support (SVG 1.1 §5.8). We support none of them, so pick
+            // the first child without requiredFeatures/requiredExtensions/systemLanguage
+            // and parse it in place — the wrapper itself is transparent and has no
+            // style/transform of its own.
+            for child in children.xmlChildren {
+                if child.attribute(by: "requiredFeatures") == nil,
+                   child.attribute(by: "requiredExtensions") == nil,
+                   child.attribute(by: "systemLanguage") == nil {
+                    try parse(children: child)
+                    break
+                }
+            }
+            break
         default:
             if let shapeTag = try SVGShapeObject.create(xml: children, parent: self) {
                 try self.add(shapes: [shapeTag])

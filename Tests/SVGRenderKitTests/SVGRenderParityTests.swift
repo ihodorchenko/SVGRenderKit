@@ -85,13 +85,20 @@ final class SVGRenderParityTests: XCTestCase {
         var unexpectedFailures: [String] = []
 
         for fixture in fixtures {
-            // CoreSVG (the parity oracle) does not implement `display:none`; it
-            // renders elements that the spec — and our renderer — correctly hide.
-            // Such fixtures cannot be validated against the reference, so they
-            // are reported separately rather than as regressions.
-            if ReferenceRenderer.unsupportedFeatures(in: fixture.svg).contains(.displayNone) {
+            // CoreSVG (the parity oracle) does not implement a few SVG 1.1 features
+            // (`display:none`, `<switch>`); our renderer handles them per spec, so
+            // such fixtures can't be validated against the reference and are
+            // reported separately rather than as regressions.
+            let unsupported = ReferenceRenderer.unsupportedFeatures(in: fixture.svg)
+            if !unsupported.isEmpty {
                 referenceLimited += 1
-                lines.append("REF-LIMITED \(fixture.name) (display:none — CoreSVG renders hidden elements)")
+                let reason = unsupported.map { feature -> String in
+                    switch feature {
+                    case .displayNone: return "display:none"
+                    case .switchElement: return "<switch>"
+                    }
+                }.joined(separator: ", ")
+                lines.append("REF-LIMITED \(fixture.name) (\(reason) — not implemented by CoreSVG)")
                 continue
             }
 

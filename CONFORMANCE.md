@@ -37,7 +37,8 @@
 | `<filter>` | ✅ `feGaussianBlur` (SVG 1.1) + `feDropShadow` (SVG 2.0) + `feOffset`/`feFlood`/`feColorMatrix` drop-shadow chain (Figma/Sketch) |
 | `<animate>`, `<animateTransform>`, `<set>` | ✅ SMIL subset (see below) |
 | `<image>` | ✅ inline data-URI rasters (no external URLs) |
-| `<switch>`, `<a>`, `<foreignObject>`, `<font>` | ❌ out of scope |
+| `<switch>` | ✅ renders first child without `requiredFeatures`/`requiredExtensions`/`systemLanguage` |
+| `<a>`, `<foreignObject>`, `<font>` | ❌ out of scope |
 | `<textPath>`, `<script>`, `<cursor>`, `<solidColor>` | ❌ out of scope |
 
 ### Path data
@@ -96,7 +97,7 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 
 - Scripting, DOM, and events.
 - External resource loading (`url(...)` to the network).
-- `<switch>`, `<a>`, `<foreignObject>`, `<font>`, `<solidColor>`, `<cursor>`.
+- `<a>`, `<foreignObject>`, `<font>`, `<solidColor>`, `<cursor>` (conditional-processing attributes on `<switch>` are not evaluated; the first child without them is rendered).
 - Full text model: `textPath`, per-glyph `x`/`y` lists,
   `alignment-baseline`/`dominant-baseline`, `textLength`/`lengthAdjust`.
 - CSS cascade: specificity, `inherit` resolution, combinators, `!important`,

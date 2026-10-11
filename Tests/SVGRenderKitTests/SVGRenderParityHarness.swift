@@ -284,17 +284,20 @@ enum ReferenceRenderer {
     /// pixel comparison against it invalid for fixtures that use them.
     enum UnsupportedFeature {
         case displayNone
+        case switchElement
     }
 
     /// Detects features the reference renderer does not support.
     static func unsupportedFeatures(in svg: String) -> [UnsupportedFeature] {
         var features: [UnsupportedFeature] = []
+        let folded = svg.lowercased()
         // `display:none` / `display: none` / `display="none"`.
-        if svg.range(of: "display", options: .caseInsensitive) != nil {
-            let folded = svg.lowercased()
-            if folded.contains("display:none") || folded.contains("display: none") || folded.contains("display=\"none\"") {
-                features.append(.displayNone)
-            }
+        if folded.contains("display:none") || folded.contains("display: none") || folded.contains("display=\"none\"") {
+            features.append(.displayNone)
+        }
+        // CoreSVG does not render `<switch>` (SVG 1.1 conditional processing).
+        if folded.contains("<switch") {
+            features.append(.switchElement)
         }
         return features
     }

@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Figma/Sketch drop-shadows: the `feOffset` + `feColorMatrix` tint chain is now
   recognized and drives the `CALayer` shadow (color + opacity from the color matrix).
+- `<switch>` conditional processing: renders the first child without
+  `requiredFeatures`/`requiredExtensions`/`systemLanguage`, so Illustrator
+  exports (which wrap the fallback art in `<switch>` + `<foreignObject>`)
+  now render instead of being dropped.
 
 ### Fixed
 - Gradient `xlink:href` inheritance now honors attributes explicitly set on the
@@ -17,9 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of unconditionally overriding them with the referenced gradient's values.
 
 ### Changed
-- Parity triage classifies `display:none` fixtures as *reference-limited*: CoreSVG
-  does not implement `display:none`, so it renders elements our renderer correctly
-  hides.
+- Parity triage classifies `display:none` and `<switch>` fixtures as
+  *reference-limited*: CoreSVG does not implement these SVG 1.1 features, so it
+  renders elements our renderer correctly handles differently.
 
 ## 1.0.1
 
