@@ -310,11 +310,12 @@ public class SVGParseString {
     /// - returns: A tuple containing the resulting path (or `nil`) and an optional error.
     public class func parseSVGPath(pathString: String, forPath: UIBezierPath? = nil) -> (path: UIBezierPath?, error: SVGError?) {
 
-        if !(pathString.hasPrefix("M") || pathString.hasPrefix("m")) {
+        // Trim surrounding whitespace so a leading space before `M`/`m` (valid in
+        // SVG path data) doesn't reject the path.
+        let workingString = pathString.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !(workingString.hasPrefix("M") || workingString.hasPrefix("m")) {
             return (path: nil, error: SVGError.parseError(text: "Path d attribute must begin with MoveTo Command (\"M\")"))
         }
-
-        let workingString = pathString
 
         var returnPath = UIBezierPath()
 

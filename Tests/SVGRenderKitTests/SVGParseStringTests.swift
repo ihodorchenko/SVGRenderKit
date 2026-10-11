@@ -53,6 +53,23 @@ final class SVGParseStringTests: XCTestCase {
         XCTAssertNotNil(result.error)
     }
 
+    // MARK: Leading whitespace (B27)
+
+    func testLeadingWhitespaceBeforeMoveToIsAccepted() throws {
+        // SVG path data may be preceded by whitespace; it must not be rejected.
+        let result = SVGParseString.parseSVGPath(pathString: "   M0 0 L10 10")
+        XCTAssertNil(result.error)
+        let path = try XCTUnwrap(result.path)
+        XCTAssertEqual(elementCount(path), 2) // move + line
+    }
+
+    func testLeadingTabAndNewlineBeforeMoveToIsAccepted() throws {
+        let result = SVGParseString.parseSVGPath(pathString: "\t\nM0 0 L10 10")
+        XCTAssertNil(result.error)
+        let path = try XCTUnwrap(result.path)
+        XCTAssertEqual(elementCount(path), 2)
+    }
+
     func testEmptyStringReturnsError() {
         let result = SVGParseString.parseSVGPath(pathString: "")
         XCTAssertNil(result.path)
