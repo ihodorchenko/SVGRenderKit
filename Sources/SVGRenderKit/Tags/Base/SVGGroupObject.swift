@@ -353,7 +353,15 @@ extension SVGGroupObject {
             style = parent.getStyle(forObject: forObject, overrideElements: overrideElements)
         }
         if let selfStyle = sourceStyle {
-            style = style.combine(child: selfStyle)
+            // Group-compositing properties (opacity, clip-path, mask, filter) are
+            // applied to the group as a whole, not inherited to child shapes.
+            let inheritable = SVGSourceStyleElement()
+            inheritable.set(element: selfStyle)
+            inheritable.opacity = nil
+            inheritable.clipPath = nil
+            inheritable.mask = nil
+            inheritable.filter = nil
+            style = style.combine(child: inheritable)
         }
         if let overrideElements = overrideElements {
             if let tagElem = overrideElements[key] {
@@ -458,5 +466,22 @@ extension SVGGroupObject {
             return f
         }
         return fromParents ? parent.getFilter(byKey: byKey, fromParents: fromParents) : nil
+    }
+}
+
+extension SVGGroupObject {
+    /// The bounding box of this group's rendered content in the group's local
+    /// coordinate space (union of descendant shape bounds, ignoring transforms).
+    /// Used to resolve `objectBoundingBox` clip paths and masks on a group.
+    var contentBounds: CGRect {
+        var result = CGRect.null
+        for element in layerElements.array {
+            if let shape = element as? SVGShapeObject {
+                result = result.union(shape.path.bounds)
+            } else if let group = element as? SVGGroupObject {
+                result = result.union(group.contentBounds)
+            }
+        }
+        return result.isNull ? .zero : result
     }
 }

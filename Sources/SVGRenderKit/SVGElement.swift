@@ -261,6 +261,10 @@ extension SVGSVGTag: SVGRendering {
             mainLayer.transform = transform
         }
 
+        if let sourceStyle = sourceStyle {
+            try sourceStyle.applyGroupComposite(to: mainLayer, bbox: contentBounds, container: self, overrideElements: overrideElements)
+        }
+
         return mainLayer
     }
 }

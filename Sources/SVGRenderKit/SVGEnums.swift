@@ -48,6 +48,18 @@ public enum SVGDisplaytype: String {
     static var `default`: SVGDisplaytype = SVGDisplaytype.inline
 }
 
+/// Whether an element is rendered (`visibility` property).
+public enum SVGVisibility: String {
+    /// Render the element normally.
+    case visible = "visible"
+    /// Hide the element while keeping layout space.
+    case hidden = "hidden"
+    /// Collapse the element (treated as hidden for non-table elements).
+    case collapse = "collapse"
+
+    static var `default`: SVGVisibility = SVGVisibility.visible
+}
+
 /// The shape of the end caps of an SVG stroke.
 public enum SVGLineCap: String {
     /// The stroke ends exactly at the path endpoint (no cap).

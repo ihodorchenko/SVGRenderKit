@@ -87,13 +87,21 @@ extension SVGClipPath: SVGRendering {
     public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CAShapeLayer = CAShapeLayer()
 
+        // A clip path defines a 1-bit mask from the raw geometry of its children;
+        // fill/stroke opacity must not leak into the mask's alpha or the clipped
+        // content would be dimmed. Force fully-opaque paint for the mask.
+        let clipStyle = SVGSourceStyleElement()
+        clipStyle.fillOpacity = 1
+        clipStyle.strokeOpacity = 1
+        clipStyle.opacity = 1
+
         for use in uses.array {
-            let layer = try use.createLayer(overrideElements: overrideElements)
+            let layer = try use.createLayer(addStyle: clipStyle, overrideElements: overrideElements)
             mainLayer.addSublayer(layer)
         }
 
         for path in shapes.array {
-            let layer = try path.createLayer(overrideElements: overrideElements)
+            let layer = try path.createLayer(addStyle: clipStyle, overrideElements: overrideElements)
             mainLayer.addSublayer(layer)
         }
 

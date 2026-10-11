@@ -46,6 +46,10 @@ extension SVGGTag: SVGRendering {
             mainLayer.transform = transform
         }
 
+        if let sourceStyle = sourceStyle {
+            try sourceStyle.applyGroupComposite(to: mainLayer, bbox: contentBounds, container: self, overrideElements: overrideElements)
+        }
+
         for anim in animations {
             anim.apply(to: mainLayer, pathLayer: nil)
         }

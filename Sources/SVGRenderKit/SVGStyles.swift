@@ -22,6 +22,8 @@ open class SVGSourceStyleElement {
 
     /// The display mode (inline, block, or none) controlling whether the element is rendered.
     open var display: SVGDisplaytype?
+    /// Whether the element is visible (`visible`, `hidden`, or `collapse`).
+    open var visibility: SVGVisibility?
 
     /// The fill paint applied to the interior of the shape.
     open var fill: SVGPaint?
@@ -95,6 +97,7 @@ open class SVGSourceStyleElement {
         let newElem: SVGSourceStyleElement = SVGSourceStyleElement()
         newElem.set(element: self)
         if let display = child.display { newElem.display = display }
+        if let visibility = child.visibility { newElem.visibility = visibility }
         if let fill = child.fill { newElem.fill = fill }
         if let color = child.color { newElem.color = color }
         if let fillOpacity = child.fillOpacity { newElem.fillOpacity = fillOpacity }
@@ -130,6 +133,7 @@ open class SVGSourceStyleElement {
 
     func set(element: SVGSourceStyleElement) {
         display = element.display
+        visibility = element.visibility
         fill = element.fill
         color = element.color
         fillOpacity = element.fillOpacity
@@ -176,6 +180,7 @@ open class SVGSourceStyleElement {
 
     func set(attributeDict: [String: String]) throws {
         if let str = attributeDict["display"], !str.isEmpty { try setDisplay(str: str) }
+        if let str = attributeDict["visibility"], !str.isEmpty { setVisibility(str: str) }
         if let str = attributeDict["fill"], !str.isEmpty { try setFill(str: str) }
         if let str = attributeDict["color"], !str.isEmpty { setColor(str: str) }
         if let str = attributeDict["opacity"], !str.isEmpty { try setOpacity(str: str) }
@@ -211,6 +216,11 @@ open class SVGSourceStyleElement {
         } else {
             throw SVGError.content(text: "display not supported: \(str)")
         }
+    }
+
+    func setVisibility(str: String) {
+        // Unknown values degrade to visible rather than failing the document.
+        visibility = SVGVisibility(rawValue: str) ?? .visible
     }
 
     func setFill(str: String) throws {
@@ -441,6 +451,10 @@ extension SVGSourceStyleElement {
             return
         }
 
+        if let visibility = self.visibility, visibility != .visible {
+            mainLayer.isHidden = true
+        }
+
         switch fill {
         case .none:
             pathLayer.fillColor = nil
@@ -629,6 +643,78 @@ extension SVGSourceStyleElement {
                 } else {
                     throw SVGError.content(text: "filter not found: \(key)")
                 }
+            case .web(let url):
+                throw SVGError.content(text: "web filter not supported: \(url)")
+            }
+        }
+    }
+
+    /// Applies group-compositing properties (`visibility`, `opacity`, `clip-path`,
+    /// `mask`, `filter`) to a group's composite layer. Unlike fill/stroke, these
+    /// are not inherited to child shapes; they composite the whole group.
+    func applyGroupComposite(to layer: CALayer, bbox: CGRect, container: SVGShapesContainer, overrideElements: [String: SVGSourceStyleElement]?) throws {
+        if let visibility = self.visibility, visibility != .visible {
+            layer.isHidden = true
+            return
+        }
+
+        if let opacity = self.opacity {
+            layer.opacity = (opacity >= 0 && opacity <= 1) ? opacity : 1
+        }
+
+        if let clipPath = self.clipPath {
+            switch clipPath {
+            case .local(let key):
+                guard let clipPathObj = container.getClipPath(byKey: key, fromParents: true) else {
+                    throw SVGError.content(text: "iri not found: \(key)")
+                }
+                let rendering = try clipPathObj.createLayer(overrideElements: overrideElements)
+                if let shapeLayer = rendering as? CAShapeLayer {
+                    switch self.clipRule ?? .nonzero {
+                    case .nonzero: shapeLayer.fillRule = .nonZero
+                    case .evenodd: shapeLayer.fillRule = .evenOdd
+                    case .inherit: shapeLayer.fillRule = .nonZero
+                    }
+                }
+                if clipPathObj.clipPathUnits == .objectBoundingBox {
+                    // Map [0,1] object-bounding-box units onto the group's bbox.
+                    // CATransform3D helpers post-multiply, so translate then scale.
+                    var t = CATransform3DIdentity
+                    t = CATransform3DTranslate(t, bbox.origin.x, bbox.origin.y, 0)
+                    t = CATransform3DScale(t, bbox.width, bbox.height, 1)
+                    rendering.transform = CATransform3DConcat(t, rendering.transform)
+                } else if !CATransform3DIsIdentity(layer.transform) {
+                    // userSpaceOnUse: the clip is in the parent (user) space. Bring
+                    // it into this layer's local space so the layer's own transform
+                    // maps it back to the user space on screen.
+                    rendering.transform = CATransform3DConcat(CATransform3DInvert(layer.transform), rendering.transform)
+                }
+                layer.mask = rendering
+            case .web(let url):
+                throw SVGError.content(text: "web iri not supported: \(url)")
+            }
+        }
+
+        if let mask = self.mask {
+            switch mask {
+            case .local(let key):
+                guard let maskObj = container.getMask(byKey: key, fromParents: true) else {
+                    throw SVGError.content(text: "mask not found: \(key)")
+                }
+                let options = container.getSvgOptions()
+                layer.mask = try maskObj.maskLayer(bbox: bbox, viewBox: options.viewBox, overrideElements: overrideElements)
+            case .web(let url):
+                throw SVGError.content(text: "web mask not supported: \(url)")
+            }
+        }
+
+        if let filter = self.filter {
+            switch filter {
+            case .local(let key):
+                guard let filterObj = container.getFilter(byKey: key, fromParents: true) else {
+                    throw SVGError.content(text: "filter not found: \(key)")
+                }
+                filterObj.apply(to: layer)
             case .web(let url):
                 throw SVGError.content(text: "web filter not supported: \(url)")
             }

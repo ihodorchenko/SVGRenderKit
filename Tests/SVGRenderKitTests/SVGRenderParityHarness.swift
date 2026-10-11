@@ -150,6 +150,35 @@ enum ParityFixtures {
             <circle cx="50" cy="60" r="25%" fill="#eb5757"/>
         </svg>
         """),
+        ParityFixture(name: "group-clip-path", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <clipPath id="c"><circle cx="50" cy="50" r="40"/></clipPath>
+            </defs>
+            <g clip-path="url(#c)">
+                <rect x="10" y="10" width="80" height="40" fill="#e74c3c"/>
+                <rect x="10" y="50" width="80" height="40" fill="#2980b9"/>
+            </g>
+        </svg>
+        """),
+        ParityFixture(name: "group-clip-path-transform", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <clipPath id="c"><rect width="80" height="80"/></clipPath>
+            </defs>
+            <g clip-path="url(#c)" transform="scale(1.25)">
+                <rect width="80" height="80" fill="#27ae60"/>
+            </g>
+        </svg>
+        """),
+        ParityFixture(name: "group-opacity", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <g opacity="0.5">
+                <rect x="20" y="20" width="40" height="40" fill="#e74c3c"/>
+                <rect x="40" y="40" width="40" height="40" fill="#2980b9"/>
+            </g>
+        </svg>
+        """),
     ]
 }
 

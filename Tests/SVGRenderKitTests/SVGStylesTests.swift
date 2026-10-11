@@ -206,4 +206,84 @@ final class SVGStylesTests: XCTestCase {
         let alpha = try XCTUnwrap(shape.fillColor).alpha
         XCTAssertEqual(alpha, 0.25, accuracy: 0.01)
     }
+
+    // MARK: Visibility (F1)
+
+    func testVisibilityParsed() throws {
+        let style = SVGSourceStyleElement()
+        try style.set(attributeDict: ["visibility": "hidden"])
+        XCTAssertEqual(style.visibility, .hidden)
+    }
+
+    func testVisibilityHiddenHidesShape() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <rect x="10" y="10" width="50" height="50" fill="#e74c3c" visibility="hidden"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        XCTAssertTrue(hasHiddenLayer(in: layer))
+    }
+
+    // MARK: Group composite (F1)
+
+    func testGroupOpacityCompositesGroup() throws {
+        // Group opacity must apply to the group's composite, not be inherited to
+        // each child (which would double-fade overlaps).
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <g opacity="0.5">
+                <rect x="10" y="10" width="50" height="50" fill="#e74c3c"/>
+            </g>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let group = try XCTUnwrap(findLayer(withOpacity: 0.5, in: layer))
+        let child = try XCTUnwrap(group.sublayers?.first)
+        XCTAssertEqual(child.opacity, 1, accuracy: 0.001)
+    }
+
+    func testGroupClipPathAppliesMask() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs><clipPath id="c"><circle cx="50" cy="50" r="40"/></clipPath></defs>
+            <g clip-path="url(#c)">
+                <rect x="10" y="10" width="80" height="80" fill="#e74c3c"/>
+            </g>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        XCTAssertTrue(hasMaskedLayer(in: layer))
+    }
+
+    private func hasHiddenLayer(in layer: CALayer) -> Bool {
+        if layer.isHidden { return true }
+        for sublayer in layer.sublayers ?? [] {
+            if hasHiddenLayer(in: sublayer) { return true }
+        }
+        return false
+    }
+
+    private func hasMaskedLayer(in layer: CALayer) -> Bool {
+        if layer.mask != nil { return true }
+        for sublayer in layer.sublayers ?? [] {
+            if hasMaskedLayer(in: sublayer) { return true }
+        }
+        return false
+    }
+
+    private func findLayer(withOpacity opacity: Float, in layer: CALayer) -> CALayer? {
+        if abs(layer.opacity - opacity) < 0.001 {
+            return layer
+        }
+        for sublayer in layer.sublayers ?? [] {
+            if let found = findLayer(withOpacity: opacity, in: sublayer) {
+                return found
+            }
+        }
+        return nil
+    }
 }
