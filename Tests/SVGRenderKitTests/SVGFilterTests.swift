@@ -80,6 +80,41 @@ final class SVGFilterTests: XCTestCase {
         XCTAssertNotNil(findLayerWithFilters(in: layer))
     }
 
+    func testFigmaDropShadowChainApplied() throws {
+        // Figma/Sketch export a drop-shadow as an feColorMatrix alpha extraction +
+        // constant-color tint, preceded by feMorphology/feOffset/feGaussianBlur.
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <filter id="f" filterUnits="userSpaceOnUse">
+                    <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+                    <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+                    <feMorphology radius="1.5" operator="erode" in="SourceAlpha"/>
+                    <feOffset dy="-1.5"/>
+                    <feGaussianBlur stdDeviation="0.375"/>
+                    <feComposite in2="hardAlpha" operator="out"/>
+                    <feColorMatrix type="matrix" values="0 0 0 0 0.105882 0 0 0 0 0.105882 0 0 0 0 0.164706 0 0 0 0.56 0"/>
+                    <feBlend mode="normal" in2="BackgroundImageFix"/>
+                    <feBlend mode="normal" in="SourceGraphic" in2="effect1"/>
+                </filter>
+            </defs>
+            <rect width="50" height="50" fill="#ff0000" filter="url(#f)"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let shadowLayer = try XCTUnwrap(findLayerWithShadow(in: layer))
+        XCTAssertEqual(shadowLayer.shadowOffset.height, -1.5, accuracy: 0.001)
+        XCTAssertEqual(shadowLayer.shadowRadius, 0.375, accuracy: 0.001)
+        XCTAssertEqual(shadowLayer.shadowOpacity, 0.56, accuracy: 0.001)
+        // The shadow tint is #1B1B2A (0.105882/0.105882/0.164706) from the color matrix.
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(cgColor: shadowLayer.shadowColor!).getRed(&r, green: &g, blue: &b, alpha: &a)
+        XCTAssertEqual(r, 0.105882, accuracy: 0.001)
+        XCTAssertEqual(g, 0.105882, accuracy: 0.001)
+        XCTAssertEqual(b, 0.164706, accuracy: 0.001)
+    }
+
     func testMissingFilterThrows() {
         let svg = """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">

@@ -20,7 +20,8 @@ open class SVGFilter: SVGChildObject {
     var dropShadow: SVGDropShadow?
 
     /// Initializes a filter by parsing its `feGaussianBlur`, `feDropShadow`, and the
-    /// SVG 1.1 drop-shadow primitive chain (`feOffset` + `feFlood`).
+    /// SVG 1.1 drop-shadow primitive chain (`feOffset` + `feFlood`) as well as the
+    /// Figma/Sketch drop-shadow chain (`feColorMatrix` color tint).
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
@@ -29,6 +30,12 @@ open class SVGFilter: SVGChildObject {
         var floodColor: UIColor = .black
         var floodOpacity: CGFloat = 1
         var hasOffsetOrFlood = false
+        var hasOffset = false
+        // A shadow color/opacity produced by an feColorMatrix tint (Figma exports
+        // drop-shadows as an alpha extraction matrix followed by a constant-color
+        // matrix; the latter carries the shadow's RGB and opacity).
+        var tintColor: UIColor?
+        var tintOpacity: CGFloat = 1
 
         for child in xmlElement.xmlChildren {
             switch child.name {
@@ -46,15 +53,44 @@ open class SVGFilter: SVGChildObject {
                 dropShadow = shadow
             case "feOffset":
                 hasOffsetOrFlood = true
+                hasOffset = true
                 if let str = child.attribute(by: "dx")?.text, let f = Float(str.trimmed) { offsetDX = CGFloat(f) }
                 if let str = child.attribute(by: "dy")?.text, let f = Float(str.trimmed) { offsetDY = CGFloat(f) }
             case "feFlood":
                 hasOffsetOrFlood = true
                 if let str = child.attribute(by: "flood-color")?.text { floodColor = SVGColors.getColor(string: str) }
                 if let str = child.attribute(by: "flood-opacity")?.text, let f = Float(str.trimmed) { floodOpacity = CGFloat(f) }
+            case "feColorMatrix":
+                if let type = child.attribute(by: "type")?.text, type.trimmed == "matrix",
+                   let values = child.attribute(by: "values")?.text,
+                   let matrix = SVGFilter.parseColorMatrix(values) {
+                    // A shadow tint matrix maps its input to a constant RGB color:
+                    // R' = v4, G' = v9, B' = v14, A' = v18 · A. It is distinguishable
+                    // from the alpha-extraction matrix (whose RGB constants are zero).
+                    let r = CGFloat(matrix[4])
+                    let g = CGFloat(matrix[9])
+                    let b = CGFloat(matrix[14])
+                    let a = CGFloat(matrix[18])
+                    if r != 0 || g != 0 || b != 0 {
+                        tintColor = UIColor(red: r, green: g, blue: b, alpha: 1)
+                        tintOpacity = a
+                    }
+                }
             default:
                 break
             }
+        }
+
+        // Figma/Sketch drop-shadow: an feOffset + feGaussianBlur + feColorMatrix
+        // color tint. The tint overrides the (transparent) feFlood background fix.
+        if dropShadow == nil, hasOffset, let tintColor = tintColor {
+            var shadow = SVGDropShadow()
+            shadow.dx = offsetDX
+            shadow.dy = offsetDY
+            shadow.stdDeviation = blurStdDeviation ?? 0
+            shadow.color = tintColor
+            shadow.opacity = tintOpacity
+            dropShadow = shadow
         }
 
         // SVG 1.1 expresses a drop-shadow as an feOffset + feFlood [+ feGaussianBlur]
@@ -68,6 +104,20 @@ open class SVGFilter: SVGChildObject {
             shadow.opacity = floodOpacity
             dropShadow = shadow
         }
+    }
+
+    /// Parses a 4×5 `feColorMatrix` `values` list (20 numbers) into an array.
+    private static func parseColorMatrix(_ raw: String) -> [Float]? {
+        let separators = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ","))
+        let tokens = raw.components(separatedBy: separators).filter { !$0.isEmpty }
+        guard tokens.count >= 20 else { return nil }
+        var values: [Float] = []
+        values.reserveCapacity(20)
+        for token in tokens.prefix(20) {
+            guard let f = Float(token) else { return nil }
+            values.append(f)
+        }
+        return values
     }
 }
 
