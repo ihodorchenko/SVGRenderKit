@@ -282,6 +282,8 @@ public class SVGParseString {
             return NumberCharacter(character: "9")
         case "e":
             return NumberCharacter(character: "e")
+        case "E":
+            return NumberCharacter(character: "E")
         case " ":
             return SeparatorCharacter(character: " ")
         case ",":

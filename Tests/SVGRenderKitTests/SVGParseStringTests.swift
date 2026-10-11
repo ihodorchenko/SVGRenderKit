@@ -136,4 +136,21 @@ final class SVGParseStringTests: XCTestCase {
         XCTAssertNotNil(path)
         XCTAssertEqual(elementCount(path!), 4) // move + 3 line segments
     }
+
+    // MARK: Scientific notation exponent (B14)
+
+    func testParsesUppercaseExponent() throws {
+        let result = SVGParseString.parseSVGPath(pathString: "M0 0 L1E2 0")
+        XCTAssertNil(result.error)
+        let path = try XCTUnwrap(result.path)
+        XCTAssertEqual(elementCount(path), 2) // move + line
+        XCTAssertEqual(path.currentPoint.x, 100, accuracy: 0.001)
+    }
+
+    func testParsesLowercaseExponent() throws {
+        let result = SVGParseString.parseSVGPath(pathString: "M0 0 L1e2 0")
+        XCTAssertNil(result.error)
+        let path = try XCTUnwrap(result.path)
+        XCTAssertEqual(path.currentPoint.x, 100, accuracy: 0.001)
+    }
 }
