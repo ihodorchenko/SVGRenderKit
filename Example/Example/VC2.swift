@@ -1,6 +1,85 @@
 import UIKit
 import SVGRenderKit
 
+/// Вариант цвета подложки для галереи и детального просмотра.
+enum SubstrateStyle: Int, CaseIterable {
+    case gray = 0
+    case light = 1
+    case dark = 2
+
+    var title: String {
+        switch self {
+        case .gray: return "Серая"
+        case .light: return "Светлая"
+        case .dark: return "Тёмная"
+        }
+    }
+
+    /// Цвет самой подложки (ячейка / карточка).
+    var substrateColor: UIColor {
+        switch self {
+        case .gray: return UIColor(white: 0.95, alpha: 1)
+        case .light: return UIColor.white
+        case .dark: return UIColor(white: 0.12, alpha: 1)
+        }
+    }
+
+    /// Цвет фона экрана позади подложки.
+    var screenColor: UIColor {
+        switch self {
+        case .gray, .light: return UIColor.white
+        case .dark: return UIColor(white: 0.08, alpha: 1)
+        }
+    }
+
+    var textColor: UIColor {
+        switch self {
+        case .gray, .light: return UIColor.darkGray
+        case .dark: return UIColor.lightGray
+        }
+    }
+
+    var borderColor: UIColor {
+        switch self {
+        case .gray, .light: return UIColor(white: 0, alpha: 0.10)
+        case .dark: return UIColor(white: 1, alpha: 0.12)
+        }
+    }
+}
+
+/// Общее хранилище выбранного варианта подложки.
+final class SubstrateStore {
+    static let shared = SubstrateStore()
+    var style: SubstrateStyle = .gray
+    private init() {}
+}
+
+/// Собирает кнопку-меню выбора подложки для навбара.
+func makeSubstrateButton(onSelect: @escaping () -> Void) -> UIBarButtonItem {
+    let current = SubstrateStore.shared.style
+    let actions = SubstrateStyle.allCases.map { style in
+        UIAction(title: style.title, state: style == current ? .on : .off) { _ in
+            SubstrateStore.shared.style = style
+            onSelect()
+        }
+    }
+    let menu = UIMenu(title: "Подложка", options: .displayInline, children: actions)
+    return UIBarButtonItem(image: UIImage(systemName: "paintpalette"), menu: menu)
+}
+
+/// Приводит внешний вид навбара в соответствие с выбранной подложкой.
+func applyNavBarAppearance(style: SubstrateStyle, to navigationController: UINavigationController?) {
+    guard let navigationController = navigationController else { return }
+    let appearance = UINavigationBarAppearance()
+    appearance.configureWithOpaqueBackground()
+    appearance.backgroundColor = style.screenColor
+    appearance.titleTextAttributes = [.foregroundColor: style.textColor]
+    navigationController.navigationBar.standardAppearance = appearance
+    navigationController.navigationBar.scrollEdgeAppearance = appearance
+    navigationController.navigationBar.compactAppearance = appearance
+    navigationController.navigationBar.tintColor = style == .dark ? UIColor.white : UIColor.darkGray
+}
+
 class ViewController2: UIViewController {
 
     private let columns = 3
@@ -12,10 +91,15 @@ class ViewController2: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor.white
         title = "SVG Examples"
         names = svgNames()
         setupCollectionView()
+        refreshSubstrateButton()
+        applyStyle()
+    }
+
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        return SubstrateStore.shared.style == .dark ? .lightContent : .default
     }
 
     private func setupCollectionView() {
@@ -25,7 +109,6 @@ class ViewController2: UIViewController {
         layout.sectionInset = UIEdgeInsets(top: spacing, left: spacing, bottom: spacing, right: spacing)
 
         let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        collectionView.backgroundColor = UIColor.white
         collectionView.translatesAutoresizingMaskIntoConstraints = false
         collectionView.dataSource = self
         collectionView.delegate = self
@@ -39,6 +122,22 @@ class ViewController2: UIViewController {
             collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
+    }
+
+    private func refreshSubstrateButton() {
+        navigationItem.rightBarButtonItem = makeSubstrateButton { [weak self] in
+            self?.applyStyle()
+            self?.refreshSubstrateButton()
+        }
+    }
+
+    private func applyStyle() {
+        let style = SubstrateStore.shared.style
+        view.backgroundColor = style.screenColor
+        collectionView.backgroundColor = style.screenColor
+        applyNavBarAppearance(style: style, to: navigationController)
+        setNeedsStatusBarAppearanceUpdate()
+        collectionView.reloadData()
     }
 
     /// Возвращает пути SVG относительно корня бандла, включая подпапки
@@ -80,9 +179,10 @@ extension ViewController2: UICollectionViewDataSource, UICollectionViewDelegateF
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         let detail = SVGDetailViewController(name: names[indexPath.item])
-        detail.modalPresentationStyle = .fullScreen
-        detail.modalTransitionStyle = .crossDissolve
-        present(detail, animated: true)
+        let nav = UINavigationController(rootViewController: detail)
+        nav.modalPresentationStyle = .fullScreen
+        nav.modalTransitionStyle = .crossDissolve
+        present(nav, animated: true)
     }
 }
 
@@ -103,15 +203,14 @@ final class SVGCell: UICollectionViewCell {
     }
 
     private func setup() {
-        contentView.backgroundColor = UIColor(white: 0.95, alpha: 1)
         contentView.layer.cornerRadius = 4
         contentView.clipsToBounds = true
+        contentView.layer.borderWidth = 1.0 / UIScreen.main.scale
 
         svgView.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(svgView)
 
         label.font = UIFont.systemFont(ofSize: 10)
-        label.textColor = UIColor.darkGray
         label.textAlignment = .center
         label.lineBreakMode = .byTruncatingMiddle
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -131,6 +230,10 @@ final class SVGCell: UICollectionViewCell {
     }
 
     func configure(name: String) {
+        let style = SubstrateStore.shared.style
+        contentView.backgroundColor = style.substrateColor
+        contentView.layer.borderColor = style.borderColor.cgColor
+        label.textColor = style.textColor
         label.text = name
         svgView.clear()
         svgView.set(SVGName: name)
@@ -143,12 +246,10 @@ final class SVGCell: UICollectionViewCell {
     }
 }
 
-final class SVGDetailViewController: UIViewController, UIGestureRecognizerDelegate {
+final class SVGDetailViewController: UIViewController {
 
     private let name: String
     private let svgView = SVGView()
-    private let titleLabel = UILabel()
-    private let closeButton = UIButton(type: .system)
     private let cardView = UIView()
 
     init(name: String) {
@@ -162,43 +263,26 @@ final class SVGDetailViewController: UIViewController, UIGestureRecognizerDelega
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor.white
+        title = (name as NSString).lastPathComponent
 
-        setupTitleLabel()
-        setupSVGView()
-        setupCloseButton()
+        setupCardView()
+        setupNavBar()
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(backgroundTapped))
-        tap.delegate = self
         view.addGestureRecognizer(tap)
 
         svgView.set(SVGName: name)
+        applyStyle()
     }
 
     override var preferredStatusBarStyle: UIStatusBarStyle {
-        return .default
+        return SubstrateStore.shared.style == .dark ? .lightContent : .default
     }
 
-    private func setupTitleLabel() {
-        titleLabel.text = name
-        titleLabel.font = UIFont.systemFont(ofSize: 13)
-        titleLabel.textColor = UIColor.darkGray
-        titleLabel.textAlignment = .center
-        titleLabel.lineBreakMode = .byTruncatingMiddle
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(titleLabel)
-
-        NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
-            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 72),
-            titleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -72)
-        ])
-    }
-
-    private func setupSVGView() {
-        cardView.backgroundColor = UIColor(white: 0.95, alpha: 1)
+    private func setupCardView() {
         cardView.layer.cornerRadius = 8
         cardView.clipsToBounds = true
+        cardView.layer.borderWidth = 1.0 / UIScreen.main.scale
         cardView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(cardView)
 
@@ -206,7 +290,7 @@ final class SVGDetailViewController: UIViewController, UIGestureRecognizerDelega
         cardView.addSubview(svgView)
 
         NSLayoutConstraint.activate([
-            cardView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
+            cardView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
             cardView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
             cardView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
             cardView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24),
@@ -218,22 +302,30 @@ final class SVGDetailViewController: UIViewController, UIGestureRecognizerDelega
         ])
     }
 
-    private func setupCloseButton() {
-        closeButton.setTitle("✕", for: .normal)
-        closeButton.titleLabel?.font = UIFont.systemFont(ofSize: 24, weight: .medium)
-        closeButton.setTitleColor(UIColor.darkGray, for: .normal)
-        closeButton.backgroundColor = UIColor(white: 0, alpha: 0.06)
-        closeButton.layer.cornerRadius = 22
-        closeButton.translatesAutoresizingMaskIntoConstraints = false
-        closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
-        view.addSubview(closeButton)
+    private func setupNavBar() {
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            title: "Закрыть",
+            style: .plain,
+            target: self,
+            action: #selector(closeTapped)
+        )
+        refreshSubstrateButton()
+    }
 
-        NSLayoutConstraint.activate([
-            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
-            closeButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            closeButton.widthAnchor.constraint(equalToConstant: 44),
-            closeButton.heightAnchor.constraint(equalToConstant: 44)
-        ])
+    private func refreshSubstrateButton() {
+        navigationItem.rightBarButtonItem = makeSubstrateButton { [weak self] in
+            self?.applyStyle()
+            self?.refreshSubstrateButton()
+        }
+    }
+
+    private func applyStyle() {
+        let style = SubstrateStore.shared.style
+        view.backgroundColor = style.screenColor
+        cardView.backgroundColor = style.substrateColor
+        cardView.layer.borderColor = style.borderColor.cgColor
+        applyNavBarAppearance(style: style, to: navigationController)
+        setNeedsStatusBarAppearanceUpdate()
     }
 
     @objc private func closeTapped() {
@@ -242,12 +334,5 @@ final class SVGDetailViewController: UIViewController, UIGestureRecognizerDelega
 
     @objc private func backgroundTapped() {
         dismiss(animated: true)
-    }
-
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        if let view = touch.view, view.isDescendant(of: closeButton) {
-            return false
-        }
-        return true
     }
 }
