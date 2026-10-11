@@ -57,9 +57,11 @@ final class SVGRenderParityTests: XCTestCase {
         }
     }
 
-    /// Triage harness: renders the entire Example icon corpus and prints a
-    /// pass/fail summary. It does not hard-fail — out-of-scope features are
-    /// expected to differ and are reported for triage, not as regressions.
+    /// Renders the entire Example icon corpus against CoreSVG, prints an annotated
+    /// pass/fail report, and gates on regressions: no kit crashes, no reference
+    /// parse failures, and every divergence must be accounted for in
+    /// `ParityTriage.reasons` (known limitations). New/unknown failures fail the
+    /// build so a regression can't slip in silently.
     func testCorpusParity() throws {
         let fixtures = CorpusLoader.load()
         guard !fixtures.isEmpty else {
@@ -78,6 +80,9 @@ final class SVGRenderParityTests: XCTestCase {
 
         var pass = 0, fail = 0, referenceMissing = 0, kitError = 0, referenceLimited = 0
         var lines: [String] = []
+        var kitErrorNames: [String] = []
+        var referenceMissingNames: [String] = []
+        var unexpectedFailures: [String] = []
 
         for fixture in fixtures {
             // CoreSVG (the parity oracle) does not implement `display:none`; it
@@ -92,16 +97,19 @@ final class SVGRenderParityTests: XCTestCase {
 
             guard let reference = ReferenceRenderer.render(fixture.svg, size: size) else {
                 referenceMissing += 1
+                referenceMissingNames.append(fixture.name)
                 lines.append("REF-MISSING \(fixture.name)")
                 continue
             }
             guard let actual = try? KitRenderer.render(fixture.svg, size: size) else {
                 kitError += 1
+                kitErrorNames.append(fixture.name)
                 lines.append("KIT-ERROR \(fixture.name)")
                 continue
             }
             guard let cmp = ImageComparator.compare(actual, reference, size: size, tolerance: tolerance) else {
                 kitError += 1
+                kitErrorNames.append(fixture.name)
                 lines.append("COMPARE-ERROR \(fixture.name)")
                 continue
             }
@@ -109,14 +117,28 @@ final class SVGRenderParityTests: XCTestCase {
                 pass += 1
             } else {
                 fail += 1
-                let reason = ParityTriage.reason(for: fixture.name) ?? "unknown (add to ParityTriage.reasons)"
-                lines.append("FAIL \(fixture.name) differing=\(String(format: "%.3f", cmp.differingFraction)) maxDelta=\(cmp.maxChannelDelta) mae=\(String(format: "%.4f", cmp.meanAbsoluteError)) — \(reason)")
+                let reason = ParityTriage.reason(for: fixture.name)
+                if reason == nil {
+                    unexpectedFailures.append(fixture.name)
+                }
+                let annotation = reason ?? "unknown (add to ParityTriage.reasons)"
+                lines.append("FAIL \(fixture.name) differing=\(String(format: "%.3f", cmp.differingFraction)) maxDelta=\(cmp.maxChannelDelta) mae=\(String(format: "%.4f", cmp.meanAbsoluteError)) — \(annotation)")
             }
         }
 
+        // Report (always emitted, informational).
         print("CORPUS_SUMMARY pass=\(pass) fail=\(fail) referenceMissing=\(referenceMissing) kitError=\(kitError) referenceLimited=\(referenceLimited) total=\(fixtures.count)")
         for line in lines {
             print("CORPUS_\(line)")
         }
+
+        // Gate (hard): a regression is a crash, a reference parse failure, or a
+        // divergence not accounted for in ParityTriage.reasons.
+        XCTAssertEqual(kitError, 0, "RenderKit crashed/failed on: \(kitErrorNames)")
+        XCTAssertEqual(referenceMissing, 0, "CoreSVG could not parse: \(referenceMissingNames)")
+        XCTAssertTrue(
+            unexpectedFailures.isEmpty,
+            "Unexpected parity regressions (not in ParityTriage.reasons): \(unexpectedFailures)"
+        )
     }
 }
