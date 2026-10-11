@@ -94,7 +94,11 @@ final class Vector2Tests: XCTestCase {
 
     func testApproximateEquality() {
         XCTAssertTrue(Vector2(0.1, 0.2) ~= Vector2(0.1, 0.2))
+        // Within tolerance: treated as equal.
+        XCTAssertTrue(Vector2(0.1, 0.2) ~= Vector2(0.1 + 1e-12, 0.2 - 1e-12))
         XCTAssertFalse(Vector2(0.1, 0.2) ~= Vector2(0.3, 0.4))
+        // Outside tolerance: treated as unequal.
+        XCTAssertFalse(Vector2(0.1, 0.2) ~= Vector2(0.1 + 1e-6, 0.2))
     }
 
     func testPointConversion() {

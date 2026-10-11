@@ -160,9 +160,10 @@ public extension Vector2 {
         return Vector2(lhs.x / rhs, lhs.y / rhs)
     }
 
-    /// Returns whether two vectors are approximately equal.
+    /// Returns whether two vectors are approximately equal (within 1e-9 per component).
     static func ~= (lhs: Vector2, rhs: Vector2) -> Bool {
-        return lhs.x ~= rhs.x && lhs.y ~= rhs.y
+        let epsilon: Scalar = 1e-9
+        return abs(lhs.x - rhs.x) < epsilon && abs(lhs.y - rhs.y) < epsilon
     }
 }
 
