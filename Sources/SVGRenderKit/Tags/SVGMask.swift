@@ -200,7 +200,11 @@ extension SVGMask: SVGRendering {
         context.clear(CGRect(x: 0, y: 0, width: width, height: height))
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
         for i in stride(from: 0, to: data.count, by: 4) {
-            let luminance = UInt8(max(0, min(255, 0.2126 * Double(data[i]) + 0.7152 * Double(data[i + 1]) + 0.0722 * Double(data[i + 2]))))
+            let red = Double(data[i])
+            let green = Double(data[i + 1])
+            let blue = Double(data[i + 2])
+            let luma = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+            let luminance = UInt8(max(0.0, min(255.0, luma)))
             data[i] = luminance
             data[i + 1] = luminance
             data[i + 2] = luminance
