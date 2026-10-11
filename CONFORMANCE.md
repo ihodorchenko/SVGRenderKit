@@ -34,7 +34,7 @@
 | `<linearGradient>`, `<radialGradient>`, `<stop>` | ✅ (`stop-color`, `stop-opacity`, `offset`) |
 | `<text>`, `<tspan>` | ✅ `text-anchor`, multi-line `<tspan>` |
 | `<style>` | ✅ id / class / tag selectors |
-| `<filter>` | ✅ `feGaussianBlur` + `feDropShadow` |
+| `<filter>` | ✅ `feGaussianBlur` (SVG 1.1) + `feDropShadow` (SVG 2.0) |
 | `<animate>`, `<animateTransform>`, `<set>` | ✅ SMIL subset (see below) |
 | `<image>`, `<switch>`, `<a>`, `<foreignObject>`, `<font>` | ❌ out of scope |
 | `<textPath>`, `<script>`, `<cursor>`, `<solidColor>` | ❌ out of scope |
@@ -117,7 +117,7 @@ All path commands are supported, including elliptical arcs:
 |---|---|
 | **SVG 1.1 (Full)** | The Icon Profile is a subset of SVG 1.1. Coverage is high for the features icons use; the rest (text, filters, scripting, CSS) is intentionally omitted. |
 | **SVG Tiny 1.2** | Closest in *philosophy* (drops `filter`/`mask`/`pattern`/`marker`/`symbol`), but Tiny *mandates* SMIL animation and has its own text model — neither is adopted here. |
-| **SVG 2.0** | Almost entirely out of scope; tracked only for reference (`vector-effect`, `paint-order`, mesh gradients, geometry-as-CSS). |
+| **SVG 2.0** | Almost entirely out of scope; tracked only for reference (`vector-effect`, `paint-order`, mesh gradients, geometry-as-CSS, `feDropShadow`). |
 
 > These standards are for orientation only. SVGRenderKit does not claim formal
 > conformance to any of them — it implements the **Icon Profile** above.
