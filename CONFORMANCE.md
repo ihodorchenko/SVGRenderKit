@@ -26,9 +26,9 @@
 | `<g>`, `<defs>` | ✅ |
 | `<use>` | ✅ local `#ref`, incl. `<symbol>` with `viewBox` |
 | `<clipPath>` | ✅ |
-| `<mask>` | ✅ alpha masking |
+| `<mask>` | ✅ alpha + luminance masking |
 | `<pattern>` | ✅ tiled fill |
-| `<marker>` | ✅ `marker-end` (`auto` orientation) |
+| `<marker>` | ✅ marker-start/mid/end (`auto` orientation) |
 | `<symbol>` | ✅ instantiated via `<use>` |
 | `<path>`, `<rect>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>` | ✅ |
 | `<linearGradient>`, `<radialGradient>`, `<stop>` | ✅ (`stop-color`, `stop-opacity`, `offset`) |
@@ -36,7 +36,8 @@
 | `<style>` | ✅ id / class / tag selectors |
 | `<filter>` | ✅ `feGaussianBlur` (SVG 1.1) + `feDropShadow` (SVG 2.0) |
 | `<animate>`, `<animateTransform>`, `<set>` | ✅ SMIL subset (see below) |
-| `<image>`, `<switch>`, `<a>`, `<foreignObject>`, `<font>` | ❌ out of scope |
+| `<image>` | ✅ inline data-URI rasters (no external URLs) |
+| `<switch>`, `<a>`, `<foreignObject>`, `<font>` | ❌ out of scope |
 | `<textPath>`, `<script>`, `<cursor>`, `<solidColor>` | ❌ out of scope |
 
 ### Path data
@@ -55,7 +56,7 @@ All path commands are supported, including elliptical arcs:
 | `fill` | ✅ color, `none`, `url(#gradient/#pattern)` |
 | `fill-rule` | ✅ `nonzero` / `evenodd` |
 | `fill-opacity` | ✅ |
-| `stroke` | ✅ color, `none` |
+| `stroke` | ✅ color, `none`, `url(#gradient/#pattern)` |
 | `stroke-width` | ✅ (`px`, `%`) |
 | `stroke-opacity` | ✅ |
 | `stroke-linecap`, `stroke-linejoin`, `stroke-miterlimit` | ✅ |
@@ -63,15 +64,18 @@ All path commands are supported, including elliptical arcs:
 | `opacity` | ✅ |
 | `clip-path` / `clip-rule` | ✅ local `url(#…)` |
 | `mask` | ✅ local `url(#…)` |
+| `filter` | ✅ local `url(#…)` |
 | `transform` | ✅ `matrix`, `translate`, `rotate`, `scale`, `skewX`, `skewY` |
 | `gradientTransform`, `gradientUnits`, `spreadMethod` | ✅ |
 | `xlink:href` / `href` inheritance | ✅ |
 | `display` | ✅ `inline` / `block` / `none` |
+| `visibility` | ✅ `visible` / `hidden` / `collapse` |
 | `currentColor` | ✅ resolved via `color` |
 | `font-family`, `font-style`, `font-weight`, `font-size` | ✅ (`px` / `%` / `em`) |
-| `marker-end` | ✅ |
-| `marker-start`, `marker-mid` | ⚠️ parsed, not rendered |
+| `marker-start`, `marker-mid`, `marker-end` | ✅ |
 | `color`, `paint-order`, `vector-effect` | ❌ out of scope |
+
+Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba()`, `argb()`, `hsl()`, `hsla()`.
 
 ### CSS
 
@@ -92,7 +96,7 @@ All path commands are supported, including elliptical arcs:
 
 - Scripting, DOM, and events.
 - External resource loading (`url(...)` to the network).
-- `<image>`, `<switch>`, `<a>`, `<foreignObject>`, `<font>`, `<solidColor>`, `<cursor>`.
+- `<switch>`, `<a>`, `<foreignObject>`, `<font>`, `<solidColor>`, `<cursor>`.
 - Full text model: `textPath`, per-glyph `x`/`y` lists,
   `alignment-baseline`/`dominant-baseline`, `textLength`/`lengthAdjust`.
 - CSS cascade: specificity, `inherit` resolution, combinators, `!important`,
@@ -100,8 +104,7 @@ All path commands are supported, including elliptical arcs:
 - Nested `<svg>` viewports.
 - `paint-order`, `color`, `vector-effect`.
 - Full SMIL engine (event `begin`, `additive`/`accumulate`, `calcMode`, `fill="freeze"`).
-- Length units beyond `px`/`%` (and `em` for `font-size`):
-  `pt`/`pc`/`cm`/`mm`/`in`/`ex`/`rem`/`ch`/`vw`/`vh`/`vmin`/`vmax`.
+- Length units: `px`/`pt`/`pc`/`in`/`cm`/`mm`/`%` supported; `ex`/`rem`/`ch`/`vw`/`vh`/`vmin`/`vmax` out of scope (`em` only for `font-size`).
 
 ## Degradation policy
 
