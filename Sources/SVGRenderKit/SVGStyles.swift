@@ -580,7 +580,9 @@ extension SVGSourceStyleElement {
         if let mask = self.mask {
             switch mask {
             case .local(let key):
-                if let rendering = try group.getMask(byKey: key, fromParents: true)?.createLayer(overrideElements: overrideElements) {
+                if let maskObj = group.getMask(byKey: key, fromParents: true) {
+                    let options = group.getSvgOptions()
+                    let rendering = try maskObj.maskLayer(bbox: path.bounds, viewBox: options.viewBox, overrideElements: overrideElements)
                     mainLayer.mask = rendering
                 } else {
                     throw SVGError.content(text: "mask not found: \(key)")

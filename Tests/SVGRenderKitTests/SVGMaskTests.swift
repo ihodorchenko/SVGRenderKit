@@ -39,8 +39,8 @@ final class SVGMaskTests: XCTestCase {
         let layer = try parser.getLayer(overrideElements: nil)
         let masked = try XCTUnwrap(findMaskedLayer(in: layer))
         XCTAssertNotNil(masked.mask)
-        // The mask content should have been rendered into the mask layer.
-        XCTAssertFalse(masked.mask?.sublayers?.isEmpty ?? true)
+        // The mask content is rendered into a bitmap and assigned as `contents`.
+        XCTAssertNotNil(masked.mask?.contents)
     }
 
     func testMissingMaskThrows() {

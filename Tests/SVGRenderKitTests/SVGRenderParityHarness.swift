@@ -79,6 +79,17 @@ enum ParityFixtures {
             <rect x="10" y="10" width="80" height="80" fill="#e67e22" clip-path="url(#c)"/>
         </svg>
         """),
+        ParityFixture(name: "mask-luminance", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <mask id="m">
+                    <rect width="100" height="100" fill="#ffffff"/>
+                    <circle cx="50" cy="50" r="30" fill="#000000"/>
+                </mask>
+            </defs>
+            <rect width="100" height="100" fill="#ff0000" mask="url(#m)"/>
+        </svg>
+        """),
         ParityFixture(name: "transform", svg: """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <g transform="translate(50 50)">
