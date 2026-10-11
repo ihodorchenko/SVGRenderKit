@@ -90,6 +90,17 @@ enum ParityFixtures {
             <rect width="100" height="100" fill="#ff0000" mask="url(#m)"/>
         </svg>
         """),
+        ParityFixture(name: "pattern-user-space", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <pattern id="p" width="25" height="25" patternUnits="userSpaceOnUse">
+                    <rect width="25" height="25" fill="#ff0000"/>
+                    <circle cx="12.5" cy="12.5" r="6" fill="#0000ff"/>
+                </pattern>
+            </defs>
+            <rect width="100" height="100" fill="url(#p)"/>
+        </svg>
+        """),
         ParityFixture(name: "transform", svg: """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <g transform="translate(50 50)">

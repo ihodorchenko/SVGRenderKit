@@ -19,10 +19,10 @@ open class SVGPattern: SVGChildObject {
 
     var patternUnits: PatternUnits = PatternUnits.objectBoundingBox
     var patternContentUnits: PatternUnits = PatternUnits.userSpaceOnUse
-    var x: CGFloat = 0
-    var y: CGFloat = 0
-    var width: CGFloat = 0
-    var height: CGFloat = 0
+    var x: SVGLength = SVGLength.px(value: 0)
+    var y: SVGLength = SVGLength.px(value: 0)
+    var width: SVGLength = SVGLength.px(value: 0)
+    var height: SVGLength = SVGLength.px(value: 0)
 
     /// Initializes a pattern by parsing its geometry attributes and child elements.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
@@ -37,10 +37,10 @@ open class SVGPattern: SVGChildObject {
 
         if let str = attributeDict["patternUnits"], let f = PatternUnits(rawValue: str) { patternUnits = f }
         if let str = attributeDict["patternContentUnits"], let f = PatternUnits(rawValue: str) { patternContentUnits = f }
-        if let str = attributeDict["x"], let f = Float(str.trimmed) { x = CGFloat(f) }
-        if let str = attributeDict["y"], let f = Float(str.trimmed) { y = CGFloat(f) }
-        if let str = attributeDict["width"], let f = Float(str.trimmed) { width = CGFloat(f) }
-        if let str = attributeDict["height"], let f = Float(str.trimmed) { height = CGFloat(f) }
+        if let str = attributeDict["x"] { x = try SVGLength.get(string: str) }
+        if let str = attributeDict["y"] { y = try SVGLength.get(string: str) }
+        if let str = attributeDict["width"] { width = try SVGLength.get(string: str) }
+        if let str = attributeDict["height"] { height = try SVGLength.get(string: str) }
         if let str = attributeDict["patternTransform"] {
             transform = try SVGTransform.get(string: str)
         }
@@ -63,18 +63,55 @@ open class SVGPattern: SVGChildObject {
     }
 
     /// Renders the pattern content into a tile image, or `nil` if the tile has no size.
-    func tileImage() -> UIImage? {
-        guard width > 0, height > 0 else { return nil }
-        let size = CGSize(width: width, height: height)
+    /// `patternUnits`/`patternContentUnits` control how the tile and its content are
+    /// mapped onto the element's bounding box.
+    func tileImage(bbox: CGRect, viewBox: CGRect) -> UIImage? {
+        let region = tileRegion(bbox: bbox, viewBox: viewBox)
+        guard region.width > 0, region.height > 0 else { return nil }
+        let size = region.size
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = UIScreen.main.scale
         format.opaque = false
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
         return renderer.image { context in
             if let layer = try? createLayer(overrideElements: nil) {
-                layer.frame = CGRect(origin: .zero, size: size)
-                layer.render(in: context.cgContext)
+                let cg = context.cgContext
+                if patternContentUnits == .objectBoundingBox {
+                    cg.translateBy(x: bbox.origin.x - region.origin.x, y: bbox.origin.y - region.origin.y)
+                    cg.scaleBy(x: bbox.width, y: bbox.height)
+                } else {
+                    cg.translateBy(x: -region.origin.x, y: -region.origin.y)
+                }
+                layer.render(in: cg)
             }
+        }
+    }
+
+    private func resolveLength(_ length: SVGLength, bboxDimension: CGFloat, viewBoxDimension: CGFloat) -> CGFloat {
+        switch patternUnits {
+        case .objectBoundingBox:
+            switch length {
+            case .px(let value): return value * bboxDimension
+            case .percent(let value): return value * bboxDimension
+            }
+        case .userSpaceOnUse:
+            switch length {
+            case .px(let value): return value
+            case .percent(let value): return value * viewBoxDimension
+            }
+        }
+    }
+
+    private func tileRegion(bbox: CGRect, viewBox: CGRect) -> CGRect {
+        let rx = resolveLength(x, bboxDimension: bbox.width, viewBoxDimension: viewBox.width)
+        let ry = resolveLength(y, bboxDimension: bbox.height, viewBoxDimension: viewBox.height)
+        let rw = resolveLength(width, bboxDimension: bbox.width, viewBoxDimension: viewBox.width)
+        let rh = resolveLength(height, bboxDimension: bbox.height, viewBoxDimension: viewBox.height)
+        switch patternUnits {
+        case .objectBoundingBox:
+            return CGRect(x: bbox.origin.x + rx, y: bbox.origin.y + ry, width: rw, height: rh)
+        case .userSpaceOnUse:
+            return CGRect(x: rx, y: ry, width: rw, height: rh)
         }
     }
 }
