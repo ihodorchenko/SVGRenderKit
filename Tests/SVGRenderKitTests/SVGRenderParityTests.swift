@@ -76,10 +76,20 @@ final class SVGRenderParityTests: XCTestCase {
             throw XCTSkip("CoreSVG reference rendering is unavailable in this environment")
         }
 
-        var pass = 0, fail = 0, referenceMissing = 0, kitError = 0
+        var pass = 0, fail = 0, referenceMissing = 0, kitError = 0, referenceLimited = 0
         var lines: [String] = []
 
         for fixture in fixtures {
+            // CoreSVG (the parity oracle) does not implement `display:none`; it
+            // renders elements that the spec — and our renderer — correctly hide.
+            // Such fixtures cannot be validated against the reference, so they
+            // are reported separately rather than as regressions.
+            if ReferenceRenderer.unsupportedFeatures(in: fixture.svg).contains(.displayNone) {
+                referenceLimited += 1
+                lines.append("REF-LIMITED \(fixture.name) (display:none)")
+                continue
+            }
+
             guard let reference = ReferenceRenderer.render(fixture.svg, size: size) else {
                 referenceMissing += 1
                 lines.append("REF-MISSING \(fixture.name)")
@@ -103,7 +113,7 @@ final class SVGRenderParityTests: XCTestCase {
             }
         }
 
-        print("CORPUS_SUMMARY pass=\(pass) fail=\(fail) referenceMissing=\(referenceMissing) kitError=\(kitError) total=\(fixtures.count)")
+        print("CORPUS_SUMMARY pass=\(pass) fail=\(fail) referenceMissing=\(referenceMissing) kitError=\(kitError) referenceLimited=\(referenceLimited) total=\(fixtures.count)")
         for line in lines {
             print("CORPUS_\(line)")
         }

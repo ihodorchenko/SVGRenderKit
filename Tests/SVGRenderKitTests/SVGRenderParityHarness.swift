@@ -280,6 +280,25 @@ enum KitRenderer {
 ///
 /// The private API is used only in the test target; it never ships in the library.
 enum ReferenceRenderer {
+    /// Features that CoreSVG (the parity oracle) does not implement, making
+    /// pixel comparison against it invalid for fixtures that use them.
+    enum UnsupportedFeature {
+        case displayNone
+    }
+
+    /// Detects features the reference renderer does not support.
+    static func unsupportedFeatures(in svg: String) -> [UnsupportedFeature] {
+        var features: [UnsupportedFeature] = []
+        // `display:none` / `display: none` / `display="none"`.
+        if svg.range(of: "display", options: .caseInsensitive) != nil {
+            let folded = svg.lowercased()
+            if folded.contains("display:none") || folded.contains("display: none") || folded.contains("display=\"none\"") {
+                features.append(.displayNone)
+            }
+        }
+        return features
+    }
+
     @objc private final class CGSVGDocument: NSObject {}
 
     private static let coreSVG: UnsafeMutableRawPointer? = dlopen(
