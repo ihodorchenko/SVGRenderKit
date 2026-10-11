@@ -111,6 +111,9 @@ internal class PathCommand: PathCharacter, Commandable {
     var pathType: PathType = .absolute
     var parameters: [CGFloat] = []
     var path: UIBezierPath = UIBezierPath()
+    /// The current point of the supplied path when appending via `forPath:`,
+    /// used as the reference for a relative command before any point is drawn.
+    var initialPoint: CGPoint = .zero
     
     
     override init() {
@@ -196,7 +199,9 @@ internal class PathCommand: PathCharacter, Commandable {
             return point
         case .relative:
             if self.path.isEmpty {
-                return point
+                // No point drawn yet: a leading relative move is absolute, but when
+                // appending to an existing path it is relative to that path's end.
+                return CGPoint(x: point.x + initialPoint.x, y: point.y + initialPoint.y)
             } else {
                 let cp: CGPoint = currentPoint ?? self.path.currentPoint
                 return CGPoint(x: point.x + cp.x, y: point.y + cp.y)
@@ -359,6 +364,7 @@ public class SVGParseString {
                     }
                     currentPathCommand = pathCharacter as! PathCommand
                     currentPathCommand.path = currentPath
+                    currentPathCommand.initialPoint = returnPath.currentPoint
                     if firstCommand == nil {
                         firstCommand = currentPathCommand
                     }

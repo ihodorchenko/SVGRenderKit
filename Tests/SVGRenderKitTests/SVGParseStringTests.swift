@@ -176,4 +176,17 @@ final class SVGParseStringTests: XCTestCase {
         XCTAssertEqual(path.currentPoint.x, 0, accuracy: 0.001)
         XCTAssertEqual(path.currentPoint.y, 0, accuracy: 0.001)
     }
+
+    // MARK: Relative first command when appending (B17)
+
+    func testRelativeFirstCommandUsesSuppliedPathCurrentPoint() throws {
+        let base = UIBezierPath()
+        base.move(to: CGPoint(x: 50, y: 50))
+        let result = SVGParseString.parseSVGPath(pathString: "m10 10 l5 5", forPath: base)
+        XCTAssertNil(result.error)
+        let path = try XCTUnwrap(result.path)
+        // Relative move from (50,50) -> (60,60); relative line -> (65,65).
+        XCTAssertEqual(path.currentPoint.x, 65, accuracy: 0.001)
+        XCTAssertEqual(path.currentPoint.y, 65, accuracy: 0.001)
+    }
 }
