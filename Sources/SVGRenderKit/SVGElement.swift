@@ -45,6 +45,12 @@ struct SVGPreserveAspectRatio {
     /// Computes the scale and translation needed to fit `viewBox` into a
     /// container of `containerSize` per this preserveAspectRatio setting.
     func resolve(viewBox: CGRect, containerSize: CGSize) -> (scaleX: CGFloat, scaleY: CGFloat, translateX: CGFloat, translateY: CGFloat) {
+        // A degenerate viewBox (zero width or height) would divide by zero and
+        // produce NaN/infinite transforms. Degrade to an empty layout instead.
+        guard viewBox.width > 0, viewBox.height > 0 else {
+            return (0, 0, 0, 0)
+        }
+
         if align == .none {
             return (containerSize.width / viewBox.width,
                     containerSize.height / viewBox.height,

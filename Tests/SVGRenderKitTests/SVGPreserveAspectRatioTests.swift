@@ -73,6 +73,16 @@ final class SVGPreserveAspectRatioTests: XCTestCase {
         XCTAssertEqual(r.translateY, 0, accuracy: 0.0001)
     }
 
+    func testDegenerateViewBoxDoesNotProduceNaN() {
+        let par = SVGPreserveAspectRatio.get(string: "xMidYMid meet")
+        let r = par.resolve(viewBox: CGRect(x: 0, y: 0, width: 0, height: 0),
+                            containerSize: CGSize(width: 100, height: 100))
+        XCTAssertTrue(r.scaleX.isFinite)
+        XCTAssertTrue(r.scaleY.isFinite)
+        XCTAssertEqual(r.scaleX, 0, accuracy: 0.0001)
+        XCTAssertEqual(r.scaleY, 0, accuracy: 0.0001)
+    }
+
     func testXMinYMinMeetAlignsTopLeft() {
         let par = SVGPreserveAspectRatio.get(string: "xMinYMin meet")
         let r = par.resolve(viewBox: CGRect(x: 0, y: 0, width: 100, height: 100),
