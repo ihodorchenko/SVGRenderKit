@@ -47,9 +47,15 @@ final class SVGColorsTests: XCTestCase {
     }
 
     func testHexEightDigits() {
-        // 8-digit hex is parsed in AARRGGBB order.
-        let color = SVGColors.getColor(hexString: "#8000ff00")!
-        assertColor(color, red: 0, green: 1, blue: 0, alpha: 128.0 / 255.0)
+        // 8-digit hex is RRGGBBAA (CSS Color 4 / SVG 2.0): alpha is the last byte.
+        let color = SVGColors.getColor(hexString: "#ff000080")!
+        assertColor(color, red: 1, green: 0, blue: 0, alpha: 128.0 / 255.0)
+    }
+
+    func testHexEightDigitsIllustratorOrder() {
+        // Illustrator exports 8-digit hex as RRGGBBAA too.
+        let color = SVGColors.getColor(hexString: "#223b9b70")!
+        assertColor(color, red: 0x22 / 255.0, green: 0x3b / 255.0, blue: 0x9b / 255.0, alpha: 0x70 / 255.0)
     }
 
     func testHexWithoutLeadingHash() {

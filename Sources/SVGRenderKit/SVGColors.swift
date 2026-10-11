@@ -244,10 +244,10 @@ public class SVGColors {
                 green = CGFloat((hexValue & 0x00FF00) >> 8)    / 255.0
                 blue  = CGFloat(hexValue & 0x0000FF)           / 255.0
             case 8:
-                alphaHex = CGFloat((hexValue & 0xFF000000) >> 24) / 255.0
-                red   = CGFloat((hexValue & 0x00FF0000) >> 16) / 255.0
-                green = CGFloat((hexValue & 0x0000FF00) >> 8)  / 255.0
-                blue  = CGFloat(hexValue & 0x000000FF)         / 255.0
+                red   = CGFloat((hexValue & 0xFF000000) >> 24) / 255.0
+                green = CGFloat((hexValue & 0x00FF0000) >> 16) / 255.0
+                blue  = CGFloat((hexValue & 0x0000FF00) >> 8)  / 255.0
+                alphaHex = CGFloat(hexValue & 0x000000FF)       / 255.0
             default:
                 SVGLog.addSLog(errorStr: "Invalid RGB string, number of characters after '#' should be either 3, 4, 6 or 8")
                 return nil
