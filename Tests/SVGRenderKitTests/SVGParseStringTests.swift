@@ -164,4 +164,16 @@ final class SVGParseStringTests: XCTestCase {
         XCTAssertEqual(elementCount(path), 2) // move + line (not move + 2 lines)
         XCTAssertEqual(path.currentPoint.x, 5, accuracy: 0.001)
     }
+
+    // MARK: Dangling command letter (B16)
+
+    func testDanglingCommandPreservesPath() throws {
+        // A trailing 'L' with no coordinates must not discard the preceding move.
+        let result = SVGParseString.parseSVGPath(pathString: "M0 0 L")
+        XCTAssertNil(result.error)
+        let path = try XCTUnwrap(result.path)
+        XCTAssertEqual(elementCount(path), 1) // the move is preserved
+        XCTAssertEqual(path.currentPoint.x, 0, accuracy: 0.001)
+        XCTAssertEqual(path.currentPoint.y, 0, accuracy: 0.001)
+    }
 }

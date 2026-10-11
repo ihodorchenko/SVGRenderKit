@@ -404,6 +404,10 @@ public class SVGParseString {
         if thisEnd == false {
             if let error = pushCoordinateAndExecuteIfPossible() { return (path: nil, error: error) }
             returnPath.append(currentPath)
+        } else if !(currentPathCommand is ClosePath) {
+            // The path ends with a dangling command letter (e.g. a trailing 'L').
+            // Preserve the path accumulated before it instead of silently dropping it.
+            returnPath.append(currentPath)
         }
 
         return (path: returnPath, error: nil)
