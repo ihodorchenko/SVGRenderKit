@@ -39,15 +39,19 @@ final class SVGSpreadMethodTests: XCTestCase {
         XCTAssertEqual(colors.count, 2)
     }
 
-    func testSpreadMethodReflectReflectsStops() throws {
+    func testSpreadMethodReflectMatchesPad() throws {
         let gradientLayer = try renderGradient(spreadMethod: "reflect")
         let colors = try XCTUnwrap(gradientLayer.colors)
-        XCTAssertEqual(colors.count, 3)
+        // CoreSVG (and `UIImage`) ignores `spreadMethod` and always pads, so
+        // `reflect` keeps the original two stops instead of synthesizing a
+        // mirrored gradient.
+        XCTAssertEqual(colors.count, 2)
     }
 
-    func testSpreadMethodRepeatRepeatsStops() throws {
+    func testSpreadMethodRepeatMatchesPad() throws {
         let gradientLayer = try renderGradient(spreadMethod: "repeat")
         let colors = try XCTUnwrap(gradientLayer.colors)
-        XCTAssertEqual(colors.count, 4)
+        // Same as reflect: `repeat` is treated as `pad` for CoreSVG parity.
+        XCTAssertEqual(colors.count, 2)
     }
 }

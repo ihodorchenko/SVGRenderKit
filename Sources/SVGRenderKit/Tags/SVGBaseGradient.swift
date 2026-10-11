@@ -44,31 +44,15 @@ open class SVGBaseGradient: SVGChildObject {
     }
 
     /// Adjusts the color-stop arrays for the gradient's `spreadMethod`.
-    /// `reflect` mirrors the stops; `repeat` tiles them with a hard seam.
+    ///
+    /// CoreSVG — the native rasterizer behind `UIImage`'s SVG support and our
+    /// parity oracle — ignores `spreadMethod` and always pads the gradient to its
+    /// endpoint colors. `reflect` and `repeat` therefore render identically to
+    /// `pad` there. To stay pixel-compatible with that reference (and with
+    /// `UIImage`), we intentionally do the same instead of synthesizing a tiled
+    /// gradient, which the native renderer never produces.
     func spreadAdjusted(colors: [CGColor], locations: [CGFloat]) -> (colors: [CGColor], locations: [CGFloat]) {
-        guard colors.count == locations.count, colors.count >= 2 else {
-            return (colors, locations)
-        }
-        switch spreadMethod {
-        case .pad:
-            return (colors, locations)
-        case .reflect:
-            var newColors = colors
-            var newLocations = locations.map { $0 / 2 }
-            for i in stride(from: colors.count - 2, through: 0, by: -1) {
-                newColors.append(colors[i])
-                newLocations.append(1 - locations[i] / 2)
-            }
-            return (newColors, newLocations)
-        case .`repeat`:
-            var newColors = colors
-            var newLocations = locations.map { $0 / 2 }
-            for i in 0..<colors.count {
-                newColors.append(colors[i])
-                newLocations.append((1 + locations[i]) / 2)
-            }
-            return (newColors, newLocations)
-        }
+        return (colors, locations)
     }
 
     /// Shifts a shape mask so its path (expressed in absolute/viewBox coordinates)
