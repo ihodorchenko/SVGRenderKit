@@ -98,6 +98,11 @@ class ViewController2: UIViewController {
         applyStyle()
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        collectionView.flashScrollIndicators()
+    }
+
     override var preferredStatusBarStyle: UIStatusBarStyle {
         return SubstrateStore.shared.style == .dark ? .lightContent : .default
     }
@@ -112,6 +117,8 @@ class ViewController2: UIViewController {
         collectionView.translatesAutoresizingMaskIntoConstraints = false
         collectionView.dataSource = self
         collectionView.delegate = self
+        collectionView.showsVerticalScrollIndicator = true
+        collectionView.alwaysBounceVertical = true
         collectionView.register(SVGCell.self, forCellWithReuseIdentifier: SVGCell.reuseIdentifier)
         view.addSubview(collectionView)
         self.collectionView = collectionView
@@ -135,6 +142,8 @@ class ViewController2: UIViewController {
         let style = SubstrateStore.shared.style
         view.backgroundColor = style.screenColor
         collectionView.backgroundColor = style.screenColor
+        collectionView.indicatorStyle = style == .dark ? .white : .black
+        collectionView.scrollIndicatorInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: -2)
         applyNavBarAppearance(style: style, to: navigationController)
         setNeedsStatusBarAppearanceUpdate()
         collectionView.reloadData()
