@@ -10,7 +10,6 @@ internal enum PathType {
 }
 
 internal struct NumberStack {
-    private let signCharset = CharacterSet(charactersIn: "+-")
     var characterStack: String = ""
     var asCGFloat: CGFloat? {
         get {
@@ -35,25 +34,12 @@ internal struct NumberStack {
         }
     }
 
-    var isHaveE: Bool {
-        get {
-            let eCharset = CharacterSet(charactersIn: "eE")
-            return characterStack.rangeOfCharacter(from: eCharset) != nil
-        }
-    }
-
     var isLastE: Bool {
         get {
             return self.characterStack.last == "e" || self.characterStack.last == "E"
         }
     }
 
-    var isHaveSign: Bool {
-        get {
-            return characterStack.rangeOfCharacter(from: self.signCharset) != nil
-        }
-    }
-    
     init() { }
     
     init(startCharacter: Character) {
@@ -353,7 +339,6 @@ public class SVGParseString {
             }
             return
         }
-        var firstCommand: PathCommand?
         var thisEnd: Bool = false
         for (index, thisCharacter) in workingString.enumerated() {
 
@@ -370,15 +355,8 @@ public class SVGParseString {
                     currentPathCommand = pathCharacter as! PathCommand
                     currentPathCommand.path = currentPath
                     currentPathCommand.initialPoint = returnPath.currentPoint
-                    if firstCommand == nil {
-                        firstCommand = currentPathCommand
-                    }
 
                     if let closeCommand = currentPathCommand as? ClosePath {
-                        if index == workingString.count - 1 {
-                            closeCommand.firstCommand = firstCommand
-                        }
-
                         if let error = closeCommand.execute(
                             forPath: currentPath, previousCommand: previousCommand) { return (nil, error) }
                         let currentPoint: CGPoint = currentPath.currentPoint

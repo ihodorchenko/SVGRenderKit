@@ -32,7 +32,6 @@ internal class MoveTo: PathCommand {
 }
 
 internal class ClosePath: PathCommand {
-    var firstCommand: PathCommand?
 
     override var numberOfRequiredParameters: Int {
         get {
