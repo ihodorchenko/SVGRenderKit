@@ -189,4 +189,22 @@ final class SVGParseStringTests: XCTestCase {
         XCTAssertEqual(path.currentPoint.x, 65, accuracy: 0.001)
         XCTAssertEqual(path.currentPoint.y, 65, accuracy: 0.001)
     }
+
+    // MARK: ClosePath getGroups division by zero (B26)
+
+    func testClosePathGetGroupsReturnsEmpty() {
+        // `ClosePath` has zero required parameters; `getGroups()` must return an
+        // empty list instead of dividing by zero.
+        let close = ClosePath(character: "Z", pathType: .absolute)
+        XCTAssertEqual(close.getGroups(), [])
+    }
+
+    func testSmoothCurveAfterClosePathDoesNotCrash() {
+        // A smooth cubic (`S`) following `Z` previously divided by zero while
+        // reflecting the previous command's control point. It must not crash.
+        let result = SVGParseString.parseSVGPath(pathString: "M0 0 C1 1 2 2 3 3 Z S4 4 5 5")
+        // Reflection against a ClosePath is not meaningful, so the parser degrades
+        // to a graceful error rather than aborting.
+        XCTAssertNotNil(result.error)
+    }
 }

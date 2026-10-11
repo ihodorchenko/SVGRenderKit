@@ -128,6 +128,10 @@ internal class PathCommand: PathCharacter, Commandable {
 
     func getGroups() -> [[CGFloat]] {
         let parametersGroupCount = self.numberOfRequiredParameters
+        // `ClosePath` has zero required parameters; returning no groups avoids a
+        // division-by-zero crash when a command queries the previous `ClosePath`
+        // (e.g. a smooth curve following `Z`).
+        guard parametersGroupCount > 0 else { return [] }
         var groups: [[CGFloat]] = []
 
         let count: Int = self.parameters.count / parametersGroupCount
