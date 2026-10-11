@@ -86,7 +86,7 @@ final class SVGRenderParityTests: XCTestCase {
             // are reported separately rather than as regressions.
             if ReferenceRenderer.unsupportedFeatures(in: fixture.svg).contains(.displayNone) {
                 referenceLimited += 1
-                lines.append("REF-LIMITED \(fixture.name) (display:none)")
+                lines.append("REF-LIMITED \(fixture.name) (display:none — CoreSVG renders hidden elements)")
                 continue
             }
 
@@ -109,7 +109,8 @@ final class SVGRenderParityTests: XCTestCase {
                 pass += 1
             } else {
                 fail += 1
-                lines.append("FAIL \(fixture.name) differing=\(String(format: "%.3f", cmp.differingFraction)) maxDelta=\(cmp.maxChannelDelta) mae=\(String(format: "%.4f", cmp.meanAbsoluteError))")
+                let reason = ParityTriage.reason(for: fixture.name) ?? "unknown (add to ParityTriage.reasons)"
+                lines.append("FAIL \(fixture.name) differing=\(String(format: "%.3f", cmp.differingFraction)) maxDelta=\(cmp.maxChannelDelta) mae=\(String(format: "%.4f", cmp.meanAbsoluteError)) — \(reason)")
             }
         }
 

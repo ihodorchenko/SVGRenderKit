@@ -460,3 +460,72 @@ func waitUntil(_ condition: () -> Bool, timeout: TimeInterval) -> Bool {
     }
     return true
 }
+
+// MARK: - Corpus triage annotations
+
+/// Human-readable reasons for the corpus fixtures that diverge from CoreSVG,
+/// keyed by the fixture name (path relative to `Example/Example/data`).
+///
+/// Keeping the reason next to the fixture name lets `testCorpusParity` print
+/// *why* each icon diverges instead of just a raw differing fraction, so a
+/// triage run is self-explanatory.
+enum ParityTriage {
+    static let reasons: [String: String] = [
+        // ── Text: font metrics / kerning differ from CoreSVG (Roboto/Times may be missing) ──
+        "svg_1.0/PASSPORT_31.svg": "text: font metrics/kerning (Roboto-Regular/TimesNewRomanPSMT fallback)",
+        "svg_1.0/PASSPORT_33.svg": "text: font metrics/kerning (Roboto-Regular/TimesNewRomanPSMT fallback)",
+        "svg_1.0/PASSPORT_33_gray.svg": "text: vectorized glyphs + thin stroke rasterization",
+
+        // ── CoreSVG reference limitations (our renderer is correct) ──
+        "svg_0.0/edit_30px.svg": "ref-limit: 8-digit hex #RRGGBBAA mis-rendered by CoreSVG (as opaque black)",
+
+        // ── Gradients ──
+        "svg_0.0/7560-gradient-blue-svg.svg": "gradient: tight stop interpolation (0.49/0.50/0.52) + gradientTransform",
+
+        // ── Figma/Sketch drop-shadow: feMorphology erode not applied (shadow not inset) ──
+        "svg_3.0/Illustration/cards_black/black_mc_stack.svg": "filter: Figma drop-shadow without feMorphology erode",
+        "svg_3.0/Illustration/cards_black/black_mc_3rd_stack.svg": "filter: Figma drop-shadow without feMorphology erode",
+        "svg_3.0/Illustration/cards_black/black_visa_stack.svg": "filter: Figma drop-shadow without feMorphology erode",
+        "svg_3.0/Illustration/cards_black/black_visa_3rd_stack.svg": "filter: Figma drop-shadow without feMorphology erode",
+        "svg_3.0/Illustration/widget_cards.svg": "filter: Figma drop-shadow without feMorphology erode",
+        "svg_3.0/Illustration/widget_cards_empty.svg": "filter: Figma drop-shadow without feMorphology erode",
+
+        // ── Mask boundary ──
+        "svg_2.0/menu/commission.svg": "mask: region boundary anti-aliasing",
+        "svg_3.0/action/icon__action__transaction_special.svg": "mask: region boundary anti-aliasing",
+
+        // ── Complex logos: path rasterization / anti-aliasing vs CoreSVG ──
+        "svg_1.0/widget/america.svg": "logo: many-path rasterization / AA",
+        "svg_1.0/fifa/ticket.svg": "logo: many-path rasterization / AA",
+        "svg_1.0/hawaiiFlowers.svg": "logo: many-path rasterization / AA",
+        "svg_1.0/finger_print.svg": "logo: many-path rasterization / AA",
+        "svg_2.0/payment/maestro_200px.svg": "logo: many-path rasterization / AA",
+        "svg_3.0/devices/icon__devices__huawei.svg": "logo: many-path rasterization / AA",
+
+        // ── Cards / emblems ──
+        "svg_0.0/card1.svg": "card: vectorized-glyph anti-aliasing",
+        "svg_0.0/cardsocean_white.svg": "card: CSS class/compound-selector + thin-stroke edge",
+        "svg_0.0/unc.svg": "emblem: many-path rasterization (scale(-1,1) transform)",
+        "svg_2.0/widget/unc.svg": "emblem: many-path rasterization (scale(-1,1) transform)",
+
+        // ── Small residual anti-aliasing differences (<6% differing) ──
+        "svg_0.0/2_Illustr_1.svg": "aa: CoreGraphics vs CoreSVG rasterization",
+        "svg_1.0/registrationInfo/2_Illustr_1.svg": "aa: CoreGraphics vs CoreSVG rasterization",
+        "svg_1.0/registrationInfo/3_Illustr_1.svg": "aa: CoreGraphics vs CoreSVG rasterization",
+        "svg_2.0/onboarding/fingerprint.svg": "aa: CoreGraphics vs CoreSVG rasterization",
+        "svg_2.0/onboarding/passport_page31_done.svg": "aa: CoreGraphics vs CoreSVG rasterization",
+        "svg_2.0/onboarding/passport_page31_none.svg": "aa: CoreGraphics vs CoreSVG rasterization",
+        "svg_2.0/menu/like.svg": "aa: CoreGraphics vs CoreSVG rasterization",
+        "svg_2.0/other/trashInRound.svg": "aa: CoreGraphics vs CoreSVG rasterization",
+        "svg_2.0/tutorial/cash_back.svg": "aa: CoreGraphics vs CoreSVG rasterization",
+        "svg_2.0/tutorial/history_pay.svg": "aa: CoreGraphics vs CoreSVG rasterization",
+        "svg_2.0/tutorial/pay.svg": "aa: CoreGraphics vs CoreSVG rasterization",
+        "svg_2.0/watch/apple_watch_accept.svg": "aa: CoreGraphics vs CoreSVG rasterization",
+        "svg_2.0/watch/apple_watch_notaccept.svg": "aa: CoreGraphics vs CoreSVG rasterization",
+    ]
+
+    /// Returns the known reason for a diverging fixture, or `nil` if unknown.
+    static func reason(for name: String) -> String? {
+        reasons[name]
+    }
+}
