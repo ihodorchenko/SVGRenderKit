@@ -14,7 +14,9 @@ internal struct NumberStack {
     var asCGFloat: CGFloat? {
         get {
             if self.characterStack.count > 0 {
-                return CGFloat(strtod(self.characterStack, nil))
+                // `Double(String)` avoids the C-string bridging that `strtod` does on
+                // every number, which is hot for glyph-dense path data.
+                return CGFloat(Double(self.characterStack) ?? 0)
             }
             return nil
         }
@@ -47,7 +49,10 @@ internal struct NumberStack {
     }
     
     mutating func push(_ character: Character) {
-        self.characterStack += String(character)
+        // Append the character directly; `String += String(character)` allocates a
+        // fresh single-character String per call, which dominates path-data parsing
+        // for glyph-dense documents (thousands of coordinates).
+        self.characterStack.append(character)
     }
     
     mutating func clear() {
