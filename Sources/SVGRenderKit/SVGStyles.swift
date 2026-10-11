@@ -596,7 +596,7 @@ extension SVGSourceStyleElement {
             switch markerEnd {
             case .local(let key):
                 if let marker = group.getMarker(byKey: key, fromParents: true) {
-                    try applyMarker(mainLayer: mainLayer, path: path, marker: marker, overrideElements: overrideElements)
+                    try applyMarker(mainLayer: mainLayer, path: path, marker: marker, strokeWidth: resolvedStrokeWidth, overrideElements: overrideElements)
                 } else {
                     throw SVGError.content(text: "marker not found: \(key)")
                 }
@@ -677,16 +677,26 @@ extension SVGSourceStyleElement {
         mainLayer.insertSublayer(patternLayer, at: 0)
     }
 
-    private func applyMarker(mainLayer: CAShapeLayer, path: UIBezierPath, marker: SVGMarker, overrideElements: [String: SVGSourceStyleElement]?) throws {
+    private func applyMarker(mainLayer: CAShapeLayer, path: UIBezierPath, marker: SVGMarker, strokeWidth: CGFloat, overrideElements: [String: SVGSourceStyleElement]?) throws {
         let markerLayer = try marker.createLayer(overrideElements: overrideElements)
         let info = SVGUtils.pathEndInfo(path: path)
-        let angle = atan2(info.tangent.y, info.tangent.x)
-        // Build translate(point) · rotate(angle) · translate(-ref) so the marker's
-        // reference point lands on the path endpoint and is rotated to the tangent.
-        // CATransform3DTranslate/Rotate post-multiply, hence this construction order.
+        // orient="auto" follows the path tangent; a numeric orient is a fixed angle in degrees.
+        let angle: CGFloat
+        if marker.orient == "auto" {
+            angle = atan2(info.tangent.y, info.tangent.x)
+        } else {
+            angle = (CGFloat(Double(marker.orient) ?? 0)) * .pi / 180
+        }
+        // markerUnits=strokeWidth scales the marker by the element's stroke width.
+        let scale: CGFloat = (marker.markerUnits == .strokeWidth) ? strokeWidth : 1
+        // Build translate(point) · rotate(angle) · scale · translate(-ref) so the
+        // marker's reference point lands on the path endpoint, is scaled for the
+        // stroke width, and is rotated to the tangent. CATransform3D helpers
+        // post-multiply, hence this construction order.
         var t = CATransform3DIdentity
         t = CATransform3DTranslate(t, info.point.x, info.point.y, 0)
         t = CATransform3DRotate(t, angle, 0, 0, 1)
+        t = CATransform3DScale(t, scale, scale, 1)
         t = CATransform3DTranslate(t, -marker.refX, -marker.refY, 0)
         markerLayer.transform = t
         mainLayer.addSublayer(markerLayer)
