@@ -48,9 +48,12 @@ open class SVGObject {
             self.classStr = nil
         }
         if let href = attributeDict["xlink:href"] {
-            self.href = try SVGFuncIRI.get(content: href)
+            // Non-local hrefs (data URIs, external URLs) are resolved by the
+            // specific element (e.g. `<image>`); degrade to nil here instead of
+            // failing the whole document.
+            self.href = try? SVGFuncIRI.get(content: href)
         } else if let href = attributeDict["href"] {
-            self.href = try SVGFuncIRI.get(content: href)
+            self.href = try? SVGFuncIRI.get(content: href)
         }
         self.xmlElement = xmlElement
         _init()

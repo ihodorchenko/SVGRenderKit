@@ -96,6 +96,10 @@ extension SVGGroupObject {
             let filter: SVGFilter = try SVGFilter(xmlElement: children, parent: self)
             try self.add(filters: [filter])
             break
+        case SVGImage.key:
+            let image: SVGImage = try SVGImage(xmlElement: children, parent: self)
+            try self.add(images: [image])
+            break
         default:
             if let shapeTag = try SVGShapeObject.create(xml: children, parent: self) {
                 try self.add(shapes: [shapeTag])
@@ -207,6 +211,15 @@ extension SVGGroupObject {
         for filter in filters {
             filter.parent = self
             self.all.add(item: filter)
+        }
+    }
+
+    /// Adds the given images as renderable children of this group.
+    public func add(images: [SVGImage]) throws {
+        for image in images {
+            image.parent = self
+            self.all.add(item: image)
+            self.layerElements.add(item: image)
         }
     }
 

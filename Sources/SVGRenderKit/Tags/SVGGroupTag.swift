@@ -39,6 +39,9 @@ extension SVGGTag: SVGRendering {
             } else if let path = layerElement as? SVGUseTag {
                 let layer = try path.createLayer(overrideElements: overrideElements)
                 mainLayer.addSublayer(layer)
+            } else if let image = layerElement as? SVGImage {
+                let layer = try image.createLayer(overrideElements: overrideElements)
+                mainLayer.addSublayer(layer)
             }
         }
 

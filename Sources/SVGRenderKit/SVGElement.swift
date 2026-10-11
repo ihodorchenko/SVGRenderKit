@@ -254,6 +254,9 @@ extension SVGSVGTag: SVGRendering {
             } else if let use = layerElement as? SVGUseTag {
                 let layer = try use.createLayer(overrideElements: overrideElements)
                 mainLayer.addSublayer(layer)
+            } else if let image = layerElement as? SVGImage {
+                let layer = try image.createLayer(overrideElements: overrideElements)
+                mainLayer.addSublayer(layer)
             }
         }
 
