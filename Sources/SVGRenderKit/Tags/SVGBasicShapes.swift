@@ -15,39 +15,28 @@ open class SVGShapeRect: SVGShapeObject {
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
+        let viewBox = parent.getSvgOptions().viewBox
         if let str = attributeDict["x"] {
-            if let f: Float = Float(str.trimmed) { x = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'x' to float '\(str)'")
-            }
+            x = resolveLength(str, reference: viewBox.width)
         }
         if let str = attributeDict["y"] {
-            if let f: Float = Float(str.trimmed) { y = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'y' to float '\(str)'")
-            }
+            y = resolveLength(str, reference: viewBox.height)
         }
         if let str = attributeDict["width"] {
-            if let f: Float = Float(str.trimmed) { width = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'width' to float '\(str)'")
-            }
+            width = resolveLength(str, reference: viewBox.width)
         } else {
             throw SVGError.parseError(text: "not found key 'width' in tag 'rect'")
         }
         if let str = attributeDict["height"] {
-            if let f: Float = Float(str.trimmed) { height = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'height' to float '\(str)'")
-            }
+            height = resolveLength(str, reference: viewBox.height)
         } else {
             throw SVGError.parseError(text: "not found key 'height' in tag 'rect'")
         }
         if let str = attributeDict["rx"] {
-            if let f: Float = Float(str.trimmed) { rx = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'rx' to float '\(str)'")
-            }
+            rx = resolveLength(str, reference: viewBox.width)
         }
         if let str = attributeDict["ry"] {
-            if let f: Float = Float(str.trimmed) { ry = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'ry' to float '\(str)'")
-            }
+            ry = resolveLength(str, reference: viewBox.height)
         }
 
         if let width = width, let height = height {
@@ -133,23 +122,21 @@ open class SVGShapeCircle: SVGShapeObject {
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
+        let viewBox = parent.getSvgOptions().viewBox
+        let diagSq = (viewBox.width * viewBox.width + viewBox.height * viewBox.height) / 2
+        let diagonal = sqrt(diagSq)
         if let str = attributeDict["cx"] {
-            if let f: Float = Float(str.trimmed) { cx = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'cx' to float '\(str)'")
-            }
+            cx = resolveLength(str, reference: viewBox.width)
         }
         if let str = attributeDict["cy"] {
-            if let f: Float = Float(str.trimmed) { cy = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'cy' to float '\(str)'")
-            }
+            cy = resolveLength(str, reference: viewBox.height)
         }
         if let str = attributeDict["r"] {
-            if let f: Float = Float(str.trimmed) { r = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'r' to float '\(str)'")
+            let value = resolveLength(str, reference: diagonal)
+            if value < 0 {
+                throw SVGError.parseError(text: "'r' == \(value) < 0 in tag 'circle'")
             }
-            if let r = r, r < 0 {
-                throw SVGError.parseError(text: "'r' == \(r) < 0 in tag 'circle'")
-            }
+            r = value
         } else {
             throw SVGError.parseError(text: "not found key 'r' in tag 'circle'")
         }
@@ -174,31 +161,26 @@ open class SVGShapeEllipse: SVGShapeObject {
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
+        let viewBox = parent.getSvgOptions().viewBox
         if let str = attributeDict["cx"] {
-            if let f: Float = Float(str.trimmed) { cx = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'cx' to float '\(str)'")
-            }
+            cx = resolveLength(str, reference: viewBox.width)
         }
         if let str = attributeDict["cy"] {
-            if let f: Float = Float(str.trimmed) { cy = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'cy' to float '\(str)'")
-            }
+            cy = resolveLength(str, reference: viewBox.height)
         }
         if let str = attributeDict["rx"] {
-            if let f: Float = Float(str.trimmed) { rx = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'rx' to float '\(str)'")
+            let value = resolveLength(str, reference: viewBox.width)
+            if value < 0 {
+                throw SVGError.parseError(text: "'rx' == \(value) < 0 in tag 'ellipse'")
             }
-            if rx < 0 {
-                throw SVGError.parseError(text: "'rx' == \(rx) < 0 in tag 'ellipse'")
-            }
+            rx = value
         }
         if let str = attributeDict["ry"] {
-            if let f: Float = Float(str.trimmed) { ry = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'ry' to float '\(str)'")
+            let value = resolveLength(str, reference: viewBox.height)
+            if value < 0 {
+                throw SVGError.parseError(text: "'ry' == \(value) < 0 in tag 'ellipse'")
             }
-            if ry < 0 {
-                throw SVGError.parseError(text: "'ry' == \(ry) < 0 in tag 'ellipse'")
-            }
+            ry = value
         }
 
         if rx > 0, ry > 0 {
@@ -224,25 +206,18 @@ open class SVGShapeLine: SVGShapeObject {
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
+        let viewBox = parent.getSvgOptions().viewBox
         if let str = attributeDict["x1"] {
-            if let f: Float = Float(str.trimmed) { x1 = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'x1' to float '\(str)'")
-            }
+            x1 = resolveLength(str, reference: viewBox.width)
         }
         if let str = attributeDict["y1"] {
-            if let f: Float = Float(str.trimmed) { y1 = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'y1' to float '\(str)'")
-            }
+            y1 = resolveLength(str, reference: viewBox.height)
         }
         if let str = attributeDict["x2"] {
-            if let f: Float = Float(str.trimmed) { x2 = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'x2' to float '\(str)'")
-            }
+            x2 = resolveLength(str, reference: viewBox.width)
         }
         if let str = attributeDict["y2"] {
-            if let f: Float = Float(str.trimmed) { y2 = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'y2' to float '\(str)'")
-            }
+            y2 = resolveLength(str, reference: viewBox.height)
         }
 
         let path = UIBezierPath()

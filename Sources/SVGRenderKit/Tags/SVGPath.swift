@@ -99,6 +99,24 @@ open class SVGShapeObject: SVGObject, SVGRendering {
         return parent.getSvgOptions()
     }
 
+    /// Resolves a length attribute string into a value in the document's user space.
+    ///
+    /// Absolute CSS units (`px`, `pt`, `pc`, `in`, `cm`, `mm`) and bare numbers map
+    /// to user units directly; a percentage is resolved against `reference` (a
+    /// viewBox width/height, or the normalized diagonal for radii). Relative units
+    /// (`em`, `ex`, …) and malformed values are out of scope and degrade to zero
+    /// rather than failing the whole document.
+    func resolveLength(_ raw: String?, reference: CGFloat) -> CGFloat {
+        guard let raw = raw else { return 0 }
+        let length = (try? SVGLength.get(string: raw)) ?? .px(value: 0)
+        switch length {
+        case .px(let value):
+            return value
+        case .percent(let value):
+            return value * reference
+        }
+    }
+
     func getGradient(byKey: String, fromParents: Bool) -> SVGBaseGradient? {
         return parent.getGradient(byKey: byKey, fromParents: true)
     }

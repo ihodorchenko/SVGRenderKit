@@ -144,6 +144,12 @@ enum ParityFixtures {
             <line x1="10" y1="50" x2="90" y2="50" stroke="#2c3e50" stroke-width="10%"/>
         </svg>
         """),
+        ParityFixture(name: "percent-shape", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <rect x="10" y="10" width="50%" height="20" fill="#2f80ed"/>
+            <circle cx="50" cy="60" r="25%" fill="#eb5757"/>
+        </svg>
+        """),
     ]
 }
 
