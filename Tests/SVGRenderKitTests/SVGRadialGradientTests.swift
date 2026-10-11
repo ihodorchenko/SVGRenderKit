@@ -108,4 +108,22 @@ final class SVGRadialGradientTests: XCTestCase {
         XCTAssertEqual(radial.focalPoint?.x ?? -1, 50, accuracy: 0.001)
         XCTAssertEqual(radial.focalPoint?.y ?? -1, 50, accuracy: 0.001)
     }
+
+    func testRadialGradientNegativeRadiusDisables() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <radialGradient id="g" cx="0.5" cy="0.5" r="-50%">
+                    <stop offset="0" stop-color="#ff0000"/>
+                    <stop offset="1" stop-color="#0000ff"/>
+                </radialGradient>
+            </defs>
+            <rect width="100" height="100" fill="url(#g)"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        // A negative radius disables the gradient; no radial layer is created.
+        XCTAssertNil(findRadialGradientLayer(in: layer))
+    }
 }

@@ -73,6 +73,8 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         case .percent(let value):
             radius = value * diagonal
         }
+        // A negative radius disables the gradient (SVG 1.1).
+        guard radius >= 0 else { return nil }
 
         var finalCenter = center
         var finalFocal = focal
@@ -87,7 +89,6 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         }
 
         let newLayer: CALayer = CALayer()
-        newLayer.mask = maskLayer
         let gradLayer = RadialGradientLayer()
         newLayer.frame = boundsToPoints
         gradLayer.frame = boundsToPoints
