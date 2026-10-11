@@ -140,6 +140,7 @@ open class SVGView: UIView {
     private func load(_ source: LoadSource, overrideElements: [String: SVGSourceStyleElement]?) {
         loadGeneration += 1
         let generation = loadGeneration
+        let containerSize = bounds.size
 
         DispatchQueue.global().async {
             do {
@@ -151,6 +152,17 @@ open class SVGView: UIView {
                     parser = try SVGParser.getParser(svgString: string, name: name)
                 case .data(let data, let name):
                     parser = try SVGParser.getParser(svgData: data, name: name)
+                }
+
+                // Rasterize paint servers (patterns) at the final output resolution
+                // rather than the device screen scale, so their anti-aliasing matches
+                // the on-screen result independently of the render destination.
+                let options = parser.root.getSvgOptions()
+                let viewBox = options.viewBox
+                if containerSize.width > 0, containerSize.height > 0,
+                   viewBox.width > 0, viewBox.height > 0 {
+                    let resolved = options.preserveAspectRatio.resolve(viewBox: viewBox, containerSize: containerSize)
+                    options.renderScale = max(resolved.scaleX, resolved.scaleY)
                 }
 
                 let layer = try parser.getLayer(overrideElements: overrideElements)

@@ -96,6 +96,11 @@ open class SVGOptions {
     /// How the `viewBox` is fitted and aligned within the viewport.
     var preserveAspectRatio: SVGPreserveAspectRatio = SVGPreserveAspectRatio()
 
+    /// The scale factor mapping `viewBox` units to the rendering container's points.
+    /// Set by `SVGView` after parsing so paint servers (e.g. patterns) rasterize at
+    /// the final output resolution instead of the device screen scale. Defaults to `1`.
+    var renderScale: CGFloat = 1
+
     /// The `version` attribute of the root `<svg>` element (e.g. `"1.1"`).
     var version: String?
     /// The `baseProfile` attribute of the root `<svg>` element (e.g. `"tiny"`).

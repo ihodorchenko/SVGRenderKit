@@ -70,7 +70,7 @@ open class SVGPattern: SVGChildObject {
         guard region.width > 0, region.height > 0 else { return nil }
         let size = region.size
         let format = UIGraphicsImageRendererFormat.default()
-        format.scale = UIScreen.main.scale
+        format.scale = max(1, getSvgOptions().renderScale)
         format.opaque = false
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
         return renderer.image { context in
