@@ -224,4 +224,35 @@ final class SVGLinearGradientTagTests: XCTestCase {
         let gradient = try XCTUnwrap(findGradientLayer(in: layer))
         XCTAssertNotNil(gradient)
     }
+
+    func testZeroSizeBoundingBoxDoesNotProduceNaN() throws {
+        // A degenerate (zero-area) shape must not feed a zero bounding box into
+        // the gradient's axis normalization, which would otherwise divide by zero
+        // and leave NaN in the layer's start/end points.
+        let cases = [
+            "<rect x=\"10\" y=\"10\" width=\"0\" height=\"0\" fill=\"url(#g)\"/>",
+            "<rect x=\"10\" y=\"10\" width=\"50\" height=\"0\" fill=\"url(#g)\"/>",
+            "<line x1=\"20\" y1=\"20\" x2=\"20\" y2=\"20\" stroke=\"url(#g)\" stroke-width=\"4\"/>",
+        ]
+        for shape in cases {
+            let svg = """
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                <defs>
+                    <linearGradient id="g">
+                        <stop offset="0" stop-color="#ff0000"/>
+                        <stop offset="1" stop-color="#0000ff"/>
+                    </linearGradient>
+                </defs>
+                \(shape)
+            </svg>
+            """
+            let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+            let layer = try parser.getLayer(overrideElements: nil)
+            let gradient = try XCTUnwrap(findGradientLayer(in: layer), "shape: \(shape)")
+            XCTAssertTrue(gradient.startPoint.x.isFinite, "startPoint.x is NaN for \(shape)")
+            XCTAssertTrue(gradient.startPoint.y.isFinite, "startPoint.y is NaN for \(shape)")
+            XCTAssertTrue(gradient.endPoint.x.isFinite, "endPoint.x is NaN for \(shape)")
+            XCTAssertTrue(gradient.endPoint.y.isFinite, "endPoint.y is NaN for \(shape)")
+        }
+    }
 }
