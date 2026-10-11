@@ -239,7 +239,7 @@ open class SVGShapePolyline: SVGShapeObject {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         if let str = attributeDict["points"] {
-            let charSet = CharacterSet(charactersIn: " ,")
+            let charSet = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ","))
             let arr = SVGUtils.split(string: str, separatorSet: charSet)
             if arr.count % 2 == 0 {
                 let count = arr.count
@@ -279,7 +279,7 @@ open class SVGShapePolygon: SVGShapeObject {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         if let str = attributeDict["points"] {
-            let charSet = CharacterSet(charactersIn: " ,")
+            let charSet = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ","))
             let arr = SVGUtils.split(string: str, separatorSet: charSet)
             if arr.count % 2 == 0 {
                 let count = arr.count

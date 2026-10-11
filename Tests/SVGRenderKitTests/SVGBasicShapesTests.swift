@@ -78,4 +78,20 @@ final class SVGBasicShapesTests: XCTestCase {
         XCTAssertTrue(bounds.contains { abs($0.maxX - 50) < 0.001 && abs($0.maxY - 90) < 0.001 },
                       "expected line ending at (50,90), got \(bounds)")
     }
+
+    func testPolylinePolygonAcceptWhitespaceSeparators() throws {
+        // The `points` list may separate coordinates with newlines and tabs, not
+        // just spaces and commas.
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <polyline points="0,0 10,10
+        20,0" fill="none" stroke="#ff0000" stroke-width="2"/>
+            <polygon points="0,0\t10,10 20,0" fill="#00ff00"/>
+        </svg>
+        """
+        let bounds = try render(svg)
+        // Both shapes span x=0..20, y=0..10.
+        XCTAssertTrue(bounds.contains { abs($0.maxX - 20) < 0.001 && abs($0.maxY - 10) < 0.001 },
+                      "expected a path spanning (0,0)-(20,10), got \(bounds)")
+    }
 }
