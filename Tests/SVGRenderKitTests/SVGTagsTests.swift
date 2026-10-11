@@ -15,4 +15,13 @@ final class SVGTagsTests: XCTestCase {
         let items = root.svgElement.all.getAll(byClass: ".foo")
         XCTAssertEqual(items.count, 2)
     }
+
+    func testCircleWithNegativeRadiusThrows() {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="-10" fill="#ff0000"/>
+        </svg>
+        """
+        XCTAssertThrowsError(try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil))
+    }
 }

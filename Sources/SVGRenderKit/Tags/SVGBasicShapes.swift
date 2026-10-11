@@ -147,6 +147,9 @@ open class SVGShapeCircle: SVGShapeObject {
             if let f: Float = Float(str.trimmed) { r = CGFloat(f) } else {
                 throw SVGError.parseError(text: "invalid convert 'r' to float '\(str)'")
             }
+            if let r = r, r < 0 {
+                throw SVGError.parseError(text: "'r' == \(r) < 0 in tag 'circle'")
+            }
         } else {
             throw SVGError.parseError(text: "not found key 'r' in tag 'circle'")
         }
