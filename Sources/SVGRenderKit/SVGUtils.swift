@@ -60,4 +60,30 @@ open class SVGUtils {
         }
         return (last, CGPoint(x: last.x - prev.x, y: last.y - prev.y))
     }
+
+    /// Returns the vertices of a path (move/line/curve endpoints, including the
+    /// closing point), in drawing order. Control points are omitted.
+    open class func pathVertices(path: UIBezierPath) -> [CGPoint] {
+        var vertices: [CGPoint] = []
+        path.cgPath.applyWithBlock { element in
+            let pts = element.pointee.points
+            switch element.pointee.type {
+            case .moveToPoint:
+                vertices.append(pts[0])
+            case .addLineToPoint:
+                vertices.append(pts[0])
+            case .addQuadCurveToPoint:
+                vertices.append(pts[1])
+            case .addCurveToPoint:
+                vertices.append(pts[2])
+            case .closeSubpath:
+                if let first = vertices.first {
+                    vertices.append(first)
+                }
+            default:
+                break
+            }
+        }
+        return vertices
+    }
 }

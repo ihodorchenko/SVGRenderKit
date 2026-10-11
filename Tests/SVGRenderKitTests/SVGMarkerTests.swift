@@ -93,6 +93,24 @@ final class SVGMarkerTests: XCTestCase {
         XCTAssertEqual(abs(angle), .pi / 2, accuracy: 0.001)
     }
 
+    func testMarkerStartMidEndAllRender() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <marker id="dot" markerWidth="4" markerHeight="4" refX="2" refY="2">
+                    <circle cx="2" cy="2" r="2" fill="#000000"/>
+                </marker>
+            </defs>
+            <polyline points="10,10 50,50 90,10" fill="none" stroke="#000000"
+                      marker-start="url(#dot)" marker-mid="url(#dot)" marker-end="url(#dot)"/>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        // 3 vertices -> one marker each for start, mid and end.
+        XCTAssertEqual(countNonIdentityTransformLayers(in: layer), 3)
+    }
+
     // MARK: marker transform (T50)
 
     private func findNonIdentityTransformLayer(in layer: CALayer) -> CALayer? {
@@ -105,6 +123,17 @@ final class SVGMarkerTests: XCTestCase {
             }
         }
         return nil
+    }
+
+    private func countNonIdentityTransformLayers(in layer: CALayer) -> Int {
+        var count = 0
+        if !CATransform3DIsIdentity(layer.transform) {
+            count += 1
+        }
+        for sublayer in layer.sublayers ?? [] {
+            count += countNonIdentityTransformLayers(in: sublayer)
+        }
+        return count
     }
 
     func testMarkerTransformMapsRefPointToPathEnd() throws {

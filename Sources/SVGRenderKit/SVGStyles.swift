@@ -592,17 +592,33 @@ extension SVGSourceStyleElement {
             }
         }
 
-        if let markerEnd = self.markerEnd {
-            switch markerEnd {
-            case .local(let key):
-                if let marker = group.getMarker(byKey: key, fromParents: true) {
-                    try applyMarker(mainLayer: mainLayer, path: path, marker: marker, strokeWidth: resolvedStrokeWidth, overrideElements: overrideElements)
-                } else {
-                    throw SVGError.content(text: "marker not found: \(key)")
-                }
-            case .web(let url):
-                throw SVGError.content(text: "web marker not supported: \(url)")
+        let vertices = SVGUtils.pathVertices(path: path)
+
+        // marker-start
+        if let markerStart = self.markerStart {
+            let info: (point: CGPoint, tangent: CGPoint)?
+            if vertices.count >= 2 {
+                info = (vertices[0], CGPoint(x: vertices[1].x - vertices[0].x, y: vertices[1].y - vertices[0].y))
+            } else {
+                info = vertices.first.map { ($0, CGPoint.zero) }
             }
+            if let info = info {
+                try applyMarker(iri: markerStart, at: info, mainLayer: mainLayer, group: group, strokeWidth: resolvedStrokeWidth, overrideElements: overrideElements)
+            }
+        }
+
+        // marker-mid (all vertices except the start and end)
+        if let markerMid = self.markerMid, vertices.count >= 3 {
+            for i in 1..<(vertices.count - 1) {
+                let tangent = CGPoint(x: vertices[i + 1].x - vertices[i].x, y: vertices[i + 1].y - vertices[i].y)
+                try applyMarker(iri: markerMid, at: (vertices[i], tangent), mainLayer: mainLayer, group: group, strokeWidth: resolvedStrokeWidth, overrideElements: overrideElements)
+            }
+        }
+
+        // marker-end
+        if let markerEnd = self.markerEnd {
+            let endInfo = SVGUtils.pathEndInfo(path: path)
+            try applyMarker(iri: markerEnd, at: (endInfo.point, endInfo.tangent), mainLayer: mainLayer, group: group, strokeWidth: resolvedStrokeWidth, overrideElements: overrideElements)
         }
 
         if let filter = self.filter {
@@ -677,9 +693,20 @@ extension SVGSourceStyleElement {
         mainLayer.insertSublayer(patternLayer, at: 0)
     }
 
-    private func applyMarker(mainLayer: CAShapeLayer, path: UIBezierPath, marker: SVGMarker, strokeWidth: CGFloat, overrideElements: [String: SVGSourceStyleElement]?) throws {
+    private func applyMarker(iri: SVGFuncIRI, at info: (point: CGPoint, tangent: CGPoint), mainLayer: CAShapeLayer, group: SVGShapesContainer, strokeWidth: CGFloat, overrideElements: [String: SVGSourceStyleElement]?) throws {
+        switch iri {
+        case .local(let key):
+            guard let marker = group.getMarker(byKey: key, fromParents: true) else {
+                throw SVGError.content(text: "marker not found: \(key)")
+            }
+            try placeMarker(marker, at: info, mainLayer: mainLayer, strokeWidth: strokeWidth, overrideElements: overrideElements)
+        case .web(let url):
+            throw SVGError.content(text: "web marker not supported: \(url)")
+        }
+    }
+
+    private func placeMarker(_ marker: SVGMarker, at info: (point: CGPoint, tangent: CGPoint), mainLayer: CAShapeLayer, strokeWidth: CGFloat, overrideElements: [String: SVGSourceStyleElement]?) throws {
         let markerLayer = try marker.createLayer(overrideElements: overrideElements)
-        let info = SVGUtils.pathEndInfo(path: path)
         // orient="auto" follows the path tangent; a numeric orient is a fixed angle in degrees.
         let angle: CGFloat
         if marker.orient == "auto" {
@@ -690,7 +717,7 @@ extension SVGSourceStyleElement {
         // markerUnits=strokeWidth scales the marker by the element's stroke width.
         let scale: CGFloat = (marker.markerUnits == .strokeWidth) ? strokeWidth : 1
         // Build translate(point) · rotate(angle) · scale · translate(-ref) so the
-        // marker's reference point lands on the path endpoint, is scaled for the
+        // marker's reference point lands on the path point, is scaled for the
         // stroke width, and is rotated to the tangent. CATransform3D helpers
         // post-multiply, hence this construction order.
         var t = CATransform3DIdentity
