@@ -34,7 +34,7 @@
 | `<linearGradient>`, `<radialGradient>`, `<stop>` | ✅ (`stop-color`, `stop-opacity`, `offset`) |
 | `<text>`, `<tspan>` | ✅ `text-anchor`, multi-line `<tspan>` |
 | `<style>` | ✅ id / class / tag selectors |
-| `<filter>` | ✅ `feGaussianBlur` (SVG 1.1) + `feDropShadow` (SVG 2.0) |
+| `<filter>` | ✅ `feGaussianBlur` (SVG 1.1) + `feDropShadow` (SVG 2.0) + `feOffset`/`feFlood`/`feColorMatrix` drop-shadow chain (Figma/Sketch) |
 | `<animate>`, `<animateTransform>`, `<set>` | ✅ SMIL subset (see below) |
 | `<image>` | ✅ inline data-URI rasters (no external URLs) |
 | `<switch>`, `<a>`, `<foreignObject>`, `<font>` | ❌ out of scope |
@@ -104,6 +104,10 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 - Nested `<svg>` viewports.
 - `paint-order`, `color`, `vector-effect`.
 - Full SMIL engine (event `begin`, `additive`/`accumulate`, `calcMode`, `fill="freeze"`).
+- Full filter pipeline: `feMorphology` (erode/dilate), `feComposite` operators
+  beyond `out`/`in`, `feBlend` modes, and multi-input filter graphs. Figma/Sketch
+  drop-shadows are recognized via their `feOffset` + `feColorMatrix` tint chain,
+  but the `feMorphology` erosion step is approximated away (the shadow is not inset).
 - Length units: `px`/`pt`/`pc`/`in`/`cm`/`mm`/`%` supported; `ex`/`rem`/`ch`/`vw`/`vh`/`vmin`/`vmax` out of scope (`em` only for `font-size`).
 
 ## Degradation policy
