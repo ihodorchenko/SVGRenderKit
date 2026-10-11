@@ -54,6 +54,10 @@ public class SVGColors {
         var color: UIColor?
         if string.hasPrefix("#") {
             color = getColor(hexString: string, alpha: alpha)
+        } else if string.hasPrefix("hsla") {
+            color = getColor(hslaString: string, alpha: alpha)
+        } else if string.hasPrefix("hsl") {
+            color = getColor(hslString: string, alpha: alpha)
         } else if string.hasPrefix("rgba") {
             color = getColor(rgbaString: string, alpha: alpha)
         } else if string.hasPrefix("argb") {
@@ -130,6 +134,80 @@ public class SVGColors {
         }
         return nil
 
+    }
+
+    /// Parses an `hsl(h, s%, l%)` string into a `UIColor`.
+    /// - parameter hslString: An `hsl(h, s%, l%)` string to parse.
+    /// - parameter alpha: An optional alpha value that overrides the default of `1.0`.
+    /// - returns: The parsed color, or `nil` if the string is malformed.
+    public class func getColor(hslString: String, alpha: CGFloat? = nil) -> UIColor? {
+        var _hslString = hslString.removeSpaces()
+        guard _hslString.hasPrefix("hsl("), _hslString.hasSuffix(")"), _hslString.count >= 5 else { return nil }
+        _hslString.removeFirst("hsl(".count)
+        _hslString.removeLast()
+        let arr = _hslString.split(separator: ",")
+        guard arr.count == 3,
+              let h = parseHue(arr[0]),
+              let s = parsePercent(arr[1]),
+              let l = parsePercent(arr[2]) else { return nil }
+        return color(h: h, s: s, l: l, alpha: alpha ?? 1)
+    }
+
+    /// Parses an `hsla(h, s%, l%, a)` string into a `UIColor`.
+    /// - parameter _alpha: An optional alpha value that overrides the alpha encoded in the string.
+    /// - returns: The parsed color, or `nil` if the string is malformed.
+    public class func getColor(hslaString: String, alpha _alpha: CGFloat? = nil) -> UIColor? {
+        var _hslString = hslaString.removeSpaces()
+        guard _hslString.hasPrefix("hsla("), _hslString.hasSuffix(")"), _hslString.count >= 6 else { return nil }
+        _hslString.removeFirst("hsla(".count)
+        _hslString.removeLast()
+        let arr = _hslString.split(separator: ",")
+        guard arr.count == 4,
+              let h = parseHue(arr[0]),
+              let s = parsePercent(arr[1]),
+              let l = parsePercent(arr[2]),
+              let a = Double(arr[3]) else { return nil }
+        return color(h: h, s: s, l: l, alpha: _alpha ?? CGFloat(a))
+    }
+
+    private static func parseHue(_ text: Substring) -> Double? {
+        var str = String(text).trimmed
+        if str.hasSuffix("deg") { str.removeLast(3) }
+        return Double(str)
+    }
+
+    private static func parsePercent(_ text: Substring) -> Double? {
+        var str = String(text).trimmed
+        if str.hasSuffix("%") { str.removeLast() }
+        guard let value = Double(str) else { return nil }
+        return value / 100.0
+    }
+
+    private static func color(h: Double, s: Double, l: Double, alpha: CGFloat) -> UIColor {
+        let (r, g, b) = hslToRGB(h: CGFloat(h) / 360.0, s: CGFloat(s), l: CGFloat(l))
+        return UIColor(red: r, green: g, blue: b, alpha: alpha)
+    }
+
+    private static func hslToRGB(h: CGFloat, s: CGFloat, l: CGFloat) -> (CGFloat, CGFloat, CGFloat) {
+        if s == 0 {
+            return (l, l, l)
+        }
+        let q = l < 0.5 ? l * (1 + s) : l + s - l * s
+        let p = 2 * l - q
+        let r = hueToRGB(p, q, h + 1.0 / 3.0)
+        let g = hueToRGB(p, q, h)
+        let b = hueToRGB(p, q, h - 1.0 / 3.0)
+        return (r, g, b)
+    }
+
+    private static func hueToRGB(_ p: CGFloat, _ q: CGFloat, _ t: CGFloat) -> CGFloat {
+        var t = t
+        if t < 0 { t += 1 }
+        if t > 1 { t -= 1 }
+        if t < 1.0 / 6.0 { return p + (q - p) * 6.0 * t }
+        if t < 1.0 / 2.0 { return q }
+        if t < 2.0 / 3.0 { return p + (q - p) * (2.0 / 3.0 - t) * 6.0 }
+        return p
     }
 
     /// Parses a hexadecimal color string (3, 4, 6, or 8 digits, with or without a leading `#`) into a `UIColor`.

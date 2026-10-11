@@ -103,6 +103,43 @@ final class SVGColorsTests: XCTestCase {
         XCTAssertNil(SVGColors.getColor(argbString: "argb()"))
     }
 
+    // MARK: - hsl / hsla
+
+    func testHSLStringRed() {
+        assertColor(SVGColors.getColor(hslString: "hsl(0, 100%, 50%)")!, red: 1, green: 0, blue: 0, alpha: 1)
+    }
+
+    func testHSLStringGreen() {
+        assertColor(SVGColors.getColor(hslString: "hsl(120, 100%, 50%)")!, red: 0, green: 1, blue: 0, alpha: 1)
+    }
+
+    func testHSLStringBlue() {
+        assertColor(SVGColors.getColor(hslString: "hsl(240, 100%, 50%)")!, red: 0, green: 0, blue: 1, alpha: 1)
+    }
+
+    func testHSLStringGray() {
+        assertColor(SVGColors.getColor(hslString: "hsl(0, 0%, 50%)")!, red: 0.5, green: 0.5, blue: 0.5, alpha: 1)
+    }
+
+    func testHSLStringDegUnit() {
+        assertColor(SVGColors.getColor(hslString: "hsl(120deg, 100%, 50%)")!, red: 0, green: 1, blue: 0, alpha: 1)
+    }
+
+    func testHSLAString() {
+        assertColor(SVGColors.getColor(hslaString: "hsla(120, 100%, 50%, 0.5)")!, red: 0, green: 1, blue: 0, alpha: 0.5)
+    }
+
+    func testGetColorStringHSL() {
+        assertColor(SVGColors.getColor(string: "hsl(0, 100%, 50%)"), red: 1, green: 0, blue: 0, alpha: 1)
+    }
+
+    func testMalformedHSLDoesNotCrash() {
+        XCTAssertNil(SVGColors.getColor(hslString: "hsl"))
+        XCTAssertNil(SVGColors.getColor(hslString: "hsl("))
+        XCTAssertNil(SVGColors.getColor(hslString: "hsl()"))
+        XCTAssertNil(SVGColors.getColor(hslString: "hsl(0, 100%)"))
+    }
+
     // MARK: - Named colors
 
     func testNamedColors() {

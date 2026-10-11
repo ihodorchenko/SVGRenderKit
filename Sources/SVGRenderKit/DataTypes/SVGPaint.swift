@@ -24,6 +24,8 @@ public enum SVGPaint {
             return SVGPaint.color(color: SVGColors.getColor(string: string))
         } else if string.hasPrefix("rgb") {
             return SVGPaint.color(color: SVGColors.getColor(string: string))
+        } else if string.hasPrefix("hsl") {
+            return SVGPaint.color(color: SVGColors.getColor(string: string))
         } else if string.hasPrefix("url") {
             let iri = try SVGFuncIRI.get(fullStr: string)
             return SVGPaint.funcIRI(iri: iri)

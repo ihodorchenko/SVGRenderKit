@@ -100,6 +100,22 @@ final class SVGPaintTests: XCTestCase {
         XCTAssertEqual(alpha, 0.5, accuracy: 0.001)
     }
 
+    func testHslColor() throws {
+        let paint = try SVGPaint.get(string: "hsl(120, 100%, 50%)")
+        guard case .color(let color) = paint else {
+            return XCTFail("expected .color, got \(paint)")
+        }
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        XCTAssertEqual(red, 0, accuracy: 0.001)
+        XCTAssertEqual(green, 1, accuracy: 0.001)
+        XCTAssertEqual(blue, 0, accuracy: 0.001)
+        XCTAssertEqual(alpha, 1, accuracy: 0.001)
+    }
+
     func testFuncIRI() throws {
         let paint = try SVGPaint.get(string: "url(#grad)")
         guard case .funcIRI(let iri) = paint else {
