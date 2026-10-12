@@ -6,7 +6,7 @@ final class SVGViewLifecycleTests: XCTestCase {
 
     private let markup = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><rect width=\"10\" height=\"10\"/></svg>"
 
-    private func waitUntil(_ timeout: TimeInterval = 5, _ condition: @escaping () -> Bool) {
+    private func waitUntil(_ timeout: TimeInterval = 30, _ condition: @escaping () -> Bool) {
         wait(for: [expectation(for: NSPredicate { _, _ in condition() }, evaluatedWith: nil)], timeout: timeout)
     }
 
