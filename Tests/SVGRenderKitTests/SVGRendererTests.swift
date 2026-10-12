@@ -74,4 +74,50 @@ final class SVGRendererTests: XCTestCase {
             XCTFail("expected error")
         } catch {}
     }
+
+    // MARK: Concurrent rasterization
+
+    /// Layer building is serialized but rasterization runs concurrently; concurrent renders of different
+    /// sizes and scales (sharing one cached document and its pattern/gradient state) must each match what
+    /// a lone render produces.
+    func testConcurrentRendersMatchSequentialRenders() async throws {
+        let doc = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+          <defs>
+            <linearGradient id="g"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#00f"/></linearGradient>
+            <pattern id="p" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="#0a0"/></pattern>
+          </defs>
+          <rect width="40" height="20" fill="url(#g)"/>
+          <rect y="20" width="40" height="20" fill="url(#p)"/>
+        </svg>
+        """
+        let variants: [(CGSize, CGFloat)] = [
+            (CGSize(width: 40, height: 40), 1), (CGSize(width: 80, height: 80), 1),
+            (CGSize(width: 40, height: 40), 2), (CGSize(width: 120, height: 60), 1),
+        ]
+        var expected: [Data] = []
+        for (size, scale) in variants {
+            expected.append(try await SVGRenderer.render(.string(doc, name: "concurrent"), size: size, scale: scale))
+        }
+
+        let results = try await withThrowingTaskGroup(of: (Int, Data).self) { group -> [Int: Data] in
+            for round in 0..<6 {
+                for (index, variant) in variants.enumerated() {
+                    group.addTask {
+                        let data = try await SVGRenderer.render(
+                            .string(doc, name: "concurrent"), size: variant.0, scale: variant.1)
+                        return (round * variants.count + index, data)
+                    }
+                }
+            }
+            var all: [Int: Data] = [:]
+            for try await (key, data) in group { all[key] = data }
+            return all
+        }
+
+        XCTAssertEqual(results.count, 6 * variants.count)
+        for (key, data) in results {
+            XCTAssertEqual(data, expected[key % variants.count], "render \(key) differs from the sequential result")
+        }
+    }
 }

@@ -23,8 +23,10 @@ public enum SVGSource: @unchecked Sendable {
 
 /// Renders SVG documents straight to image or PDF `Data`, without creating an `SVGView`.
 ///
-/// Parsing and rasterization run on the library's background queue, so the methods are safe to
-/// call from any thread. The completion handler is invoked on that background queue.
+/// Parsing and layer building run on the library's serial background queue (they share per-document
+/// state on cached trees), while rasterization and encoding, which dominate the cost, run concurrently
+/// across the available cores. The methods are safe to call from any thread, and the completion handler
+/// is invoked on a background queue.
 public enum SVGRenderer {
 
     /// Renders `source` to encoded data.
@@ -61,20 +63,49 @@ public enum SVGRenderer {
         overrideElements: [String: SVGSourceStyleElement]? = nil,
         completion: @escaping @Sendable (Result<Data, Error>) -> Void
     ) {
-        // Shares the queue with `SVGView` loads: parsing and layer building mutate per-document state.
+        // Parsing and layer building share per-document state (`renderScale`, parser cache) with `SVGView`
+        // loads, so they run on the shared serial queue. The built layer tree is private to this render,
+        // so rasterizing and encoding it can proceed concurrently with other renders.
         let overrides = UncheckedSendable(overrideElements)
         SVGWorkQueue.shared.async {
-            completion(Result {
-                try renderSync(source, size: size, format: format, scale: scale,
-                               background: background, overrideElements: overrides.value)
-            })
+            let prepared: Prepared
+            do {
+                prepared = try prepare(source, size: size, format: format, scale: scale,
+                                       background: background, overrideElements: overrides.value)
+            } catch {
+                completion(.failure(error))
+                return
+            }
+            let job = UncheckedSendable(prepared)
+            rasterizeQueue.addOperation {
+                completion(Result { rasterize(job.value) })
+            }
         }
     }
 
-    private static func renderSync(
+    /// Runs rasterization and encoding. Capped at the core count: each job holds a full bitmap, so
+    /// unbounded fan-out would trade speed for memory pressure.
+    private static let rasterizeQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.name = "SVGRenderKit.SVGRenderer.rasterize"
+        queue.qualityOfService = .userInitiated
+        queue.maxConcurrentOperationCount = max(2, ProcessInfo.processInfo.activeProcessorCount)
+        return queue
+    }()
+
+    /// A built layer tree plus everything needed to rasterize it, with no remaining ties to the parsed document.
+    private struct Prepared {
+        let container: CALayer
+        let outputSize: CGSize
+        let format: SVGRenderFormat
+        let scale: CGFloat
+        let background: UIColor?
+    }
+
+    private static func prepare(
         _ source: SVGSource, size: CGSize?, format: SVGRenderFormat, scale: CGFloat,
         background: UIColor?, overrideElements: [String: SVGSourceStyleElement]?
-    ) throws -> Data {
+    ) throws -> Prepared {
         let parser: SVGParser
         switch source {
         case .string(let string, let name): parser = try SVGParser.getParser(svgString: string, name: name)
@@ -110,6 +141,14 @@ public enum SVGRenderer {
         container.anchorPoint = .zero
         container.masksToBounds = true
         container.addSublayer(layer)
+        return Prepared(container: container, outputSize: outputSize, format: format, scale: scale, background: background)
+    }
+
+    private static func rasterize(_ prepared: Prepared) -> Data {
+        let container = prepared.container
+        let outputSize = prepared.outputSize
+        let scale = prepared.scale
+        let background = prepared.background
         // `CALayer.render(in:)` does not run the display pass, so layers with custom drawing
         // would come out empty without this.
         SVGSignpost.interval("SVGRenderer.display") { forceDisplay(container) }
@@ -122,7 +161,7 @@ public enum SVGRenderer {
             container.render(in: context)
         }
 
-        switch format {
+        switch prepared.format {
         case .png:
             let renderer = UIGraphicsImageRenderer(size: outputSize, format: rasterFormat(scale: scale, opaque: false))
             // `pngData` rasterizes (the draw closure) and encodes in one call, so both share a signpost.
