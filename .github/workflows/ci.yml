@@ -12,6 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         device: [iPhone, iPad]
+        swift: [5, 6]
     steps:
       - uses: actions/checkout@v4
 
@@ -21,6 +22,7 @@ jobs:
           echo "Using simulator: $UDID"
           set -o pipefail
           xcodebuild -scheme SVGRenderKit \
+            SWIFT_VERSION=${{ matrix.swift }} \
             -destination "platform=iOS Simulator,id=$UDID" \
             test 2>&1 | tee xcodebuild.log
 
@@ -28,7 +30,7 @@ jobs:
         if: always()
         run: |
           {
-            echo '## Corpus parity — ${{ matrix.device }}'
+            echo '## Corpus parity — ${{ matrix.device }}, Swift ${{ matrix.swift }}'
             echo '```'
             grep -E 'CORPUS_(SUMMARY|FAIL|REF-LIMITED|REF-MISSING|KIT-ERROR|COMPARE-ERROR)' xcodebuild.log \
               || echo '(no corpus summary found — the test may have been skipped)'

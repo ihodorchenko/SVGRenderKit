@@ -173,6 +173,12 @@ open class SVGView: UIView {
         return result
     }
 
+    /// Hands the parser and layer built off-main over to the main thread, which owns them from then on.
+    private struct LoadResult: @unchecked Sendable {
+        let parser: SVGParser
+        let layer: CALayer
+    }
+
     /// Parses and renders the given source asynchronously, discarding stale results.
     private func load(_ source: LoadSource, overrideElements: [String: SVGSourceStyleElement]?) {
         // Reads `bounds`/`window` and owns `loadGeneration`: UIKit state is main-thread only,
@@ -216,13 +222,15 @@ open class SVGView: UIView {
                 let layer = try parser.getLayer(overrideElements: overrideElements)
                 let usesPatterns = options.usesPatterns
 
+                // The layer tree is built on the load queue and only touched on main afterwards.
+                let result = LoadResult(parser: parser, layer: layer)
                 DispatchQueue.main.async {
                     guard generation == self.loadGeneration else { return }
                     self.renderedScale = scale
                     self.rendersPatterns = usesPatterns
-                    self.parser = parser
-                    self.shapeLayer = layer
-                    self.set(layer: layer)
+                    self.parser = result.parser
+                    self.shapeLayer = result.layer
+                    self.set(layer: result.layer)
                 }
             } catch {
                 SVGLog.addSLog(errorStr: "SVG load error: \(error.localizedDescription)")

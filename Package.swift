@@ -22,5 +22,6 @@ let package = Package(
             name: "SVGRenderKitTests",
             dependencies: ["SVGRenderKit"],
             path: "Tests/SVGRenderKitTests")
-    ]
+    ],
+    swiftLanguageVersions: [.v5, .version("6")]
 )

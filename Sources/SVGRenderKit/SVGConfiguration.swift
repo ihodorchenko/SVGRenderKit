@@ -2,7 +2,7 @@ import UIKit
 
 /// Central, shared configuration for the renderer: parser caching, reload
 /// notifications, and global color overrides.
-public final class SVGConfiguration {
+public final class SVGConfiguration: @unchecked Sendable {
     /// The shared configuration instance.
     public static let shared = SVGConfiguration()
 

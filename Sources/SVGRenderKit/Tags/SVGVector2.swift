@@ -5,7 +5,7 @@ import CoreGraphics
 public typealias Scalar = Double
 
 /// A 2D vector with x and y components, used for vector math.
-public struct Vector2: Hashable {
+public struct Vector2: Hashable, Sendable {
     /// The horizontal component of the vector.
     public var x: Scalar
     /// The vertical component of the vector.

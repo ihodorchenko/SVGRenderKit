@@ -17,7 +17,7 @@ final class SVGRenderParityTests: XCTestCase {
     /// Maximum allowed fraction of pixels that may differ.
     private let maxDifferingFraction = 0.02
 
-    func testRendersMatchReference() throws {
+    @MainActor func testRendersMatchReference() throws {
         // Probe the reference renderer once; skip if CoreSVG is unavailable here.
         let probeSVG = """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">
@@ -62,7 +62,7 @@ final class SVGRenderParityTests: XCTestCase {
     /// parse failures, and every divergence must be accounted for in
     /// `ParityTriage.reasons` (known limitations). New/unknown failures fail the
     /// build so a regression can't slip in silently.
-    func testCorpusParity() throws {
+    @MainActor func testCorpusParity() throws {
         let fixtures = CorpusLoader.load()
         guard !fixtures.isEmpty else {
             throw XCTSkip("No SVG corpus found under Example/Example/data")

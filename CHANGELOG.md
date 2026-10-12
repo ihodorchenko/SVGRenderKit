@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.2.0
+
+### Added
+- Swift 6 language mode support alongside Swift 5.9+ (`swiftLanguageVersions: [.v5, .v6]`).
+  See [MIGRATION.md](MIGRATION.md) for the API differences.
+
+### Changed
+- Public enums (`SVGFillRuleType`, `SVGClipRuleType`, `SVGFontStyle`, `SVGDisplaytype`,
+  `SVGVisibility`, `SVGLineCap`, `SVGLineJoin`) and `Vector2` are `Sendable`;
+  `SVGCache` and `SVGConfiguration` are `@unchecked Sendable`.
+- `SVGLog.logger` access is now thread-safe.
+
 ## 1.1.1
 
 ### Added

@@ -50,7 +50,12 @@ public struct PrintSVGLogger: SVGLogger {
 /// Central logging facade for the library.
 public class SVGLog {
     /// The active logger. Defaults to `PrintSVGLogger`.
-    public static var logger: SVGLogger = PrintSVGLogger()
+    public static var logger: SVGLogger {
+        get { loggerBox.value }
+        set { loggerBox.value = newValue }
+    }
+
+    private static let loggerBox = LockedBox<SVGLogger>(PrintSVGLogger())
 
     class func addLog(svgError: SVGError) {
         logger.log("Error SVG: \(svgError.description)")

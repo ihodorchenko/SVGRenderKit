@@ -16,7 +16,7 @@ from the `///` comments in the source and published to [GitHub Pages](https://ih
 ## Requirements
 
 - iOS 15.0+
-- Swift 5.9+
+- Swift 5.9+ (Swift 5 and Swift 6 language modes; see [MIGRATION.md](MIGRATION.md))
 - Xcode 15+
 
 ## Platforms

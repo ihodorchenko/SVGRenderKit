@@ -13,12 +13,11 @@ struct SVGTextSpan {
 open class SVGTextTag: SVGShapeObject {
     class override var key: String { get { return "text" }}
 
-    private static let scaleLock = NSLock()
-    private static var _screenScale: CGFloat = 2
+    private static let screenScaleBox = LockedBox<CGFloat>(2)
     /// Display scale used for text layers; set from the main thread before background rendering.
     static var screenScale: CGFloat {
-        get { scaleLock.lock(); defer { scaleLock.unlock() }; return _screenScale }
-        set { scaleLock.lock(); defer { scaleLock.unlock() }; _screenScale = newValue }
+        get { screenScaleBox.value }
+        set { screenScaleBox.value = newValue }
     }
 
     var x: CGFloat = 0

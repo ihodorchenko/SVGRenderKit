@@ -309,11 +309,13 @@ enum ReferenceRenderer {
 
     @objc private final class CGSVGDocument: NSObject {}
 
-    private static let coreSVG: UnsafeMutableRawPointer? = dlopen(
-        "/System/Library/PrivateFrameworks/CoreSVG.framework/CoreSVG", RTLD_NOW)
+    private struct Handle: @unchecked Sendable { let pointer: UnsafeMutableRawPointer? }
+
+    private static let coreSVG = Handle(pointer: dlopen(
+        "/System/Library/PrivateFrameworks/CoreSVG.framework/CoreSVG", RTLD_NOW))
 
     private static func load<T>(_ name: String) -> T {
-        unsafeBitCast(dlsym(coreSVG, name), to: T.self)
+        unsafeBitCast(dlsym(coreSVG.pointer, name), to: T.self)
     }
 
     private static let createFromData: @convention(c) (CFData?, CFDictionary?) -> Unmanaged<CGSVGDocument>? =

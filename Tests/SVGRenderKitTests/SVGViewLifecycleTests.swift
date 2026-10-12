@@ -72,7 +72,7 @@ final class SVGViewLifecycleTests: XCTestCase {
     }
 
     // B79: nib/storyboard decoding must not crash.
-    func testInitCoderDoesNotCrash() throws {
+    @MainActor func testInitCoderDoesNotCrash() throws {
         let archiver = NSKeyedArchiver(requiringSecureCoding: false)
         makeView().encode(with: archiver)
         archiver.finishEncoding()

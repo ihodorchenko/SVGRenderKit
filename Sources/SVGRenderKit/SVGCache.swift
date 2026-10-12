@@ -7,7 +7,7 @@ fileprivate extension Array where Element: Equatable {
 }
 
 /// A shared cache that stores parsed SVG roots keyed by an MD5 hash.
-open class SVGCache {
+open class SVGCache: @unchecked Sendable {
     /// Whether the cache is used when parsing SVGs.
     public var isSVGParserUseCache: Bool {
         get { return SVGConfiguration.shared.isParserCacheEnabled }
