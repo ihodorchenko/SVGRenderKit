@@ -338,7 +338,11 @@ open class SVGView: UIView {
         transform = CATransform3DTranslate(transform, resolved.translateX, resolved.translateY, 0)
         transform = CATransform3DScale(transform, resolved.scaleX, resolved.scaleY, 1)
         transform = CATransform3DTranslate(transform, -viewBox.origin.x, -viewBox.origin.y, 0)
+        // `shapeLayer` is not a backing layer, so a bare assignment would animate implicitly.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         shapeLayer.transform = transform
+        CATransaction.commit()
 
         contentView.frame = self.bounds
 

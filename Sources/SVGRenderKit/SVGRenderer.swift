@@ -112,7 +112,7 @@ public enum SVGRenderer {
         container.addSublayer(layer)
         // `CALayer.render(in:)` does not run the display pass, so layers with custom drawing
         // would come out empty without this.
-        forceDisplay(container)
+        SVGSignpost.interval("SVGRenderer.display") { forceDisplay(container) }
 
         let draw: (CGContext) -> Void = { context in
             if let background = background {
@@ -125,19 +125,26 @@ public enum SVGRenderer {
         switch format {
         case .png:
             let renderer = UIGraphicsImageRenderer(size: outputSize, format: rasterFormat(scale: scale, opaque: false))
-            return renderer.pngData { draw($0.cgContext) }
+            // `pngData` rasterizes (the draw closure) and encodes in one call, so both share a signpost.
+            return SVGSignpost.interval("SVGRenderer.rasterize+encode") {
+                renderer.pngData { draw($0.cgContext) }
+            }
         case .jpeg(let quality):
             let renderer = UIGraphicsImageRenderer(size: outputSize, format: rasterFormat(scale: scale, opaque: true))
-            return renderer.jpegData(withCompressionQuality: quality) { rendererContext in
-                if background == nil {
-                    UIColor.white.setFill()
-                    rendererContext.fill(CGRect(origin: .zero, size: outputSize))
+            return SVGSignpost.interval("SVGRenderer.rasterize+encode") {
+                renderer.jpegData(withCompressionQuality: quality) { rendererContext in
+                    if background == nil {
+                        UIColor.white.setFill()
+                        rendererContext.fill(CGRect(origin: .zero, size: outputSize))
+                    }
+                    draw(rendererContext.cgContext)
                 }
-                draw(rendererContext.cgContext)
             }
         case .pdf:
             let renderer = UIGraphicsPDFRenderer(bounds: CGRect(origin: .zero, size: outputSize))
-            return renderer.pdfData { draw($0.cgContext) }
+            return SVGSignpost.interval("SVGRenderer.rasterize+encode") {
+                renderer.pdfData { draw($0.cgContext) }
+            }
         }
     }
 

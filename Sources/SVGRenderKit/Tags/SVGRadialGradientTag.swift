@@ -25,8 +25,12 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         var colors: [CGColor] = []
         var locations: [CGFloat] = []
 
-        stops.sort { (f, s) -> Bool in
-            return f.offset < s.offset
+        // Sort only when needed: the gradient is shared by cached trees, so an unconditional
+        // in-place sort would both waste work and write shared state on every use.
+        if !stops.isSortedByOffset {
+            stops.sort { (f, s) -> Bool in
+                return f.offset < s.offset
+            }
         }
         for stop in stops {
             // SVG 1.1 clamps stop offsets to [0, 1] rather than failing the gradient.

@@ -596,7 +596,8 @@ extension SVGSourceStyleElement {
             }
         }
 
-        let vertices = SVGUtils.pathVertices(path: path)
+        // Walking the whole path is only needed when a vertex-based marker is set.
+        let vertices = (self.markerStart != nil || self.markerMid != nil) ? SVGUtils.pathVertices(path: path) : []
 
         // marker-start
         if let markerStart = self.markerStart {
@@ -642,7 +643,7 @@ extension SVGSourceStyleElement {
     /// Applies group-compositing properties (`visibility`, `opacity`, `clip-path`,
     /// `mask`, `filter`) to a group's composite layer. Unlike fill/stroke, these
     /// are not inherited to child shapes; they composite the whole group.
-    func applyGroupComposite(to layer: CALayer, bbox: CGRect, container: SVGShapesContainer, overrideElements: [String: SVGSourceStyleElement]?) throws {
+    func applyGroupComposite(to layer: CALayer, bbox: @autoclosure () -> CGRect, container: SVGShapesContainer, overrideElements: [String: SVGSourceStyleElement]?) throws {
         if let visibility = self.visibility, visibility != .visible {
             layer.isHidden = true
             return
@@ -662,6 +663,7 @@ extension SVGSourceStyleElement {
                 if clipPathObj.clipPathUnits == .objectBoundingBox {
                     // Map [0,1] object-bounding-box units onto the group's bbox.
                     // CATransform3D helpers post-multiply, so translate then scale.
+                    let bbox = bbox()
                     var t = CATransform3DIdentity
                     t = CATransform3DTranslate(t, bbox.origin.x, bbox.origin.y, 0)
                     t = CATransform3DScale(t, bbox.width, bbox.height, 1)
@@ -685,7 +687,7 @@ extension SVGSourceStyleElement {
                     throw SVGError.content(text: "mask not found: \(key)")
                 }
                 let options = container.getSvgOptions()
-                layer.mask = try maskObj.maskLayer(bbox: bbox, viewBox: options.viewBox, overrideElements: overrideElements)
+                layer.mask = try maskObj.maskLayer(bbox: bbox(), viewBox: options.viewBox, overrideElements: overrideElements)
             case .web(let url):
                 throw SVGError.content(text: "web mask not supported: \(url)")
             }

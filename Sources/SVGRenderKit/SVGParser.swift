@@ -10,32 +10,35 @@ open class SVGParser {
     fileprivate var xmlParser: XMLIndexer?
     
     init(svgURL: URL, containerLayer: CALayer? = nil, parsedRoot: SVGRoot?) throws {
-        let data = try Data(contentsOf: svgURL)
-        xmlParser = SWXMLHash.parse(data)
         _init()
+        // A cache hit already holds the parsed tree: skip reading and XML-parsing the source.
         if let parsedRoot = parsedRoot {
             self.root = parsedRoot
         } else {
+            let data = try Data(contentsOf: svgURL)
+            xmlParser = SWXMLHash.parse(data)
             try parse()
         }
     }
 
     init(svgString: String, containerLayer: CALayer? = nil, parsedRoot: SVGRoot?) throws {
-        xmlParser = SWXMLHash.parse(svgString)
         _init()
+        // A cache hit already holds the parsed tree: skip reading and XML-parsing the source.
         if let parsedRoot = parsedRoot {
             self.root = parsedRoot
         } else {
+            xmlParser = SWXMLHash.parse(svgString)
             try parse()
         }
     }
 
     init(svgData: Data, name: String? = nil, containerLayer: CALayer? = nil, parsedRoot: SVGRoot?) throws {
-        xmlParser = SWXMLHash.parse(svgData)
         _init()
+        // A cache hit already holds the parsed tree: skip reading and XML-parsing the source.
         if let parsedRoot = parsedRoot {
             self.root = parsedRoot
         } else {
+            xmlParser = SWXMLHash.parse(svgData)
             try parse()
         }
     }
@@ -104,6 +107,12 @@ open class SVGParser {
     }
 
     internal func parse() throws {
+        try SVGSignpost.interval("SVGParser.parse") {
+            try parseDocument()
+        }
+    }
+
+    private func parseDocument() throws {
         guard let xmlParser = xmlParser else {
             throw SVGError.parseError(text: "xmlParser == nil")
         }
@@ -119,8 +128,6 @@ open class SVGParser {
         } catch {
             throw SVGError.unexpectedError(text: "when parse SVGSVGTag")
         }
-
-
     }
 
     func makeParseError(error: SVGError) {
@@ -134,6 +141,8 @@ open class SVGParser {
     /// - parameter overrideElements: Optional per-element style overrides applied while building the layer.
     /// - returns: The root layer, or throws an `SVGError` if the document cannot be rendered.
     open func getLayer(overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
-        return try root.createLayer(overrideElements: overrideElements)
+        return try SVGSignpost.interval("SVGParser.getLayer") {
+            try root.createLayer(overrideElements: overrideElements)
+        }
     }
 }

@@ -234,3 +234,16 @@ open class SVGGradientStop: SVGObject {
         }
     }
 }
+
+extension Array where Element == SVGGradientStop {
+    /// `true` when the stops are already in non-decreasing offset order.
+    var isSortedByOffset: Bool {
+        var previous = -CGFloat.greatestFiniteMagnitude
+        for stop in self {
+            let offset = CGFloat(stop.offset)
+            if offset < previous { return false }
+            previous = offset
+        }
+        return true
+    }
+}

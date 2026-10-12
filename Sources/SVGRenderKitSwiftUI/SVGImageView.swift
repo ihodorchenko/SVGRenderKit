@@ -95,8 +95,8 @@ public struct SVGImageView: UIViewRepresentable {
 
     public func updateUIView(_ view: SVGView, context: Context) {
         let coordinator = context.coordinator
-        let overrides = resolvedOverrides()
         guard coordinator.needsLoad(source: source, fillColors: fillColors, overrides: overrideElements) else { return }
+        let overrides = resolvedOverrides()
         coordinator.record(source: source, fillColors: fillColors, overrides: overrideElements)
 
         switch source {
