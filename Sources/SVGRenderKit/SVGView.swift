@@ -1,6 +1,9 @@
 import UIKit
 
 /// A `UIView` that renders an SVG document from a bundled asset, raw markup, or raw data.
+///
+/// Like any `UIView` it should be used from the main thread; loads requested from other threads
+/// are marshalled onto the main queue.
 open class SVGView: UIView {
 
     private enum LoadSource {
@@ -162,6 +165,12 @@ open class SVGView: UIView {
 
     /// Parses and renders the given source asynchronously, discarding stale results.
     private func load(_ source: LoadSource, overrideElements: [String: SVGSourceStyleElement]?) {
+        // Reads `bounds`/`window` and owns `loadGeneration`: UIKit state is main-thread only,
+        // so calls from other threads are marshalled onto the main queue.
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in self?.load(source, overrideElements: overrideElements) }
+            return
+        }
         currentSource = source
         loadGeneration += 1
         let generation = loadGeneration
@@ -208,6 +217,10 @@ open class SVGView: UIView {
 
     /// Drops the current source and rendered content, and invalidates any in-flight load.
     private func resetContent() {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in self?.resetContent() }
+            return
+        }
         loadGeneration += 1
         currentSource = nil
         _SVGName = nil

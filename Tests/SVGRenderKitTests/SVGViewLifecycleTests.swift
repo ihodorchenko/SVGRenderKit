@@ -84,3 +84,40 @@ final class SVGViewLifecycleTests: XCTestCase {
         waitUntil { view?.shapeLayer != nil }
     }
 }
+
+// B73/B74: thread-safety.
+final class SVGThreadSafetyTests: XCTestCase {
+    private let markup = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><rect width=\"10\" height=\"10\"/></svg>"
+
+    func testLoadRequestedFromBackgroundThreadRenders() {
+        let view = SVGView(frame: CGRect(x: 0, y: 0, width: 20, height: 20))
+        DispatchQueue.global().async { view.svgString = self.markup }
+        wait(for: [expectation(for: NSPredicate { _, _ in view.shapeLayer != nil }, evaluatedWith: nil)], timeout: 5)
+    }
+
+    func testLastBackgroundRequestWinsOverStale() {
+        let view = SVGView(frame: CGRect(x: 0, y: 0, width: 20, height: 20))
+        let done = expectation(description: "bg")
+        DispatchQueue.global().async {
+            view.svgString = self.markup
+            view.svgString = nil
+            done.fulfill()
+        }
+        wait(for: [done], timeout: 5)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        XCTAssertNil(view.shapeLayer)
+    }
+
+    func testCacheFlagAndResetAreSafeUnderConcurrency() {
+        let original = SVGConfiguration.shared.isParserCacheEnabled
+        defer { SVGConfiguration.shared.isParserCacheEnabled = original }
+        DispatchQueue.concurrentPerform(iterations: 2000) { i in
+            switch i % 4 {
+            case 0: SVGConfiguration.shared.isParserCacheEnabled = (i % 8 == 0)
+            case 1: _ = SVGConfiguration.shared.isParserCacheEnabled
+            case 2: SVGCache.s.resetCache()
+            default: _ = try? SVGParser.getParser(svgString: self.markup, name: "k\(i % 5)")
+            }
+        }
+    }
+}

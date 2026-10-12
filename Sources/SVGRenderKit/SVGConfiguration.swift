@@ -7,7 +7,13 @@ public final class SVGConfiguration {
     public static let shared = SVGConfiguration()
 
     /// Whether parsed SVG roots are cached. Defaults to `true`.
-    public var isParserCacheEnabled: Bool = true
+    public var isParserCacheEnabled: Bool {
+        get { cacheEnabledLock.lock(); defer { cacheEnabledLock.unlock() }; return _isParserCacheEnabled }
+        set { cacheEnabledLock.lock(); defer { cacheEnabledLock.unlock() }; _isParserCacheEnabled = newValue }
+    }
+
+    private let cacheEnabledLock = NSLock()
+    private var _isParserCacheEnabled: Bool = true
 
     /// The notification name that triggers cached SVG views to reload, or `nil` to disable.
     public var updateNotificationName: NSNotification.Name? {
