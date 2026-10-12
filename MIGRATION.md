@@ -16,7 +16,7 @@ Most changes are source compatible. The list below covers every API difference.
 | --- | --- | --- | --- |
 | `SVGFillRuleType`, `SVGClipRuleType`, `SVGFontStyle`, `SVGDisplaytype`, `SVGVisibility`, `SVGLineCap`, `SVGLineJoin` | `enum …: String` | `enum …: String, Sendable` | Nothing; additive. |
 | `Vector2` | `Hashable` | `Hashable, Sendable` | Nothing; additive. |
-| `SVGCache` | `open class SVGCache` | `open class SVGCache: @unchecked Sendable` | Nothing. Internal state is already guarded by a serial queue. A subclass must keep that guarantee. |
+| `SVGCache` | `open class SVGCache` | `open class SVGCache: @unchecked Sendable` | Nothing. Internal state is guarded by a lock (a serial queue before 1.3.1). A subclass must keep that guarantee. |
 | `SVGConfiguration` | `public final class` | `public final class …: @unchecked Sendable` | Nothing. Internal state is already lock/queue guarded. |
 | `SVGLog.logger` | stored `static var` | computed `static var` backed by a lock | Nothing; get/set syntax is unchanged. Reads and writes are now thread-safe. |
 

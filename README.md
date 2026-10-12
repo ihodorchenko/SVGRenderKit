@@ -37,7 +37,7 @@ https://github.com/ihodorchenko/SVGRenderKit.git
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ihodorchenko/SVGRenderKit.git", from: "1.3.0")
+    .package(url: "https://github.com/ihodorchenko/SVGRenderKit.git", from: "1.3.1")
 ]
 ```
 
@@ -124,7 +124,7 @@ SVGRenderer.render(.string(markup), format: .png) { result in   // called on a b
 }
 ```
 
-Without `size` the document's own size is used; `scale` sets pixels per point for PNG/JPEG (ignored for PDF, which stays vector). JPEG has no alpha and defaults to a white background; `background` fills behind the artwork for any format. Invalid input or a non-positive size throws `SVGError`. `SVGRenderer` shares the background queue with `SVGView` and can be called from any thread.
+Without `size` the document's own size is used; `scale` sets pixels per point for PNG/JPEG (ignored for PDF, which stays vector). JPEG has no alpha and defaults to a white background; `background` fills behind the artwork for any format. Invalid input or a non-positive size throws `SVGError`. `SVGRenderer` can be called from any thread: parsing and layer building run on the background queue shared with `SVGView`, while rasterization and encoding run concurrently across the available cores, so batches of renders scale with the CPU.
 
 ### Re-coloring
 
@@ -165,8 +165,11 @@ SVGColors.addOvverideUIColors(colors: ["#243B55": UIColor.label])
 
 ### Caching
 
-Parser caching is enabled by default and keyed by name/path (MD5). Disable it
-per-view or globally:
+Parser caching is enabled by default and keyed by name/path (MD5). The cache keeps the
+100 most recently used documents (a hit refreshes a document's recency). A cache hit skips
+reading and XML-parsing the source entirely. Derived render data (pattern tiles, mask
+bitmaps, decoded embedded images, fonts) is cached internally per document. Disable parser
+caching per-view or globally:
 
 ```swift
 SVGView.isSVGParserUseCache = false           // global (through SVGCache)
@@ -251,7 +254,7 @@ See [CONFORMANCE.md](CONFORMANCE.md) for the full icon-profile contract.
 2. **Object tree** — the result is an object tree (`SVGRoot` → `SVGGroupObject` → shapes/gradients/clip paths), each node holding its attributes and resolved style (`SVGSourceStyleElement`).
 3. **Render** — each node builds a `CALayer` (`CAShapeLayer` for shapes, `CAGradientLayer` for gradients, `CATextLayer` for text).
 4. **Layout** — `SVGView` scales and translates the layer to fit the view's bounds.
-5. **Export** — `SVGRenderer` runs steps 1–4 offscreen and encodes the layer to PNG, JPEG or PDF `Data`.
+5. **Export** — `SVGRenderer` runs steps 1–4 offscreen and encodes the layer to PNG, JPEG or PDF `Data`. Steps 1–3 run on a serial queue; rasterization and encoding run concurrently.
 
 ## Example app
 
@@ -270,10 +273,12 @@ harness. Run it from the repository root:
 ```sh
 xcodebuild test \
   -scheme SVGRenderKit-Package \
-  -destination 'platform=iOS Simulator,name=iPhone 16'
+  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -skip-testing:SVGRenderKitTests/SVGPerformanceTests
 ```
 
-(Adjust the `name=` value to a simulator available on your machine.)
+(Adjust the `name=` value to a simulator available on your machine. The performance
+benchmarks are skipped here; see [Performance](#performance).)
 
 The render-parity test (`SVGRenderParityTests`) renders every icon in the bundled
 corpus against Apple's CoreSVG on the fly (no committed golden images) and
@@ -283,6 +288,26 @@ allowlist fails the build — while known limitations (text metrics, anti-aliasi
 8-digit hex, filter erosion) are reported without failing. CI runs the suite on
 iPhone and iPad simulators and emits the corpus summary into the GitHub step
 summary.
+
+## Performance
+
+`SVGPerformanceTests` benchmark cold and cached parsing, layer building, PNG export, concurrent
+renders, and a corpus-wide pass over every bundled icon. Debug builds are not representative, so run
+them in Release:
+
+```sh
+xcodebuild test \
+  -scheme SVGRenderKit-Package \
+  -configuration Release ENABLE_TESTABILITY=YES \
+  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -only-testing:SVGRenderKitTests/SVGPerformanceTests
+```
+
+The `Performance` GitHub workflow runs them on pushes to `main`, manually, and on pull requests
+labeled `perf`. `Scripts/perf_report.py` turns the log into a Markdown table and, when
+`.github/perf-baseline.json` exists, fails a test that is more than 2x slower than its baseline.
+Parse, layer-build and export steps are also marked with `os_signpost` intervals (Points of Interest)
+for Instruments.
 
 ## License
 

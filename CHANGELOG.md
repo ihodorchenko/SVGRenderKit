@@ -5,6 +5,36 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.1
+
+Performance release; there are no public API changes.
+
+### Changed
+- `SVGParser` no longer reads or XML-parses the source on a parser-cache hit.
+- `SVGRenderer` rasterizes and encodes concurrently (capped at the core count) while parsing and layer
+  building stay on the serial work queue; batches of renders scale with the available cores.
+- `SVGCache` is a real LRU (a hit refreshes recency) guarded by a lock instead of a FIFO behind a
+  serial queue.
+- Pattern tiles, mask bitmaps, decoded embedded images and fonts are cached per document, so a pattern
+  or mask shared by many shapes is rendered once. Luminance masks are converted with fixed-point math in
+  place.
+- Group `clip-path`/`mask` bounding boxes and marker vertices are computed only when needed.
+- `SVGView` skips loads that were superseded while still queued, and no longer animates its layout
+  transform implicitly.
+- `SVGImageView` resolves color overrides only when it reloads.
+
+### Fixed
+- Path data parsing no longer triggers a CoreGraphics `no current point` error log for every command
+  before the first `Z`, which dominated parse time (a 60-path, ~12k-segment map: ~1.4 s -> ~12 ms).
+  The `d` scanner is a single pass over UTF-8 and no longer quadratic in the path length.
+- `SVGLinearGradientLayer.draw` restores the graphics state it saves.
+- Gradient stops are sorted only when needed, so a gradient shared by cached trees is no longer
+  written on every use.
+
+### Added
+- Release-mode performance benchmarks (`SVGPerformanceTests`), `os_signpost` intervals around parse,
+  layer building and rasterization, and a `Performance` GitHub workflow with `Scripts/perf_report.py`.
+
 ## 1.3.0
 
 ### Added
