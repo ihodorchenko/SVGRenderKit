@@ -84,6 +84,23 @@ final class SVGViewLifecycleTests: XCTestCase {
         view?.svgString = markup
         waitUntil { view?.shapeLayer != nil }
     }
+
+    // P11: a load superseded while still queued is skipped; the view must end up showing the latest source.
+    func testSupersededQueuedLoadsLeaveLatestSource() {
+        let view = makeView()
+        let circle = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><circle r=\"3\"/></svg>"
+        // All calls run on the main thread before the work queue reaches the first job.
+        for index in 0..<20 {
+            view.set(svgString: circle, name: "p11-stale-\(index)", fill_colors: nil)
+        }
+        view.set(svgString: markup, name: "p11-latest", fill_colors: nil)
+        waitUntil { view.shapeLayer != nil }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+
+        let shapes = view.parser?.root.svgElement.layerElements.array ?? []
+        XCTAssertEqual(shapes.count, 1)
+        XCTAssertTrue(shapes.first is SVGShapeRect, "the view must show the latest source, not a stale circle")
+    }
 }
 
 // B73/B74: thread-safety.

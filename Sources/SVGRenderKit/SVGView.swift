@@ -32,7 +32,11 @@ open class SVGView: UIView {
     internal private(set) var rendersPatterns = false
 
     /// Tracks the latest requested load so stale async results are discarded.
-    private var loadGeneration: Int = 0
+    private var loadGeneration: Int = 0 {
+        didSet { latestGeneration.value = loadGeneration }
+    }
+    /// A thread-safe mirror of `loadGeneration`, so queued work can see it was superseded and skip parsing.
+    private let latestGeneration = LockedBox<Int>(0)
 
     /// Whether the shared parser cache is enabled, applied across all `SVGView` instances.
     public static var isSVGParserUseCache: Bool {
@@ -202,7 +206,11 @@ open class SVGView: UIView {
         SVGTextTag.screenScale = window?.screen.scale ?? UIScreen.main.scale
 
         let overrides = UncheckedSendable(value: overrideElements)
+        let latestGeneration = self.latestGeneration
         SVGView.loadQueue.async {
+            // Superseded while waiting in the queue (a view reconfigured in quick succession, or a
+            // reused cell): its result would be discarded, so do not spend time parsing and building it.
+            guard latestGeneration.value == generation else { return }
             do {
                 let parser: SVGParser
                 switch source {
