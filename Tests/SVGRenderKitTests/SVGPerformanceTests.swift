@@ -379,4 +379,43 @@ final class SVGPerformanceTests: XCTestCase {
             XCTAssertFalse(views.contains { $0.shapeLayer == nil }, "some views did not finish loading")
         }
     }
+
+    // MARK: - Corpus
+
+    func testPerf_corpus_coldParse() throws {
+        let corpus = CorpusLoader.load()
+        try XCTSkipIf(corpus.isEmpty, "corpus is empty")
+        SVGCache.s.isSVGParserUseCache = false
+        var errors = 0
+        measure(metrics: metrics, options: options) {
+            errors = 0
+            for fixture in corpus {
+                do { _ = try SVGParser.getParser(svgString: fixture.svg) } catch { errors += 1 }
+            }
+        }
+        print("corpus coldParse: \(corpus.count) files, \(errors) errors")
+    }
+
+    func testPerf_corpus_getLayer() throws {
+        let corpus = CorpusLoader.load()
+        try XCTSkipIf(corpus.isEmpty, "corpus is empty")
+        SVGCache.s.isSVGParserUseCache = false
+        let parsers = corpus.compactMap { try? SVGParser.getParser(svgString: $0.svg) }
+        var errors = 0
+        measure(metrics: metrics, options: options) {
+            errors = 0
+            for parser in parsers {
+                do { _ = try parser.getLayer(overrideElements: nil) } catch { errors += 1 }
+            }
+        }
+        print("corpus getLayer: \(parsers.count)/\(corpus.count) parsed, \(errors) errors")
+    }
+
+    func testPerf_corpus_xmlOnly() throws {
+        let corpus = CorpusLoader.load()
+        try XCTSkipIf(corpus.isEmpty, "corpus is empty")
+        measure(metrics: metrics, options: options) {
+            for fixture in corpus { _ = SWXMLHash.parse(fixture.svg) }
+        }
+    }
 }
