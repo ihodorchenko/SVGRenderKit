@@ -57,7 +57,9 @@ class EllipseArcToCurves {
         // Split an arc to multiple segments, so each segment
         // will be less than τ/4 (= 90°)
         //
-        let segments: Int = Int(max(ceil(abs(delta_theta) / (self.pi2 / 4)), 1))
+        let rawSegments = ceil(abs(delta_theta) / (self.pi2 / 4))
+        // NaN/infinite geometry must not reach `Int(_:)` (runtime trap).
+        let segments: Int = rawSegments.isFinite ? Int(max(rawSegments, 1)) : 1
         delta_theta /= Scalar(segments)
 
         for _ in 0..<segments {

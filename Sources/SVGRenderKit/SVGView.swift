@@ -141,6 +141,8 @@ open class SVGView: UIView {
         loadGeneration += 1
         let generation = loadGeneration
         let containerSize = bounds.size
+        // `UIScreen` is main-thread API; capture the scale here for the background render.
+        SVGTextTag.screenScale = window?.screen.scale ?? UIScreen.main.scale
 
         DispatchQueue.global().async {
             do {

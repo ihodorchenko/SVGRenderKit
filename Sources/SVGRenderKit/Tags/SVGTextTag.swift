@@ -13,6 +13,14 @@ struct SVGTextSpan {
 open class SVGTextTag: SVGShapeObject {
     class override var key: String { get { return "text" }}
 
+    private static let scaleLock = NSLock()
+    private static var _screenScale: CGFloat = 2
+    /// Display scale used for text layers; set from the main thread before background rendering.
+    static var screenScale: CGFloat {
+        get { scaleLock.lock(); defer { scaleLock.unlock() }; return _screenScale }
+        set { scaleLock.lock(); defer { scaleLock.unlock() }; _screenScale = newValue }
+    }
+
     var x: CGFloat = 0
     var y: CGFloat = 0
     var textAnchor: String = "start"
@@ -83,7 +91,7 @@ open class SVGTextTag: SVGShapeObject {
             .foregroundColor: color
         ])
         textLayer.string = attributedString
-        textLayer.contentsScale = UIScreen.main.scale
+        textLayer.contentsScale = SVGTextTag.screenScale
 
         // CATextLayer does not auto-size: with a zero frame it draws nothing.
         // Size it to the rendered text so the glyphs have a drawing area.

@@ -162,8 +162,10 @@ internal class EllipticalArcTo: PathCommand {
             endPoint = CGPoint(x: x1 + parameters[5], y: y1 + parameters[6])
         }
         let xAngle: Scalar = Scalar(parameters[2])
-        let largeArcFlag: Bool = Int(parameters[3]) == 1
-        let sweepFlag: Bool = Int(parameters[4]) == 1
+        // Non-finite numbers (e.g. `1e999`) would trap in `Int(_:)`; any non-zero flag is true.
+        guard parameters.prefix(7).allSatisfy({ $0.isFinite }) else { return nil }
+        let largeArcFlag: Bool = parameters[3] != 0
+        let sweepFlag: Bool = parameters[4] != 0
         let rx: Scalar = Scalar(parameters[0])
         let ry: Scalar = Scalar(parameters[1])
 

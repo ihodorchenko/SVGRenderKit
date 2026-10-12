@@ -52,12 +52,28 @@ open class SVGUseTag: SVGObject, SVGRendering {
         }
     }
 
+    private static let activeKey = "SVGRenderKit.SVGUseTag.active"
+
     /// Resolves the referenced element and returns its layer, applying any `x`, `y`, and transform offsets.
     public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         if let href = href {
             switch href {
             case .local(let key):
                 if let rendering = parent.getRendering(byKey: key, fromParents: true) {
+                    // Guard against reference cycles (`<g id="a"><use href="#a"/></g>`).
+                    // Tracked per thread: a cached tree may render on several threads at once.
+                    let marker = ObjectIdentifier(self)
+                    let threadDict = Thread.current.threadDictionary
+                    var active = (threadDict[SVGUseTag.activeKey] as? Set<ObjectIdentifier>) ?? []
+                    guard !active.contains(marker) else {
+                        throw SVGError.parseError(text: "circular reference in use '\(key)'")
+                    }
+                    active.insert(marker)
+                    threadDict[SVGUseTag.activeKey] = active
+                    defer {
+                        active.remove(marker)
+                        threadDict[SVGUseTag.activeKey] = active
+                    }
                     let layer = try rendering.createLayer(addStyle: sourceStyle, overrideElements: overrideElements)
                     var _transform: CATransform3D = CATransform3DIdentity
 

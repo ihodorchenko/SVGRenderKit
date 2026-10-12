@@ -33,8 +33,10 @@ open class SVGCache {
 
     /// Removes all cached parsed SVG roots.
     open func resetCache() {
-        parserCache.removeAll()
-        parserIDs.removeAll()
+        accessQueue.sync {
+            parserCache.removeAll()
+            parserIDs.removeAll()
+        }
     }
 
     func get(md5: String) -> SVGRoot? {
@@ -52,7 +54,7 @@ open class SVGCache {
     func set(md5: String, object: SVGRoot) {
         if isSVGParserUseCache {
             accessQueue.sync {
-                if parserIDs.count > maxCount {
+                if parserIDs.count >= maxCount {
                     if let first = parserIDs.first {
                         parserCache.removeValue(forKey: first)
                     }
