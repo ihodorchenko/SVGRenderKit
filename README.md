@@ -107,7 +107,7 @@ SVGRenderer.render(.string(markup), format: .png) { result in   // called on a b
 }
 ```
 
-Without `size` the document's own size is used. JPEG has no alpha and defaults to a white background.
+Without `size` the document's own size is used; `scale` sets pixels per point for PNG/JPEG (ignored for PDF, which stays vector). JPEG has no alpha and defaults to a white background; `background` fills behind the artwork for any format. Invalid input or a non-positive size throws `SVGError`. `SVGRenderer` shares the background queue with `SVGView` and can be called from any thread.
 
 ### Re-coloring
 
@@ -202,6 +202,7 @@ Inline `style="…"`, the `style` attribute, and `<style>` blocks with id / clas
 
 - Parser caching keyed by MD5
 - Runtime re-coloring by element `id` / `class`, plus a global color-override mechanism
+- `SVGRenderer`: render to PNG / JPEG / PDF `Data` without a view (`async` and callback)
 
 ## Limitations
 
@@ -232,6 +233,7 @@ See [CONFORMANCE.md](CONFORMANCE.md) for the full icon-profile contract.
 2. **Object tree** — the result is an object tree (`SVGRoot` → `SVGGroupObject` → shapes/gradients/clip paths), each node holding its attributes and resolved style (`SVGSourceStyleElement`).
 3. **Render** — each node builds a `CALayer` (`CAShapeLayer` for shapes, `CAGradientLayer` for gradients, `CATextLayer` for text).
 4. **Layout** — `SVGView` scales and translates the layer to fit the view's bounds.
+5. **Export** — `SVGRenderer` runs steps 1–4 offscreen and encodes the layer to PNG, JPEG or PDF `Data`.
 
 ## Example app
 
