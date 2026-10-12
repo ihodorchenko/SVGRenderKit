@@ -92,6 +92,23 @@ Assigning `nil` to `SVGName` or `svgString` clears the view. `SVGView` can also 
 created in a storyboard/XIB (set `SVGName` in Interface Builder). Use it from the main
 thread like any `UIView`; loads requested from other threads are marshalled onto it.
 
+### Rendering to PNG / JPEG / PDF data
+
+`SVGRenderer` renders an SVG straight to `Data` without creating an `SVGView`. It runs off the
+main thread and is available as `async` and as a completion-handler method:
+
+```swift
+let png = try await SVGRenderer.render(.string(markup), size: CGSize(width: 64, height: 64), scale: 3)
+let jpg = try await SVGRenderer.render(.url(fileURL), format: .jpeg(quality: 0.8), background: .white)
+let pdf = try await SVGRenderer.render(.data(data, name: "icon"), format: .pdf)
+
+SVGRenderer.render(.string(markup), format: .png) { result in   // called on a background queue
+    // result: Result<Data, Error>
+}
+```
+
+Without `size` the document's own size is used. JPEG has no alpha and defaults to a white background.
+
 ### Re-coloring
 
 Recolor individual elements by their `id` or `class`:

@@ -21,7 +21,7 @@ open class SVGView: UIView {
     /// Parsing and layer building share per-document state (`SVGOptions.renderScale` on cached roots),
     /// so loads run one at a time on a single background queue: this also bounds the thread count
     /// when many views are created at once.
-    private static let loadQueue = DispatchQueue(label: "SVGRenderKit.SVGView.load", qos: .userInitiated)
+    private static var loadQueue: DispatchQueue { SVGWorkQueue.shared }
 
     /// The `renderScale` the current layer was rasterized with; `nil` if the view had no size yet.
     internal private(set) var renderedScale: CGFloat?
@@ -358,4 +358,9 @@ extension SVGView {
         self.init()
         self.svgString = svgString
     }
+}
+
+/// The single background queue shared by `SVGView` loads and `SVGRenderer`; not main-actor isolated.
+enum SVGWorkQueue {
+    static let shared = DispatchQueue(label: "SVGRenderKit.SVGView.load", qos: .userInitiated)
 }

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 1.2.0
 
 ### Added
+- `SVGRenderer.render(_:size:format:scale:background:overrideElements:)` — render SVG (string, data or file URL)
+  directly to PNG, JPEG or PDF `Data` without an `SVGView`, as an `async` method and a completion-handler method.
 - Swift 6 language mode support alongside Swift 5.9+ (`swiftLanguageVersions: [.v5, .v6]`).
   See [MIGRATION.md](MIGRATION.md) for the API differences.
 
