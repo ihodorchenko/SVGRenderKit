@@ -31,10 +31,8 @@ open class SVGView: UIView {
     private(set) var overrideElements: [String: SVGSourceStyleElement]?
 
     internal var _SVGName: String?
-    internal var svgData: Data?
-    internal var svgDataName: String?
-    internal var svgURL: URL?
-    internal var svgBundle: Bundle?
+    /// The last requested source, replayed when the update notification fires.
+    private var currentSource: LoadSource?
 
     /// The name of a bundled SVG resource to render. Setting this property triggers parsing.
     @IBInspectable open var SVGName: String? {
@@ -42,9 +40,10 @@ open class SVGView: UIView {
             return _SVGName
         }
         set {
-            _SVGName = newValue
-            if let SVGName = _SVGName {
+            if let SVGName = newValue {
                 set(SVGName: SVGName, overrideElements: nil)
+            } else if _SVGName != nil {
+                resetContent()
             }
         }
     }
@@ -74,8 +73,7 @@ open class SVGView: UIView {
     /// - parameter overrideElements: A dictionary mapping element names to their override styles.
     open func set(SVGName: String, bundle: Bundle?, overrideElements: [String: SVGSourceStyleElement]? = nil) {
         _SVGName = SVGName
-        svgURL = nil
-        svgBundle = bundle
+        _svgString = nil
         self.overrideElements = overrideElements
         #if !TARGET_INTERFACE_BUILDER
             let bundle = bundle ?? Bundle.main
@@ -93,8 +91,7 @@ open class SVGView: UIView {
     /// - parameter overrideElements: A dictionary mapping element names to their override styles.
     open func set(svgURL: URL, overrideElements: [String: SVGSourceStyleElement]? = nil) {
         _SVGName = nil
-        svgBundle = nil
-        self.svgURL = svgURL
+        _svgString = nil
         self.overrideElements = overrideElements
         load(.url(svgURL), overrideElements: overrideElements)
     }
@@ -107,9 +104,10 @@ open class SVGView: UIView {
             return _svgString
         }
         set {
-            _svgString = newValue
-            if let svgString = _svgString {
+            if let svgString = newValue {
                 set(svgString: svgString, name: nil, overrideElements: nil)
+            } else if _svgString != nil {
+                resetContent()
             }
         }
     }
@@ -127,6 +125,8 @@ open class SVGView: UIView {
     /// - parameter name: An optional identifier used for caching.
     /// - parameter overrideElements: A dictionary mapping element names to their override styles.
     open func set(svgString: String, name: String?, overrideElements: [String: SVGSourceStyleElement]?) {
+        _SVGName = nil
+        _svgString = svgString
         self.overrideElements = overrideElements
         load(.string(svgString, name: name), overrideElements: overrideElements)
     }
@@ -144,8 +144,8 @@ open class SVGView: UIView {
     /// - parameter name: An optional identifier used for caching.
     /// - parameter overrideElements: A dictionary mapping element names to their override styles.
     open func set(svgData: Data, name: String? = nil, overrideElements: [String: SVGSourceStyleElement]? = nil) {
-        self.svgData = svgData
-        self.svgDataName = name
+        _SVGName = nil
+        _svgString = nil
         self.overrideElements = overrideElements
         load(.data(svgData, name: name), overrideElements: overrideElements)
     }
@@ -162,6 +162,7 @@ open class SVGView: UIView {
 
     /// Parses and renders the given source asynchronously, discarding stale results.
     private func load(_ source: LoadSource, overrideElements: [String: SVGSourceStyleElement]?) {
+        currentSource = source
         loadGeneration += 1
         let generation = loadGeneration
         let containerSize = bounds.size
@@ -205,6 +206,18 @@ open class SVGView: UIView {
         }
     }
 
+    /// Drops the current source and rendered content, and invalidates any in-flight load.
+    private func resetContent() {
+        loadGeneration += 1
+        currentSource = nil
+        _SVGName = nil
+        _svgString = nil
+        overrideElements = nil
+        clear()
+        shapeLayer = nil
+        parser = nil
+    }
+
     private func set(layer: CALayer) {
         clear()
         self.contentView.layer.addSublayer(layer)
@@ -238,9 +251,10 @@ open class SVGView: UIView {
         initView()
     }
 
-    /// Unsupported initializer; the view cannot be decoded from a nib or storyboard.
+    /// Creates an `SVGView` from a nib or storyboard; `SVGName` can be set in Interface Builder.
     required public init?(coder aDecoder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+        super.init(coder: aDecoder)
+        initView()
     }
 
     deinit {
@@ -256,12 +270,8 @@ open class SVGView: UIView {
     }
 
     @objc internal func updateSvg() {
-        if let svgURL = svgURL {
-            set(svgURL: svgURL, overrideElements: self.overrideElements)
-        } else if let _SVGName = _SVGName {
-            set(SVGName: _SVGName, bundle: svgBundle, overrideElements: self.overrideElements)
-        } else if let svgData = svgData {
-            set(svgData: svgData, name: svgDataName, overrideElements: self.overrideElements)
+        if let source = currentSource {
+            load(source, overrideElements: overrideElements)
         }
     }
 
