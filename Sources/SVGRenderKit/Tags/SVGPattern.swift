@@ -196,6 +196,10 @@ extension SVGPattern: SVGShapesContainer {
         return style
     }
 
+    public func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
+        return parent.selectorStyle(forObject: forObject)
+    }
+
     public func getSvgOptions() -> SVGOptions {
         return parent.getSvgOptions()
     }

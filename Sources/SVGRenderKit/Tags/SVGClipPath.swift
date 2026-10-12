@@ -159,6 +159,10 @@ extension SVGClipPath: SVGShapesContainer {
     }
 
     /// Returns the SVG options from the parent container.
+    public func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
+        return parent.selectorStyle(forObject: forObject)
+    }
+
     public func getSvgOptions() -> SVGOptions {
         return parent.getSvgOptions()
     }

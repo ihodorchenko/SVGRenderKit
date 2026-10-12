@@ -25,10 +25,10 @@ open class SVGGroupObject: SVGChildObject, SVGGroupProtocol {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         let tsStyle: SVGSourceStyleElement = SVGSourceStyleElement()
+        try tsStyle.set(attributeDict: attributeDict)
         if let str = attributeDict["style"] {
             try tsStyle.set(styleStr: str, force: false)
         }
-        try tsStyle.set(attributeDict: attributeDict)
         sourceStyle = tsStyle
 
         if let str = attributeDict["transform"] {
@@ -350,10 +350,14 @@ extension SVGGroupObject {
         forObject: SVGShapeObject,
         overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement
     {
-        var style = inheritedStyle(forObject: forObject, overrideElements: overrideElements)
+        let style = inheritedStyle(forObject: forObject, overrideElements: overrideElements)
+        return style.combine(child: selectorStyle(forObject: forObject))
+    }
 
-        // `<style>`-block selectors target the shape itself, so they override
-        // inherited group styles. Applied root→leaf so a nested `<style>` wins.
+    /// `<style>`-block selectors target the shape itself, so they override inherited
+    /// group styles. Applied root→leaf so a nested `<style>` wins.
+    public func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
+        var style = SVGSourceStyleElement()
         for styleTag in styleTags() {
             if let tagStyle = styleTag.byTagDict[forObject.key] {
                 style = style.combine(child: tagStyle)
@@ -367,7 +371,6 @@ extension SVGGroupObject {
                 style = style.combine(child: idStyle)
             }
         }
-
         return style
     }
 

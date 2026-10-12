@@ -60,27 +60,54 @@ open class SVGTextTag: SVGShapeObject {
     public override func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let container = CALayer()
 
-        var sourceStyle: SVGSourceStyleElement = self.sourceStyle
-        sourceStyle = parent.getStyle(forObject: self, overrideElements: overrideElements).combine(child: sourceStyle)
+        var sourceStyle: SVGSourceStyleElement = resolvedStyle(overrideElements: overrideElements)
         if let addStyle = addStyle {
             sourceStyle = sourceStyle.combine(child: addStyle)
         }
 
+        // `fill`: none hides the text, currentColor resolves through `color`. Gradients and
+        // patterns are not supported for text and degrade to the default black.
         var textColor = UIColor.black
-        if let fill = sourceStyle.fill, case .color(let color) = fill {
+        switch sourceStyle.fill {
+        case .some(.none):
+            return container
+        case .some(.currentColor):
+            textColor = sourceStyle.color ?? .black
+        case .some(.color(let color)):
             textColor = color
+        default:
+            break
+        }
+        if let fillOpacity = sourceStyle.fillOpacity {
+            var alpha: CGFloat = 1
+            textColor.getRed(nil, green: nil, blue: nil, alpha: &alpha)
+            textColor = textColor.withAlphaComponent(alpha * min(max(fillOpacity, 0), 1))
+        }
+        if let opacity = sourceStyle.opacity {
+            container.opacity = opacity
         }
         let font = makeFont(from: sourceStyle)
 
+        // Current text position: each run continues where the previous one ended, so a
+        // `<tspan>` with only `dx`/`dy` follows the preceding text (start-anchored text only).
+        var cursorX = x
+        var cursorY = y
+        let advances = textAnchor == "start"
+
         let mainText = xmlElement.text
         if !mainText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            container.addSublayer(makeTextLayer(text: mainText, font: font, color: textColor, x: x, y: y))
+            let layer = makeTextLayer(text: mainText, font: font, color: textColor, x: x, y: y)
+            container.addSublayer(layer)
+            if advances { cursorX += layer.bounds.width }
         }
 
         for span in tspans {
-            let spanX = span.x ?? (x + span.dx)
-            let spanY = span.y ?? (y + span.dy)
-            container.addSublayer(makeTextLayer(text: span.text, font: font, color: textColor, x: spanX, y: spanY))
+            let spanX = span.x ?? (cursorX + span.dx)
+            let spanY = span.y ?? (cursorY + span.dy)
+            let layer = makeTextLayer(text: span.text, font: font, color: textColor, x: spanX, y: spanY)
+            container.addSublayer(layer)
+            cursorX = advances ? spanX + layer.bounds.width : spanX
+            cursorY = spanY
         }
 
         return container

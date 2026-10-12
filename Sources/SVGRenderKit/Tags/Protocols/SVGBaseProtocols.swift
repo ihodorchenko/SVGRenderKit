@@ -19,6 +19,10 @@ extension SVGRendering {
 public protocol SVGShapesContainer {
     /// Returns the resolved style for a shape, combining inherited and override styles.
     func getStyle(forObject: SVGShapeObject, overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement
+    /// Returns only the `<style>`-block rules (tag/class/id selectors) matching a shape.
+    ///
+    /// Per SVG, these outrank presentation attributes; inline `style` outranks them both.
+    func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement
     /// Returns the rendering options for the SVG document.
     func getSvgOptions() -> SVGOptions
 
@@ -66,4 +70,11 @@ public protocol SVGGroupProtocol: SVGShapesContainer {
 
     /// Returns the radial gradient matching the key, optionally searching parent groups.
     func getRadialGradients(byKey: String, fromParents: Bool) -> SVGRadialGradientTag?
+}
+
+extension SVGShapesContainer {
+    /// Containers without `<style>` support contribute no selector rules.
+    public func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
+        return SVGSourceStyleElement()
+    }
 }

@@ -3,6 +3,10 @@ import UIKit
 /// Base class for drawable SVG shapes that own a `UIBezierPath` and can render it to a layer.
 open class SVGShapeObject: SVGObject, SVGRendering {
     var sourceStyle: SVGSourceStyleElement!
+    /// Presentation attributes only (no inline `style`); these rank below `<style>` rules.
+    var presentationStyle: SVGSourceStyleElement!
+    /// Inline `style` attribute only; ranks above `<style>` rules.
+    var inlineStyle: SVGSourceStyleElement!
     var parent: SVGShapesContainer
 
     var transform: CATransform3D?
@@ -18,11 +22,18 @@ open class SVGShapeObject: SVGObject, SVGRendering {
         self.parent = parent
         try super.init(xmlElement: xmlElement, addDict: addDict)
 
-        let sourceStyle: SVGSourceStyleElement = SVGSourceStyleElement()
+        // Presentation attributes are applied first, then inline `style`, which outranks them.
+        let presentation = SVGSourceStyleElement()
+        try presentation.set(attributeDict: attributeDict)
+        self.presentationStyle = presentation
+
+        let inline = SVGSourceStyleElement()
         if let str = attributeDict["style"] {
-            try sourceStyle.set(styleStr: str, force: false)
+            try inline.set(styleStr: str, force: false)
         }
-        try sourceStyle.set(attributeDict: attributeDict)
+        self.inlineStyle = inline
+
+        let sourceStyle: SVGSourceStyleElement = presentation.combine(child: inline)
 
         self.sourceStyle = sourceStyle
 
@@ -30,6 +41,15 @@ open class SVGShapeObject: SVGObject, SVGRendering {
             transform = try SVGTransform.get(string: str)
         }
         self.animations = SVGAnimation.parse(children: xmlElement.xmlChildren)
+    }
+
+    /// Cascade for the shape itself: inherited → presentation attributes → `<style>` rules → inline `style`.
+    func resolvedStyle(overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement {
+        let inherited = parent.getStyle(forObject: self, overrideElements: overrideElements)
+        return inherited
+            .combine(child: presentationStyle)
+            .combine(child: parent.selectorStyle(forObject: self))
+            .combine(child: inlineStyle)
     }
 
     /// Builds and returns the `CALayer` that renders this shape's path with the combined styles applied.
@@ -40,8 +60,7 @@ open class SVGShapeObject: SVGObject, SVGRendering {
         mainLayer.addSublayer(pathLayer)
 
         var sourceStyle: SVGSourceStyleElement = self.sourceStyle
-        let parentSourceStyle = parent.getStyle(forObject: self, overrideElements: overrideElements)
-        sourceStyle = parentSourceStyle.combine(child: sourceStyle)
+        sourceStyle = resolvedStyle(overrideElements: overrideElements)
 
         if let addStyle = addStyle {
             sourceStyle = sourceStyle.combine(child: addStyle)
