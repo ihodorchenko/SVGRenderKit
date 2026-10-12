@@ -29,17 +29,21 @@ jobs:
       - name: Build documentation archive
         run: |
           xcodebuild docbuild \
-            -scheme SVGRenderKit \
+            -scheme SVGRenderKit-Package \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath .build/docs
 
       - name: Transform archive for static hosting
         run: |
-          ARCHIVE=$(find .build/docs -name SVGRenderKit.doccarchive | head -1)
+          PRODUCTS=$(dirname "$(find .build/docs -name SVGRenderKit.doccarchive | head -1)")
           xcrun docc process-archive transform-for-static-hosting \
-            "$ARCHIVE" \
+            "$PRODUCTS/SVGRenderKit.doccarchive" \
             --hosting-base-path SVGRenderKit \
             --output-path _site
+          xcrun docc process-archive transform-for-static-hosting \
+            "$PRODUCTS/SVGRenderKitSwiftUI.doccarchive" \
+            --hosting-base-path SVGRenderKit/swiftui \
+            --output-path _site/swiftui
           # The site root has no page of its own: send visitors to the module documentation.
           cat > _site/index.html <<'HTML'
           <!doctype html>

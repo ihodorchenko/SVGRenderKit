@@ -37,7 +37,7 @@ https://github.com/ihodorchenko/SVGRenderKit.git
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ihodorchenko/SVGRenderKit.git", from: "1.1.1")
+    .package(url: "https://github.com/ihodorchenko/SVGRenderKit.git", from: "1.3.0")
 ]
 ```
 
@@ -91,6 +91,23 @@ svgView.set(svgData: data, name: "my-icon")
 Assigning `nil` to `SVGName` or `svgString` clears the view. `SVGView` can also be
 created in a storyboard/XIB (set `SVGName` in Interface Builder). Use it from the main
 thread like any `UIView`; loads requested from other threads are marshalled onto it.
+
+### SwiftUI
+
+The `SVGRenderKitSwiftUI` product provides `SVGImageView`, a SwiftUI wrapper around `SVGView`:
+
+```swift
+import SwiftUI
+import SVGRenderKitSwiftUI
+
+SVGImageView(name: "icons/my-icon.svg", fillColors: ["path1": .systemBlue])
+    .frame(width: 48, height: 48)
+```
+
+It also accepts `svgString:`, `svgData:` and `svgURL:`. Like `Shape`, it takes all the space it is offered,
+so give it a size. The document is re-parsed only when the source or the overrides change, not on every redraw.
+Add the `SVGRenderKitSwiftUI` product to your target in Xcode, or via
+`.product(name: "SVGRenderKitSwiftUI", package: "SVGRenderKit")` in `Package.swift`.
 
 ### Rendering to PNG / JPEG / PDF data
 
@@ -203,6 +220,7 @@ Inline `style="…"`, the `style` attribute, and `<style>` blocks with id / clas
 - Parser caching keyed by MD5
 - Runtime re-coloring by element `id` / `class`, plus a global color-override mechanism
 - `SVGRenderer`: render to PNG / JPEG / PDF `Data` without a view (`async` and callback)
+- `SVGImageView` (`SVGRenderKitSwiftUI`): SwiftUI wrapper around `SVGView`
 
 ## Limitations
 

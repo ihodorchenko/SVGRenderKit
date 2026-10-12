@@ -12,15 +12,22 @@ let package = Package(
     products: [
         .library(
             name: "SVGRenderKit",
-            targets: ["SVGRenderKit"])
+            targets: ["SVGRenderKit"]),
+        .library(
+            name: "SVGRenderKitSwiftUI",
+            targets: ["SVGRenderKitSwiftUI"])
     ],
     targets: [
         .target(
             name: "SVGRenderKit",
             path: "Sources/SVGRenderKit"),
+        .target(
+            name: "SVGRenderKitSwiftUI",
+            dependencies: ["SVGRenderKit"],
+            path: "Sources/SVGRenderKitSwiftUI"),
         .testTarget(
             name: "SVGRenderKitTests",
-            dependencies: ["SVGRenderKit"],
+            dependencies: ["SVGRenderKit", "SVGRenderKitSwiftUI"],
             path: "Tests/SVGRenderKitTests")
     ],
     swiftLanguageVersions: [.v5, .version("6")]

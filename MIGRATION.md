@@ -37,7 +37,7 @@ Most changes are source compatible. The list below covers every API difference.
 - `SVGView` is a `UIView`, so it is `@MainActor`-isolated like every UIKit view. Create it and
   call `set(...)` / assign `SVGName` / `svgString` from the main actor. The load itself still
   runs on a background queue and calls from other threads are still marshalled onto main.
-- `SVGRenderer.render(...)` is not main-actor isolated: call it from any context, `await` the `async` variant or
+- `SVGRenderer.render(...)` (added in 1.3.0) is not main-actor isolated: call it from any context, `await` the `async` variant or
   use the completion handler (invoked on a background queue — hop to main yourself before touching UI). `SVGSource`
   and `SVGRenderFormat` are `Sendable`.
 - Passing an `SVGView` or an `SVGParser` across isolation domains is not allowed (neither is

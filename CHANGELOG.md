@@ -5,11 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.0
+
+### Added
+- `SVGRenderKitSwiftUI` product with `SVGImageView`, a SwiftUI wrapper around `SVGView` that renders
+  bundled resources, markup, data or file URLs and reloads only when the source or overrides change.
+- `SVGRenderer.render(_:size:format:scale:background:overrideElements:)` — render SVG (string, data or file URL)
+  directly to PNG, JPEG or PDF `Data` without an `SVGView`, as an `async` method and a completion-handler method.
+
 ## 1.2.0
 
 ### Added
-- `SVGRenderer.render(_:size:format:scale:background:overrideElements:)` — render SVG (string, data or file URL)
-  directly to PNG, JPEG or PDF `Data` without an `SVGView`, as an `async` method and a completion-handler method.
 - Swift 6 language mode support alongside Swift 5.9+ (`swiftLanguageVersions: [.v5, .v6]`).
   See [MIGRATION.md](MIGRATION.md) for the API differences.
 
