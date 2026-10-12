@@ -74,22 +74,28 @@ open class SVGParser {
         return parser
     }
 
-    class func getParser(svgURL: URL, name: String? = nil) throws -> SVGParser {
-        if SVGCache.s.isSVGParserUseCache == true, let name = name, let parsedRoot = SVGCache.s.get(md5: SVGUtils.md5(name)) {
-            let parser = try SVGParser(svgURL: svgURL, parsedRoot: parsedRoot)
-            return parser
+    /// Cache key for file sources: the URL (plus optional name) and the file's size and
+    /// modification date, so a file rewritten at the same path is re-parsed.
+    private class func cacheKey(url: URL, name: String?) -> String {
+        var key = SVGUtils.md5(url.absoluteString)
+        if let name = name { key = SVGUtils.md5(name) + ":" + key }
+        // `URL.resourceValues` caches per instance and would return stale values; read attributes directly.
+        if url.isFileURL, let attrs = try? FileManager.default.attributesOfItem(atPath: url.path) {
+            let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
+            let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+            key += ":\(size):\(mtime)"
         }
-        if SVGCache.s.isSVGParserUseCache == true, let parsedRoot = SVGCache.s.get(md5: SVGUtils.md5(svgURL.absoluteString)) {
-            let parser = try SVGParser(svgURL: svgURL, parsedRoot: parsedRoot)
-            return parser
+        return key
+    }
+
+    class func getParser(svgURL: URL, name: String? = nil) throws -> SVGParser {
+        let key = cacheKey(url: svgURL, name: name)
+        if SVGCache.s.isSVGParserUseCache == true, let parsedRoot = SVGCache.s.get(md5: key) {
+            return try SVGParser(svgURL: svgURL, parsedRoot: parsedRoot)
         }
         let parser = try SVGParser(svgURL: svgURL, parsedRoot: nil)
         if SVGCache.s.isSVGParserUseCache == true {
-            if let name = name {
-                SVGCache.s.set(md5: SVGUtils.md5(name), object: parser.root)
-            } else {
-                SVGCache.s.set(md5: SVGUtils.md5(svgURL.absoluteString), object: parser.root)
-            }
+            SVGCache.s.set(md5: key, object: parser.root)
         }
         return parser
     }

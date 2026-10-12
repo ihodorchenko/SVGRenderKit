@@ -33,6 +33,8 @@ open class SVGView: UIView {
     internal var _SVGName: String?
     internal var svgData: Data?
     internal var svgDataName: String?
+    internal var svgURL: URL?
+    internal var svgBundle: Bundle?
 
     /// The name of a bundled SVG resource to render. Setting this property triggers parsing.
     @IBInspectable open var SVGName: String? {
@@ -63,16 +65,38 @@ open class SVGView: UIView {
     /// - parameter SVGName: The name of the bundled SVG resource to render.
     /// - parameter overrideElements: A dictionary mapping element names to their override styles.
     open func set(SVGName: String, overrideElements: [String: SVGSourceStyleElement]?) {
+        set(SVGName: SVGName, bundle: nil, overrideElements: overrideElements)
+    }
+
+    /// Renders the SVG resource with the given name from the given bundle (e.g. a framework or Swift Package resource bundle).
+    /// - parameter SVGName: The name of the SVG resource to render.
+    /// - parameter bundle: The bundle containing the resource; `nil` means `Bundle.main`.
+    /// - parameter overrideElements: A dictionary mapping element names to their override styles.
+    open func set(SVGName: String, bundle: Bundle?, overrideElements: [String: SVGSourceStyleElement]? = nil) {
         _SVGName = SVGName
+        svgURL = nil
+        svgBundle = bundle
         self.overrideElements = overrideElements
         #if !TARGET_INTERFACE_BUILDER
-            let bundle = Bundle.main
+            let bundle = bundle ?? Bundle.main
         #else
-            let bundle = NSBundle(forClass: type(of: self))
+            let bundle = bundle ?? Bundle(for: type(of: self))
         #endif
 
         let url = bundle.bundleURL.appendingPathComponent(SVGName, isDirectory: false)
         load(.url(url), overrideElements: overrideElements)
+    }
+
+    /// Renders the SVG file at the given URL, overriding the style of specific elements.
+    /// Changes to the file are picked up on the next call (the parser cache is keyed by file size and modification date).
+    /// - parameter svgURL: The file URL of the SVG to render.
+    /// - parameter overrideElements: A dictionary mapping element names to their override styles.
+    open func set(svgURL: URL, overrideElements: [String: SVGSourceStyleElement]? = nil) {
+        _SVGName = nil
+        svgBundle = nil
+        self.svgURL = svgURL
+        self.overrideElements = overrideElements
+        load(.url(svgURL), overrideElements: overrideElements)
     }
 
     var _svgString: String?
@@ -232,8 +256,10 @@ open class SVGView: UIView {
     }
 
     @objc internal func updateSvg() {
-        if let _SVGName = _SVGName {
-            set(SVGName: _SVGName, overrideElements: self.overrideElements)
+        if let svgURL = svgURL {
+            set(svgURL: svgURL, overrideElements: self.overrideElements)
+        } else if let _SVGName = _SVGName {
+            set(SVGName: _SVGName, bundle: svgBundle, overrideElements: self.overrideElements)
         } else if let svgData = svgData {
             set(svgData: svgData, name: svgDataName, overrideElements: self.overrideElements)
         }
