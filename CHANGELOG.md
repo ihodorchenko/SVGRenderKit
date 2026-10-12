@@ -5,6 +5,35 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.1.1
+
+### Added
+- `SVGView.set(SVGName:bundle:overrideElements:)` — load a bundled SVG from any `Bundle`
+  (framework, Swift Package resources), not only `Bundle.main`.
+- `SVGView.set(svgURL:overrideElements:)` — render an SVG file at a URL.
+- `SVGView` can be created from a storyboard/XIB (`init(coder:)`), including the
+  `@IBInspectable` `SVGName`.
+
+### Fixed
+- Parser cache is keyed by content: the same `name` with different markup/data no longer
+  returns a stale tree; file URLs are keyed by path plus file size and modification date.
+- CSS precedence (inline > `<style>` > presentation attributes), `clip-rule` inside `clipPath`,
+  text paint, and more tolerant color / paint / class / text-position parsing.
+- Hardening against crashes and data races on untrusted SVG.
+- Faster path-data parsing for glyph-dense documents.
+- Assigning `nil` to `SVGName`/`svgString` clears the view and cancels an in-flight load.
+- The update notification (e.g. theme change) reloads views created from `svgString`,
+  `svgData`, a URL or a custom bundle; the last requested source wins.
+- `SVGConfiguration.isParserCacheEnabled` is now thread-safe.
+- Loads requested off the main thread are marshalled onto it instead of racing on view state.
+- Pattern tiles are re-rasterized when a view gets its size after loading or grows
+  noticeably, instead of staying blurry.
+
+### Changed
+- `SVGView` loads run on a single serial background queue (bounded thread count, no
+  interference between views sharing a cached document).
+- `SVGView` should be used from the main thread, like any `UIView`.
+
 ## 1.1.0
 
 ### Added

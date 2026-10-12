@@ -37,7 +37,7 @@ https://github.com/ihodorchenko/SVGRenderKit.git
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ihodorchenko/SVGRenderKit.git", from: "1.0.0")
+    .package(url: "https://github.com/ihodorchenko/SVGRenderKit.git", from: "1.1.1")
 ]
 ```
 
@@ -69,6 +69,16 @@ let svgView = SVGView()
 svgView.set(SVGName: "icons/my-icon.svg")
 ```
 
+### From another bundle or a file URL
+
+```swift
+// Framework or Swift Package resources.
+svgView.set(SVGName: "icons/my-icon.svg", bundle: Bundle.module)
+
+// A file on disk (re-parsed automatically when the file changes).
+svgView.set(svgURL: fileURL)
+```
+
 ### From a string or data
 
 ```swift
@@ -77,6 +87,10 @@ svgView.svgString = "<svg viewBox=\"0 0 24 24\">…</svg>"
 // or
 svgView.set(svgData: data, name: "my-icon")
 ```
+
+Assigning `nil` to `SVGName` or `svgString` clears the view. `SVGView` can also be
+created in a storyboard/XIB (set `SVGName` in Interface Builder). Use it from the main
+thread like any `UIView`; loads requested from other threads are marshalled onto it.
 
 ### Re-coloring
 
