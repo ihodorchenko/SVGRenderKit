@@ -21,7 +21,7 @@ jobs:
           UDID=$(xcrun simctl list devices available | grep -m1 "${{ matrix.device }}" | grep -oE '[0-9A-F-]{36}' | head -1)
           echo "Using simulator: $UDID"
           set -o pipefail
-          xcodebuild -scheme SVGRenderKit \
+          xcodebuild -scheme SVGRenderKit-Package \
             SWIFT_VERSION=${{ matrix.swift }} \
             -destination "platform=iOS Simulator,id=$UDID" \
             test 2>&1 | tee xcodebuild.log

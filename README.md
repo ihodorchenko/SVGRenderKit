@@ -269,7 +269,7 @@ harness. Run it from the repository root:
 
 ```sh
 xcodebuild test \
-  -scheme SVGRenderKit \
+  -scheme SVGRenderKit-Package \
   -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
