@@ -242,6 +242,31 @@ final class SVGPerformanceTests: XCTestCase {
 
     func testPerf_coldParse_icon() { measureColdParse(Self.icon) }
     func testPerf_coldParse_pathHeavyMap() { measureColdParse(Self.pathHeavyMap) }
+    // MARK: - Isolation (where does cold-parse time go?)
+    // The pathHeavyMap fixture only emits absolute commands (M/L/C/Q/Z), so there is no
+    // absolute-only / relative-only split.
+
+    func testPerf_isolate_xmlParseOnly() {
+        let svg = Self.pathHeavyMap
+        measure(metrics: metrics, options: options) {
+            _ = SWXMLHash.parse(svg)
+        }
+    }
+
+    func testPerf_isolate_pathDataOnly() throws {
+        let svg = Self.pathHeavyMap
+        let regex = try NSRegularExpression(pattern: "\\sd=\"([^\"]*)\"")
+        let ns = svg as NSString
+        let ds = regex.matches(in: svg, range: NSRange(location: 0, length: ns.length))
+            .map { ns.substring(with: $0.range(at: 1)) }
+        XCTAssertEqual(ds.count, 60)
+        measure(metrics: metrics, options: options) {
+            for d in ds {
+                _ = SVGParseString.parseSVGPath(pathString: d)
+            }
+        }
+    }
+
     func testPerf_coldParse_gradientHeavy() { measureColdParse(Self.gradientHeavy) }
     func testPerf_coldParse_patternAndMask() { measureColdParse(Self.patternAndMask) }
     func testPerf_coldParse_imageUse() { measureColdParse(Self.imageUse) }

@@ -13,7 +13,7 @@ internal struct NumberStack {
     var characterStack: String = ""
     var asCGFloat: CGFloat? {
         get {
-            if self.characterStack.count > 0 {
+            if !self.characterStack.isEmpty {
                 // `Double(String)` avoids the C-string bridging that `strtod` does on
                 // every number, which is hot for glyph-dense path data.
                 // Malformed numbers (`1e-`, `.`, `-`) and non-finite ones (`1e999`) are rejected
@@ -26,10 +26,7 @@ internal struct NumberStack {
     }
     var isEmpty: Bool {
         get {
-            if self.characterStack.count > 0 {
-                return false
-            }
-            return true
+            return self.characterStack.isEmpty
         }
     }
 
@@ -104,7 +101,9 @@ internal class PathCommand: PathCharacter, Commandable {
     }
     var pathType: PathType = .absolute
     var parameters: [CGFloat] = []
-    var path: UIBezierPath = UIBezierPath()
+    /// Lazy: the parser assigns its own path right after creating the command, so an eager
+    /// `UIBezierPath()` per command letter is wasted.
+    lazy var path: UIBezierPath = UIBezierPath()
     /// The current point of the supplied path when appending via `forPath:`,
     /// used as the reference for a relative command before any point is drawn.
     var initialPoint: CGPoint = .zero
@@ -215,87 +214,82 @@ public class SVGParseString {
 
 
 
-    fileprivate class func getPathCharacter(char: Character) -> PathCharacter? {
-        switch char {
-        case "A":
-            return EllipticalArcTo(character: "A", pathType: PathType.absolute)
-        case "a":
-            return EllipticalArcTo(character: "a", pathType: PathType.relative)
-        case "M":
-            return MoveTo(character: "M", pathType: PathType.absolute)
-        case "m":
-            return MoveTo(character: "m", pathType: PathType.relative)
-        case "C":
-            return CurveTo(character: "C", pathType: PathType.absolute)
-        case "c":
-            return CurveTo(character: "c", pathType: PathType.relative)
-        case "S":
-            return SmoothCurveTo(character: "S", pathType: PathType.absolute)
-        case "s":
-            return SmoothCurveTo(character: "s", pathType: PathType.relative)
-        case "L":
-            return LineTo(character: "L", pathType: PathType.absolute)
-        case "l":
-            return LineTo(character: "l", pathType: PathType.relative)
-        case "H":
-            return HorizontalLineTo(character: "H", pathType: PathType.absolute)
-        case "h":
-            return HorizontalLineTo(character: "h", pathType: PathType.relative)
-        case "V":
-            return VerticalLineTo(character: "V", pathType: PathType.absolute)
-        case "v":
-            return VerticalLineTo(character: "v", pathType: PathType.relative)
-        case "Q":
-            return QuadraticCurveTo(character: "Q", pathType: PathType.absolute)
-        case "q":
-            return QuadraticCurveTo(character: "q", pathType: PathType.relative)
-        case "T":
-            return SmoothQuadraticCurveTo(character: "T", pathType: PathType.absolute)
-        case "t":
-            return SmoothQuadraticCurveTo(character: "t", pathType: PathType.relative)
-        case "Z":
-            return ClosePath(character: "Z", pathType: PathType.absolute)
-        case "z":
-            return ClosePath(character: "z", pathType: PathType.relative)
-        case "-":
-            return SignCharacter(character: "-")
-        case "+":
-            return SignCharacter(character: "+")
-        case ".":
-            return NumberDelimiterCharacter(character: ".")
-        case "0":
-            return NumberCharacter(character: "0")
-        case "1":
-            return NumberCharacter(character: "1")
-        case "2":
-            return NumberCharacter(character: "2")
-        case "3":
-            return NumberCharacter(character: "3")
-        case "4":
-            return NumberCharacter(character: "4")
-        case "5":
-            return NumberCharacter(character: "5")
-        case "6":
-            return NumberCharacter(character: "6")
-        case "7":
-            return NumberCharacter(character: "7")
-        case "8":
-            return NumberCharacter(character: "8")
-        case "9":
-            return NumberCharacter(character: "9")
-        case "e":
-            return NumberCharacter(character: "e")
-        case "E":
-            return NumberCharacter(character: "E")
-        case " ":
-            return SeparatorCharacter(character: " ")
-        case ",":
-            return SeparatorCharacter(character: ",")
-        case "\n", "\t", "\r", "\u{0B}", "\u{0C}":
-            return SeparatorCharacter(character: char)
-        default:
+    /// Lexical class of a path-data byte.
+    fileprivate enum ByteClass {
+        case command(PathCommand)
+        case separator
+        case sign
+        case delimiter
+        case number
+        case invalid
+    }
+
+    /// Classifies one UTF-8 byte of path data. Only commands allocate (one object per command letter);
+    /// digits, signs and separators are allocation-free.
+    @inline(__always)
+    fileprivate class func classify(_ byte: UInt8) -> ByteClass {
+        switch byte {
+        case UInt8(ascii: "A"): return .command(EllipticalArcTo(character: "A", pathType: .absolute))
+        case UInt8(ascii: "a"): return .command(EllipticalArcTo(character: "a", pathType: .relative))
+        case UInt8(ascii: "M"): return .command(MoveTo(character: "M", pathType: .absolute))
+        case UInt8(ascii: "m"): return .command(MoveTo(character: "m", pathType: .relative))
+        case UInt8(ascii: "C"): return .command(CurveTo(character: "C", pathType: .absolute))
+        case UInt8(ascii: "c"): return .command(CurveTo(character: "c", pathType: .relative))
+        case UInt8(ascii: "S"): return .command(SmoothCurveTo(character: "S", pathType: .absolute))
+        case UInt8(ascii: "s"): return .command(SmoothCurveTo(character: "s", pathType: .relative))
+        case UInt8(ascii: "L"): return .command(LineTo(character: "L", pathType: .absolute))
+        case UInt8(ascii: "l"): return .command(LineTo(character: "l", pathType: .relative))
+        case UInt8(ascii: "H"): return .command(HorizontalLineTo(character: "H", pathType: .absolute))
+        case UInt8(ascii: "h"): return .command(HorizontalLineTo(character: "h", pathType: .relative))
+        case UInt8(ascii: "V"): return .command(VerticalLineTo(character: "V", pathType: .absolute))
+        case UInt8(ascii: "v"): return .command(VerticalLineTo(character: "v", pathType: .relative))
+        case UInt8(ascii: "Q"): return .command(QuadraticCurveTo(character: "Q", pathType: .absolute))
+        case UInt8(ascii: "q"): return .command(QuadraticCurveTo(character: "q", pathType: .relative))
+        case UInt8(ascii: "T"): return .command(SmoothQuadraticCurveTo(character: "T", pathType: .absolute))
+        case UInt8(ascii: "t"): return .command(SmoothQuadraticCurveTo(character: "t", pathType: .relative))
+        case UInt8(ascii: "Z"): return .command(ClosePath(character: "Z", pathType: .absolute))
+        case UInt8(ascii: "z"): return .command(ClosePath(character: "z", pathType: .relative))
+        case UInt8(ascii: "-"), UInt8(ascii: "+"): return .sign
+        case UInt8(ascii: "."): return .delimiter
+        case UInt8(ascii: "0")...UInt8(ascii: "9"), UInt8(ascii: "e"), UInt8(ascii: "E"): return .number
+        case UInt8(ascii: " "), UInt8(ascii: ","), 0x0A, 0x09, 0x0D, 0x0B, 0x0C: return .separator
+        default: return .invalid
+        }
+    }
+
+    /// The number being scanned, kept as raw bytes with O(1) emptiness / decimal-point / exponent checks.
+    fileprivate struct ByteNumber {
+        var bytes: [UInt8] = []
+        var hasDelimiter = false
+
+        init() { bytes.reserveCapacity(24) }
+
+        var isEmpty: Bool { return bytes.isEmpty }
+        var isLastE: Bool { return bytes.last == UInt8(ascii: "e") || bytes.last == UInt8(ascii: "E") }
+
+        mutating func push(_ byte: UInt8) {
+            if byte == UInt8(ascii: ".") { hasDelimiter = true }
+            bytes.append(byte)
+        }
+
+        mutating func clear() {
+            bytes.removeAll(keepingCapacity: true)
+            hasDelimiter = false
+        }
+
+        /// Same acceptance rules as `NumberStack.asCGFloat`: malformed (`1e-`, `.`, `-`) and
+        /// non-finite (`1e999`) numbers are rejected. Short numbers fit a small string, so no heap allocation.
+        var asCGFloat: CGFloat? {
+            guard !bytes.isEmpty else { return nil }
+            if let value = Double(String(decoding: bytes, as: UTF8.self)), value.isFinite { return CGFloat(value) }
             return nil
         }
+    }
+
+    /// The character that starts at the given UTF-8 offset, for error messages.
+    fileprivate class func invalidCharacter(in string: String, utf8Offset: Int) -> Character {
+        let index = string.utf8.index(string.utf8.startIndex, offsetBy: utf8Offset)
+        return string[index...].first ?? "?"
     }
 
     /// Parses an SVG path data string into a `UIBezierPath`.
@@ -320,12 +314,12 @@ public class SVGParseString {
 
         var previousCommand: PathCommand?
         var currentPathCommand: PathCommand = PathCommand(character: "M")
-        var currentNumberStack: NumberStack = NumberStack()
+        var currentNumber = ByteNumber()
 
 
         let pushCoordinateAndExecuteIfPossible: () -> SVGError? = {
-            if currentNumberStack.isEmpty == false {
-                if let newCoordinate = currentNumberStack.asCGFloat {
+            if currentNumber.isEmpty == false {
+                if let newCoordinate = currentNumber.asCGFloat {
                     currentPathCommand.push(coordinate: newCoordinate)
                 }
             }
@@ -335,67 +329,64 @@ public class SVGParseString {
             } else {
                 previousCommand = currentPathCommand
             }
-            currentNumberStack.clear()
+            currentNumber.clear()
             return nil
         }
         let pushCoordinateAndClear: () -> Void = {
-            if currentNumberStack.isEmpty == false {
-                if let newCoordinate = currentNumberStack.asCGFloat {
+            if currentNumber.isEmpty == false {
+                if let newCoordinate = currentNumber.asCGFloat {
                     currentPathCommand.push(coordinate: newCoordinate)
                 }
-                currentNumberStack.clear()
+                currentNumber.clear()
             }
             return
         }
         var thisEnd: Bool = false
-        for (index, thisCharacter) in workingString.enumerated() {
+        // Single pass over UTF-8. The index of the last byte is computed once: `String.count` is O(n),
+        // and evaluating it per command made parsing quadratic in the path length.
+        let bytes = Array(workingString.utf8)
+        let lastIndex = bytes.count - 1
+        for (index, byte) in bytes.enumerated() {
 
             thisEnd = false
-            if let pathCharacter = getPathCharacter(char: thisCharacter) {
-
-                if pathCharacter is PathCommand {
-
-                    if let error = pushCoordinateAndExecuteIfPossible() {
-                        if index > 0 {//игнорить для старта
-                            return (path: nil, error: error)
-                        }
-                    }
-                    currentPathCommand = pathCharacter as! PathCommand
-                    currentPathCommand.path = currentPath
-                    currentPathCommand.initialPoint = returnPath.currentPoint
-
-                    if let closeCommand = currentPathCommand as? ClosePath {
-                        if let error = closeCommand.execute(
-                            forPath: currentPath, previousCommand: previousCommand) { return (nil, error) }
-                        let currentPoint: CGPoint = currentPath.currentPoint
-                        returnPath.append(currentPath)
-                        currentPath = UIBezierPath()
-                        currentPath.move(to: currentPoint)
-
-                    }
-                    if index == workingString.count - 1 {
-                        thisEnd = true
-                    }
-                } else if pathCharacter is SeparatorCharacter {
-                    pushCoordinateAndClear()
-                } else if pathCharacter is SignCharacter && !currentNumberStack.isLastE {
-                    pushCoordinateAndClear()
-                    currentNumberStack = NumberStack(startCharacter: thisCharacter)
-                } else {
-                    if pathCharacter is NumberDelimiterCharacter && currentNumberStack.isHaveDelim == true {
-                        pushCoordinateAndClear()
-
-                    }
-
-                    if currentNumberStack.isEmpty == false {
-                        currentNumberStack.push(thisCharacter)
-                    } else {
-                        currentNumberStack = NumberStack(startCharacter: thisCharacter)
+            switch classify(byte) {
+            case .command(let command):
+                if let error = pushCoordinateAndExecuteIfPossible() {
+                    if index > 0 {//игнорить для старта
+                        return (path: nil, error: error)
                     }
                 }
-            } else {
+                currentPathCommand = command
+                currentPathCommand.path = currentPath
+                // `currentPoint` on an empty path logs a CoreGraphics error each time, which is costly
+                // when it happens for every command before the first `Z`; an empty path is at the origin.
+                currentPathCommand.initialPoint = returnPath.isEmpty ? .zero : returnPath.currentPoint
+
+                if let closeCommand = currentPathCommand as? ClosePath {
+                    if let error = closeCommand.execute(
+                        forPath: currentPath, previousCommand: previousCommand) { return (nil, error) }
+                    let currentPoint: CGPoint = currentPath.currentPoint
+                    returnPath.append(currentPath)
+                    currentPath = UIBezierPath()
+                    currentPath.move(to: currentPoint)
+
+                }
+                if index == lastIndex {
+                    thisEnd = true
+                }
+            case .separator:
+                pushCoordinateAndClear()
+            case .sign where !currentNumber.isLastE:
+                pushCoordinateAndClear()
+                currentNumber.push(byte)
+            case .sign, .delimiter, .number:
+                if byte == UInt8(ascii: "."), currentNumber.hasDelimiter {
+                    pushCoordinateAndClear()
+                }
+                currentNumber.push(byte)
+            case .invalid:
                 returnPath.removeAllPoints()
-                return (path: nil, error: SVGError.parseError(text: "Invalid character \"\(thisCharacter)\" found"))
+                return (path: nil, error: SVGError.parseError(text: "Invalid character \"\(invalidCharacter(in: workingString, utf8Offset: index))\" found"))
             }
         }
         if thisEnd == false {
