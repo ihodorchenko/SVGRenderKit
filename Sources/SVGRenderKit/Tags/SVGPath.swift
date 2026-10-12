@@ -50,8 +50,10 @@ open class SVGShapeObject: SVGObject, SVGRendering {
             if let tagElem = overrideElements[self.key] {
                 sourceStyle = sourceStyle.combine(child: tagElem)
             }
-            if let classStr = self.classStr, let idElem = overrideElements[classStr] {
-                sourceStyle = sourceStyle.combine(child: idElem)
+            for className in self.classNames {
+                if let idElem = overrideElements[className] {
+                    sourceStyle = sourceStyle.combine(child: idElem)
+                }
             }
             if let id = self.id, let idElem = overrideElements[id] {
                 sourceStyle = sourceStyle.combine(child: idElem)

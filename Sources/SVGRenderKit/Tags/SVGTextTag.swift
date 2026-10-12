@@ -30,16 +30,10 @@ open class SVGTextTag: SVGShapeObject {
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
-        if let str = attributeDict["x"] {
-            if let f: Float = Float(str.trimmed) { x = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'x' to float '\(str)'")
-            }
-        }
-        if let str = attributeDict["y"] {
-            if let f: Float = Float(str.trimmed) { y = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'y' to float '\(str)'")
-            }
-        }
+        // `x`/`y` are length lists in SVG; only the first value is honored (per-glyph
+        // positioning is out of scope) and malformed values degrade to 0, not a thrown error.
+        if let str = attributeDict["x"] { x = SVGTextTag.firstLength(str) }
+        if let str = attributeDict["y"] { y = SVGTextTag.firstLength(str) }
         if let str = attributeDict["text-anchor"] {
             textAnchor = str.trimmed
         }
@@ -50,6 +44,15 @@ open class SVGTextTag: SVGShapeObject {
             if let str = child.attribute(by: "dx")?.text, let f = Float(str.trimmed) { span.dx = CGFloat(f) }
             if let str = child.attribute(by: "dy")?.text, let f = Float(str.trimmed) { span.dy = CGFloat(f) }
             tspans.append(span)
+        }
+    }
+
+    private static func firstLength(_ list: String) -> CGFloat {
+        let first = list.split(whereSeparator: { $0 == " " || $0 == "," || $0 == "\n" || $0 == "\t" }).first
+        guard let first = first, let length = try? SVGLength.get(string: String(first)) else { return 0 }
+        switch length {
+        case .px(let value): return value
+        case .percent: return 0
         }
     }
 

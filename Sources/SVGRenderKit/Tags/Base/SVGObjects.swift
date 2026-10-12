@@ -19,6 +19,8 @@ open class SVGObject {
 
     let id: String?
     let classStr: String?
+    /// Every class in the `class` attribute, each prefixed with `.` (`class="a b"` → `[".a", ".b"]`).
+    let classNames: [String]
 
     var href: SVGFuncIRI?
 
@@ -39,12 +41,14 @@ open class SVGObject {
         } else {
             self.id = nil
         }
-        if var `class` = attributeDict["class"] {
-            if !`class`.hasPrefix(".") {
-                `class` = "." + `class`
+        if let `class` = attributeDict["class"] {
+            let names = `class`.split(whereSeparator: { $0.isWhitespace }).map { name -> String in
+                name.hasPrefix(".") ? String(name) : "." + name
             }
-            self.classStr = `class`
+            self.classNames = names
+            self.classStr = names.first
         } else {
+            self.classNames = []
             self.classStr = nil
         }
         if let href = attributeDict["xlink:href"] {

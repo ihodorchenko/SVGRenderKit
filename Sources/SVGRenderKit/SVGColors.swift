@@ -51,6 +51,8 @@ public class SVGColors {
         if let newString = getOvverideColor(byString: string) {
             string = newString
         }
+        // CSS color keywords and functions are case-insensitive and tolerate surrounding whitespace.
+        string = string.trimmed.lowercased()
         var color: UIColor?
         if string.hasPrefix("#") {
             color = getColor(hexString: string, alpha: alpha)
@@ -90,7 +92,7 @@ public class SVGColors {
         let arr = _rgbString.split(separator: ",")
         if arr.count == 3 {
             if let _red = Double(arr[0]), let _green = Double(arr[1]), let _blue = Double(arr[2]) {
-                return UIColor(red: CGFloat(_red/255.0), green: CGFloat(_green/255.0), blue: CGFloat(_blue/255.0), alpha: alpha ?? 1)
+                return UIColor(red: clamp01(_red/255.0), green: clamp01(_green/255.0), blue: clamp01(_blue/255.0), alpha: alpha.map(clamp01) ?? 1)
             }
         }
         return nil
@@ -110,7 +112,7 @@ public class SVGColors {
         let arr = _rgbString.split(separator: ",")
         if arr.count == 4 {
             if let red = Double(arr[0]), let green = Double(arr[1]), let blue = Double(arr[2]), let alpha = Double(arr[3]) {
-                return UIColor(red: CGFloat(red/255.0), green: CGFloat(green/255.0), blue: CGFloat(blue/255.0), alpha: _alpha ?? CGFloat(alpha))
+                return UIColor(red: clamp01(red/255.0), green: clamp01(green/255.0), blue: clamp01(blue/255.0), alpha: (_alpha ?? CGFloat(alpha)).clamped01)
             }
         }
         return nil
@@ -129,7 +131,7 @@ public class SVGColors {
         let arr = _rgbString.split(separator: ",")
         if arr.count == 4 {
             if let alpha = Double(arr[0]), let red = Double(arr[1]), let green = Double(arr[2]), let blue = Double(arr[3]) {
-                return UIColor(red: CGFloat(red/255.0), green: CGFloat(green/255.0), blue: CGFloat(blue/255.0), alpha: _alpha ?? CGFloat(alpha))
+                return UIColor(red: clamp01(red/255.0), green: clamp01(green/255.0), blue: clamp01(blue/255.0), alpha: (_alpha ?? CGFloat(alpha)).clamped01)
             }
         }
         return nil
@@ -167,7 +169,16 @@ public class SVGColors {
               let s = parsePercent(arr[1]),
               let l = parsePercent(arr[2]),
               let a = Double(arr[3]) else { return nil }
-        return color(h: h, s: s, l: l, alpha: _alpha ?? CGFloat(a))
+        return color(h: h, s: s, l: l, alpha: (_alpha ?? CGFloat(a)).clamped01)
+    }
+
+    private static func clamp01(_ value: Double) -> CGFloat {
+        guard value.isFinite else { return 0 }
+        return CGFloat(min(max(value, 0), 1))
+    }
+
+    private static func clamp01(_ value: CGFloat) -> CGFloat {
+        return value.clamped01
     }
 
     private static func parseHue(_ text: Substring) -> Double? {
@@ -184,8 +195,11 @@ public class SVGColors {
     }
 
     private static func color(h: Double, s: Double, l: Double, alpha: CGFloat) -> UIColor {
-        let (r, g, b) = hslToRGB(h: CGFloat(h) / 360.0, s: CGFloat(s), l: CGFloat(l))
-        return UIColor(red: r, green: g, blue: b, alpha: alpha)
+        // Hue wraps modulo 360°; saturation and lightness are clamped to [0, 1].
+        var hue = h.truncatingRemainder(dividingBy: 360) / 360.0
+        if hue < 0 { hue += 1 }
+        let (r, g, b) = hslToRGB(h: CGFloat(hue), s: clamp01(s), l: clamp01(l))
+        return UIColor(red: r, green: g, blue: b, alpha: alpha.clamped01)
     }
 
     private static func hslToRGB(h: CGFloat, s: CGFloat, l: CGFloat) -> (CGFloat, CGFloat, CGFloat) {
@@ -261,4 +275,8 @@ public class SVGColors {
         }
         return UIColor(red:red, green:green, blue:blue, alpha:alphaHex)
     }
+}
+
+private extension CGFloat {
+    var clamped01: CGFloat { isFinite ? Swift.min(Swift.max(self, 0), 1) : 0 }
 }

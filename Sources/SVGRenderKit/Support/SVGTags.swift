@@ -6,8 +6,8 @@ class SVGTags<T: SVGObject> {
     var byClass: [String: [T]] = [:]
 
     func add(item: T) {
-        if let classStr = item.classStr {
-            byClass[classStr, default: []].append(item)
+        for className in item.classNames {
+            byClass[className, default: []].append(item)
         }
         if let id = item.id {
             byId[id] = item

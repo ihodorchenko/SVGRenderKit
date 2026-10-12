@@ -358,8 +358,10 @@ extension SVGGroupObject {
             if let tagStyle = styleTag.byTagDict[forObject.key] {
                 style = style.combine(child: tagStyle)
             }
-            if let classStr = forObject.classStr, let classStyle = styleTag.byClassDict[classStr] {
-                style = style.combine(child: classStyle)
+            for className in forObject.classNames {
+                if let classStyle = styleTag.byClassDict[className] {
+                    style = style.combine(child: classStyle)
+                }
             }
             if let idStr = forObject.id, let idStyle = styleTag.byIdDict[idStr] {
                 style = style.combine(child: idStyle)
@@ -395,8 +397,10 @@ extension SVGGroupObject {
             if let tagElem = overrideElements[key] {
                 style = style.combine(child: tagElem)
             }
-            if let classStr = classStr, let idElem = overrideElements[classStr] {
-                style = style.combine(child: idElem)
+            for className in classNames {
+                if let idElem = overrideElements[className] {
+                    style = style.combine(child: idElem)
+                }
             }
             if let id = id, let idElem = overrideElements[id] {
                 style = style.combine(child: idElem)

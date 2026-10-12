@@ -13,23 +13,22 @@ public enum SVGPaint {
 
     /// Parses a paint string (`none`, hex, `rgb`, `url(...)`, or a named color) into an `SVGPaint`.
     /// - parameter string: The paint string to parse.
-    public static func get(string: String) throws -> SVGPaint {
-        if string == "none" {
+    public static func get(string rawString: String) throws -> SVGPaint {
+        // Presentation attributes may carry surrounding whitespace (`fill=" #fff "`).
+        let string = rawString.trimmed
+        let lowered = string.lowercased()
+        if lowered == "none" {
             return (.none)
-        } else if string == "currentColor" {
+        } else if lowered == "currentcolor" {
             return .currentColor
         } else if string.hasPrefix("#") {
             return SVGPaint.color(color: SVGColors.getColor(string: string))
-        } else if string.hasPrefix("argb") {
-            return SVGPaint.color(color: SVGColors.getColor(string: string))
-        } else if string.hasPrefix("rgb") {
-            return SVGPaint.color(color: SVGColors.getColor(string: string))
-        } else if string.hasPrefix("hsl") {
+        } else if lowered.hasPrefix("argb") || lowered.hasPrefix("rgb") || lowered.hasPrefix("hsl") {
             return SVGPaint.color(color: SVGColors.getColor(string: string))
         } else if string.hasPrefix("url") {
             let iri = try SVGFuncIRI.get(fullStr: string)
             return SVGPaint.funcIRI(iri: iri)
-        } else if let hexCod = HTMLColors.colors[string] {
+        } else if let hexCod = HTMLColors.colors[lowered] {
             return SVGPaint.color(color: SVGColors.getColor(string: hexCod))
         } else {
             throw SVGError.parseError(text: "SVGPaint not found prefixes in: \(string)")
