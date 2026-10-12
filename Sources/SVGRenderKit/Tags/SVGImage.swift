@@ -11,6 +11,8 @@ open class SVGImage: SVGObject, SVGRendering {
 
     var sourceStyle: SVGSourceStyleElement?
     var transform: CATransform3D?
+    /// How the raster is fitted into the `x`/`y`/`width`/`height` box (default `xMidYMid meet`).
+    var preserveAspectRatio = SVGPreserveAspectRatio()
 
     var x: SVGLength = SVGLength.px(value: 0)
     var y: SVGLength = SVGLength.px(value: 0)
@@ -51,6 +53,7 @@ open class SVGImage: SVGObject, SVGRendering {
         if let str = attributeDict["transform"] {
             transform = try SVGTransform.get(string: str)
         }
+        preserveAspectRatio = SVGPreserveAspectRatio.get(string: attributeDict["preserveAspectRatio"])
     }
 
     /// Resolves a length against the viewBox dimension, mirroring shape length resolution.
@@ -61,6 +64,14 @@ open class SVGImage: SVGObject, SVGRendering {
         case .percent(let value):
             return value * reference
         }
+    }
+
+    /// The image's box in user space.
+    func frame(viewBox: CGRect) -> CGRect {
+        return CGRect(x: resolve(x, reference: viewBox.width),
+                      y: resolve(y, reference: viewBox.height),
+                      width: resolve(width, reference: viewBox.width),
+                      height: resolve(height, reference: viewBox.height))
     }
 
     /// Builds a layer displaying the decoded image at its resolved frame.
@@ -75,8 +86,29 @@ open class SVGImage: SVGObject, SVGRendering {
         layer.frame = CGRect(x: resolvedX, y: resolvedY, width: resolvedWidth, height: resolvedHeight)
 
         if let href = imageHref, let image = SVGImage.decode(dataURI: href) {
-            layer.contents = image.cgImage
-            layer.contentsGravity = .resize
+            let imageSize = image.size
+            if preserveAspectRatio.align == .none || imageSize.width <= 0 || imageSize.height <= 0 {
+                layer.contents = image.cgImage
+                layer.contentsGravity = .resize
+            } else {
+                // Fit the raster per `preserveAspectRatio`; `slice` overflows, so clip to the box.
+                let fit = preserveAspectRatio.resolve(
+                    viewBox: CGRect(origin: .zero, size: imageSize),
+                    containerSize: CGSize(width: resolvedWidth, height: resolvedHeight))
+                let content = CALayer()
+                content.contents = image.cgImage
+                content.contentsGravity = .resize
+                content.frame = CGRect(x: fit.translateX, y: fit.translateY,
+                                       width: imageSize.width * fit.scaleX, height: imageSize.height * fit.scaleY)
+                layer.addSublayer(content)
+                layer.masksToBounds = true
+            }
+        }
+        if let display = sourceStyle?.display, display == .none {
+            layer.isHidden = true
+        }
+        if let visibility = sourceStyle?.visibility, visibility != .visible {
+            layer.isHidden = true
         }
 
         if let transform = transform {

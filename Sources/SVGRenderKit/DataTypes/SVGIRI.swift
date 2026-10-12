@@ -10,15 +10,15 @@ public enum SVGFuncIRI {
     /// Parses a full `url(...)` string into an `SVGFuncIRI`.
     /// - parameter str: The full `url(...)` string to parse.
     public static func get(fullStr str: String) throws -> SVGFuncIRI {
-        if str.hasPrefix("url") {
-            var str = str.replacingOccurrences(of: "url", with: "")
-            str = str.replacingOccurrences(of: "(", with: "")
-            str = str.replacingOccurrences(of: ")", with: "")
-            str = str.trimmed
-            return try get(content: str)
-        } else {
+        let trimmed = str.trimmed
+        // `url(` (case-insensitive, optional space before the parenthesis), up to the closing `)`.
+        guard trimmed.lowercased().hasPrefix("url"),
+              let open = trimmed.firstIndex(of: "("),
+              trimmed[trimmed.index(trimmed.startIndex, offsetBy: 3)..<open].allSatisfy({ $0.isWhitespace }),
+              let close = trimmed.lastIndex(of: ")"), open < close else {
             throw SVGError.parseError(text: "SVGIRI not has prefix 'url': \(str)")
         }
+        return try get(content: String(trimmed[trimmed.index(after: open)..<close]))
     }
 
     /// Parses the inner content of a `url(...)` reference into an `SVGFuncIRI`.

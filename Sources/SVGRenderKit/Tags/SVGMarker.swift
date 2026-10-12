@@ -22,6 +22,11 @@ open class SVGMarker: SVGChildObject {
     var refX: CGFloat = 0
     var refY: CGFloat = 0
     var orient: String = "0"
+    /// The marker's own coordinate system; when set, content is fitted into `markerWidth × markerHeight`.
+    private(set) var viewBox: CGRect?
+    private(set) var preserveAspectRatio = SVGPreserveAspectRatio()
+    /// Markers clip to their viewport unless `overflow` is `visible` (or `auto`).
+    private(set) var clipsToViewport = true
 
     /// Initializes a marker by parsing its geometry attributes and child elements.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
@@ -40,6 +45,18 @@ open class SVGMarker: SVGChildObject {
         if let str = attributeDict["refX"], let f = Float(str.trimmed) { refX = CGFloat(f) }
         if let str = attributeDict["refY"], let f = Float(str.trimmed) { refY = CGFloat(f) }
         if let str = attributeDict["orient"] { orient = str.trimmed }
+        if let str = attributeDict["viewBox"] {
+            let arr = SVGUtils.split(string: str.replacingOccurrences(of: ",", with: " "), separator: " ")
+            if arr.count == 4,
+               let x = Double(arr[0]), let y = Double(arr[1]),
+               let w = Double(arr[2]), let h = Double(arr[3]), w > 0, h > 0 {
+                viewBox = CGRect(x: x, y: y, width: w, height: h)
+            }
+        }
+        preserveAspectRatio = SVGPreserveAspectRatio.get(string: attributeDict["preserveAspectRatio"])
+        if let overflow = (attributeDict["overflow"] ?? "").trimmed.lowercased() as String?, overflow == "visible" || overflow == "auto" {
+            clipsToViewport = false
+        }
 
         for children in xmlElement.xmlChildren {
             try parse(children: children)
@@ -95,6 +112,26 @@ extension SVGMarker: SVGRendering {
         }
 
         return mainLayer
+    }
+
+    /// Maps marker content into the marker viewport: the scale applied on top of the
+    /// `markerUnits` scale, and the content-space rectangle that survives clipping.
+    ///
+    /// The viewport is `markerWidth × markerHeight`; with a `viewBox` the content is fitted into
+    /// it per `preserveAspectRatio`, otherwise content coordinates are viewport coordinates.
+    func viewportMapping() -> (scale: CGFloat, clip: CGRect) {
+        guard let vb = viewBox else {
+            return (1, CGRect(x: 0, y: 0, width: markerWidth, height: markerHeight))
+        }
+        let fit = preserveAspectRatio.resolve(viewBox: vb, containerSize: CGSize(width: markerWidth, height: markerHeight))
+        let sx = fit.scaleX, sy = fit.scaleY
+        guard sx > 0, sy > 0 else { return (1, .zero) }
+        // viewport x ∈ [0, markerWidth] ↔ content x = vb.x + (x - translateX) / scale
+        let clip = CGRect(x: vb.origin.x - fit.translateX / sx,
+                          y: vb.origin.y - fit.translateY / sy,
+                          width: markerWidth / sx,
+                          height: markerHeight / sy)
+        return (sx, clip)
     }
 }
 

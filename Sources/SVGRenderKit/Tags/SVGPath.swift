@@ -139,7 +139,8 @@ open class SVGShapeObject: SVGObject, SVGRendering {
     }
 
     func getGradient(byKey: String, fromParents: Bool) -> SVGBaseGradient? {
-        return parent.getGradient(byKey: byKey, fromParents: true)
+        // A shape owns no gradients; only the parent chain can resolve one.
+        return fromParents ? parent.getGradient(byKey: byKey, fromParents: true) : nil
     }
 }
 

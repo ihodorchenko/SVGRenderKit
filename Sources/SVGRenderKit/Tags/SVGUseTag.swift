@@ -52,6 +52,24 @@ open class SVGUseTag: SVGObject, SVGRendering {
         }
     }
 
+    /// Bounds of the referenced content, offset by `x`/`y` (transforms are ignored, like `contentBounds`).
+    var contentBounds: CGRect? {
+        guard case .local(let key)? = href,
+              let rendering = parent.getRendering(byKey: key, fromParents: true) else { return nil }
+        let bounds: CGRect
+        if let shape = rendering as? SVGShapeObject {
+            bounds = shape.path.bounds
+        } else if let group = rendering as? SVGGroupObject {
+            bounds = group.contentBounds
+        } else if let image = rendering as? SVGImage {
+            bounds = image.frame(viewBox: parent.getSvgOptions().viewBox)
+        } else {
+            return nil
+        }
+        guard !bounds.isNull, !bounds.isEmpty else { return nil }
+        return bounds.offsetBy(dx: x, dy: y)
+    }
+
     private static let activeKey = "SVGRenderKit.SVGUseTag.active"
 
     /// Resolves the referenced element and returns its layer, applying any `x`, `y`, and transform offsets.
@@ -80,9 +98,12 @@ open class SVGUseTag: SVGObject, SVGRendering {
                     if let symbol = rendering as? SVGSymbol, let viewBox = symbol.viewBox {
                         let containerSize = CGSize(width: width ?? viewBox.width, height: height ?? viewBox.height)
                         let resolved = symbol.preserveAspectRatio.resolve(viewBox: viewBox, containerSize: containerSize)
-                        _transform = CATransform3DTranslate(_transform, -viewBox.origin.x, -viewBox.origin.y, 0)
-                        _transform = CATransform3DScale(_transform, resolved.scaleX, resolved.scaleY, 1)
+                        // CATransform3D helpers *pre*-multiply: the last call is applied to the point
+                        // first. Desired mapping: translate(center) · scale · translate(-origin), so
+                        // the centering shift is in container space and must not be scaled.
                         _transform = CATransform3DTranslate(_transform, resolved.translateX, resolved.translateY, 0)
+                        _transform = CATransform3DScale(_transform, resolved.scaleX, resolved.scaleY, 1)
+                        _transform = CATransform3DTranslate(_transform, -viewBox.origin.x, -viewBox.origin.y, 0)
                     }
 
                     if let transform = transform {

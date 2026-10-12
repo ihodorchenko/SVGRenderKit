@@ -16,7 +16,10 @@ internal struct NumberStack {
             if self.characterStack.count > 0 {
                 // `Double(String)` avoids the C-string bridging that `strtod` does on
                 // every number, which is hot for glyph-dense path data.
-                return CGFloat(Double(self.characterStack) ?? 0)
+                // Malformed numbers (`1e-`, `.`, `-`) and non-finite ones (`1e999`) are rejected
+                // instead of silently becoming 0.
+                if let value = Double(self.characterStack), value.isFinite { return CGFloat(value) }
+                return nil
             }
             return nil
         }

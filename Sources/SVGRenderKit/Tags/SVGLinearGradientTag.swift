@@ -81,6 +81,16 @@ open class SVGLinearGradientTag: SVGBaseGradient {
                     _endPoint = _endPoint.applying(affineTransform)
                 }
 
+                // User-space coordinates are absolute; the gradient layer's frame starts at the
+                // viewBox origin, so make them relative to it (a non-zero viewBox origin shifted
+                // the gradient before).
+                if gradientUnits == .userSpaceOnUse {
+                    _startPoint.x -= boundsToPoints.origin.x
+                    _startPoint.y -= boundsToPoints.origin.y
+                    _endPoint.x -= boundsToPoints.origin.x
+                    _endPoint.y -= boundsToPoints.origin.y
+                }
+
                 let points = LinearGradientFixer.fixPoints(
                     start: CGPoint(x: _startPoint.x/boundsToPoints.width, y: _startPoint.y/boundsToPoints.height),
                     end: CGPoint(x: _endPoint.x/boundsToPoints.width, y: _endPoint.y/boundsToPoints.height),

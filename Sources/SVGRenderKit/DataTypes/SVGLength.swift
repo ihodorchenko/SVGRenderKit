@@ -11,7 +11,7 @@ public enum SVGLength {
         let string = string.trimmed
 
         if string.hasSuffix("%") {
-            if let f = Float(String(string.dropLast()).trimmed) {
+            if let f = Double(String(string.dropLast()).trimmed), f.isFinite {
                 return .percent(value: CGFloat(f / 100.0))
             }
             return .px(value: 0)
@@ -29,7 +29,7 @@ public enum SVGLength {
 
         for (unit, factor) in unitFactors {
             if string.hasSuffix(unit) {
-                if let f = Float(String(string.dropLast(unit.count)).trimmed) {
+                if let f = Double(String(string.dropLast(unit.count)).trimmed), f.isFinite {
                     return .px(value: CGFloat(f) * factor)
                 }
                 return .px(value: 0)
@@ -37,7 +37,7 @@ public enum SVGLength {
         }
 
         // A bare number is interpreted in SVG user units (pixels).
-        if let f = Float(string) {
+        if let f = Double(string), f.isFinite {
             return .px(value: CGFloat(f))
         }
 

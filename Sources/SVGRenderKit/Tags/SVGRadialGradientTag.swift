@@ -76,16 +76,35 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         // A negative radius disables the gradient (SVG 1.1).
         guard radius >= 0 else { return nil }
 
+        // User-space coordinates are absolute while the layer's frame starts at the viewBox origin.
+        let origin: CGPoint = gradientUnits == .userSpaceOnUse ? boundsToPoints.origin : .zero
+        let toLocal = CGAffineTransform(translationX: -origin.x, y: -origin.y)
+
         var finalCenter = center
         var finalFocal = focal
         var finalRadius = radius
+        var ellipticalTransform: CGAffineTransform?
         if let transform = transform {
             let affine = CATransform3DGetAffineTransform(transform)
-            finalCenter = center.applying(affine)
-            finalFocal = focal.applying(affine)
-            // Scale the radius by the transform's geometric-mean scale factor.
-            let scale = sqrt(abs(affine.a * affine.d - affine.b * affine.c))
-            finalRadius = radius * scale
+            // Similarity transforms (translate/rotate/uniform scale) keep the gradient circular,
+            // so they are folded into center/focal/radius. Anything else (non-uniform scale or
+            // skew) makes it elliptical, which is drawn by transforming the context instead.
+            let isSimilarity = abs(affine.a * affine.c + affine.b * affine.d) < 1e-6
+                && abs((affine.a * affine.a + affine.b * affine.b) - (affine.c * affine.c + affine.d * affine.d)) < 1e-6
+            if isSimilarity {
+                finalCenter = center.applying(affine)
+                finalFocal = focal.applying(affine)
+                finalRadius = radius * sqrt(abs(affine.a * affine.d - affine.b * affine.c))
+            } else {
+                ellipticalTransform = affine.concatenating(toLocal)
+            }
+        }
+        if ellipticalTransform == nil {
+            finalCenter = finalCenter.applying(toLocal)
+            finalFocal = finalFocal.applying(toLocal)
+        } else {
+            finalCenter = center
+            finalFocal = focal
         }
 
         let newLayer: CALayer = CALayer()
@@ -98,6 +117,9 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         gradLayer.center = finalCenter
         gradLayer.focalPoint = finalFocal
         gradLayer.radius = finalRadius
+        if let ellipticalTransform = ellipticalTransform {
+            gradLayer.gradientTransform = ellipticalTransform
+        }
 
         gradLayer.colors = colors
         gradLayer.locations = locations

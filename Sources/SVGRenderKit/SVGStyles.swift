@@ -477,7 +477,7 @@ extension SVGSourceStyleElement {
                 if let gradient = group.getGradient(byKey: key, fromParents: true) {
                     try applyGradient(mainLayer: mainLayer, pathLayer: pathLayer, path: path, gradient: gradient, group: group, opacity: Float(fillOpacity ?? 1.0))
                 } else if let pattern = group.getPattern(byKey: key, fromParents: true) {
-                    applyPattern(pathLayer: pathLayer, pattern: pattern, group: group, path: path)
+                    applyPattern(pathLayer: pathLayer, pattern: pattern, group: group, path: path, opacity: fillOpacity)
                 } else {
                     throw SVGError.content(text: "local iri not found by key: \(key)")
                 }
@@ -515,9 +515,9 @@ extension SVGSourceStyleElement {
             switch iri {
             case .local(let key):
                 if let gradient = group.getGradient(byKey: key, fromParents: true) {
-                    try applyStrokeGradient(mainLayer: mainLayer, path: path, gradient: gradient, group: group)
+                    try applyStrokeGradient(mainLayer: mainLayer, path: path, gradient: gradient, group: group, opacity: strokeOpacity)
                 } else if let pattern = group.getPattern(byKey: key, fromParents: true) {
-                    applyStrokePattern(mainLayer: mainLayer, path: path, pattern: pattern, viewBox: strokeViewBox)
+                    applyStrokePattern(mainLayer: mainLayer, path: path, pattern: pattern, viewBox: strokeViewBox, opacity: strokeOpacity)
                 } else {
                     throw SVGError.content(text: "local stroke iri not found by key: \(key)")
                 }
@@ -704,9 +704,10 @@ extension SVGSourceStyleElement {
         }
     }
 
-    private func applyPattern(pathLayer: CAShapeLayer, pattern: SVGPattern, group: SVGShapesContainer, path: UIBezierPath) {
+    private func applyPattern(pathLayer: CAShapeLayer, pattern: SVGPattern, group: SVGShapesContainer, path: UIBezierPath, opacity: CGFloat?) {
         if let image = pattern.tileImage(bbox: path.bounds, viewBox: group.getSvgOptions().viewBox) {
-            pathLayer.fillColor = UIColor(patternImage: image).cgColor
+            let color = UIColor(patternImage: image)
+            pathLayer.fillColor = (opacity.map { color.withAlphaComponent(min(max($0, 0), 1)) } ?? color).cgColor
         }
     }
 
@@ -742,23 +743,24 @@ extension SVGSourceStyleElement {
             miterLimit: self.strokeMiterlimit ?? 4)
     }
 
-    private func applyStrokeGradient(mainLayer: CAShapeLayer, path: UIBezierPath, gradient: SVGBaseGradient, group: SVGShapesContainer) throws {
+    private func applyStrokeGradient(mainLayer: CAShapeLayer, path: UIBezierPath, gradient: SVGBaseGradient, group: SVGShapesContainer, opacity: CGFloat) throws {
         guard gradient.isEnable() else { throw SVGError.content(text: "wrong content in gradient") }
         let options = group.getSvgOptions()
         let stroked = strokedPath(from: path, viewBox: options.viewBox)
         let maskLayer = CAShapeLayer()
         maskLayer.path = stroked
         if let gradLayer = gradient.getGradientLayer(maskLayer: maskLayer, path: UIBezierPath(cgPath: stroked), viewBox: options.viewBox, currentColor: self.color ?? .black) {
+            gradLayer.opacity = Float(min(max(opacity, 0), 1))
             mainLayer.insertSublayer(gradLayer, at: 0)
         }
     }
 
-    private func applyStrokePattern(mainLayer: CAShapeLayer, path: UIBezierPath, pattern: SVGPattern, viewBox: CGRect) {
+    private func applyStrokePattern(mainLayer: CAShapeLayer, path: UIBezierPath, pattern: SVGPattern, viewBox: CGRect, opacity: CGFloat) {
         guard let image = pattern.tileImage(bbox: path.bounds, viewBox: viewBox) else { return }
         let stroked = strokedPath(from: path, viewBox: viewBox)
         let patternLayer = CAShapeLayer()
         patternLayer.path = stroked
-        patternLayer.fillColor = UIColor(patternImage: image).cgColor
+        patternLayer.fillColor = UIColor(patternImage: image).withAlphaComponent(min(max(opacity, 0), 1)).cgColor
         mainLayer.insertSublayer(patternLayer, at: 0)
     }
 
@@ -784,7 +786,8 @@ extension SVGSourceStyleElement {
             angle = (CGFloat(Double(marker.orient) ?? 0)) * .pi / 180
         }
         // markerUnits=strokeWidth scales the marker by the element's stroke width.
-        let scale: CGFloat = (marker.markerUnits == .strokeWidth) ? strokeWidth : 1
+        let viewport = marker.viewportMapping()
+        let scale: CGFloat = ((marker.markerUnits == .strokeWidth) ? strokeWidth : 1) * viewport.scale
         // Build translate(point) · rotate(angle) · scale · translate(-ref) so the
         // marker's reference point lands on the path point, is scaled for the
         // stroke width, and is rotated to the tangent. CATransform3D helpers
@@ -795,6 +798,12 @@ extension SVGSourceStyleElement {
         t = CATransform3DScale(t, scale, scale, 1)
         t = CATransform3DTranslate(t, -marker.refX, -marker.refY, 0)
         markerLayer.transform = t
+        if marker.clipsToViewport, !viewport.clip.isEmpty {
+            // Default `overflow: hidden`: clip marker content to its viewport (in content space).
+            let clipMask = CAShapeLayer()
+            clipMask.path = CGPath(rect: viewport.clip, transform: nil)
+            markerLayer.mask = clipMask
+        }
         mainLayer.addSublayer(markerLayer)
     }
 

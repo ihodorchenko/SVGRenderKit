@@ -28,7 +28,7 @@ struct SVGPreserveAspectRatio {
     static func get(string: String?) -> SVGPreserveAspectRatio {
         var result = SVGPreserveAspectRatio()
         guard let string = string, !string.isEmpty else { return result }
-        var tokens = string.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+        var tokens = string.components(separatedBy: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ","))).filter { !$0.isEmpty }
         if tokens.first == "defer" {
             tokens.removeFirst()
         }

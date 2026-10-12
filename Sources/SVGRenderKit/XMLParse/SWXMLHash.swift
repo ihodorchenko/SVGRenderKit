@@ -377,7 +377,13 @@ class FullXMLParser: NSObject, SimpleXmlParser, XMLParserDelegate {
         parser.shouldProcessNamespaces = options.shouldProcessNamespaces
         parser.delegate = self
         _ = parser.parse()
-        
+
+        // Parsing stays lenient (the partial tree is rendered), but a malformed or truncated
+        // document must not pass silently.
+        if let err = parsingError {
+            SVGLog.addSLog(errorStr: "XML parse error at line \(err.line), column \(err.column); rendering the partial tree")
+        }
+
         if options.detectParsingErrors, let err = parsingError {
             return XMLIndexer.parsingError(err)
         } else {

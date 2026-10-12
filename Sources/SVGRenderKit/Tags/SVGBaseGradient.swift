@@ -136,6 +136,9 @@ open class RadialGradientLayer: CALayer {
     public var focalPoint: CGPoint?
     /// The distance over which the gradient is drawn.
     public var radius: CGFloat = 1
+    /// An optional affine transform applied to the whole gradient (used for elliptical gradients
+    /// produced by a non-uniform `gradientTransform`).
+    public var gradientTransform: CGAffineTransform = .identity
 
     /// Draws the radial gradient into the given graphics context.
     override open func draw(in ctx: CGContext) {
@@ -153,6 +156,7 @@ open class RadialGradientLayer: CALayer {
         // (offset 1), producing SVG's focal radial gradient. The drawing options
         // extend the first/last stops so the default `pad` spread method fills
         // the area outside the radius with the endpoint colors.
+        if !gradientTransform.isIdentity { ctx.concatenate(gradientTransform) }
         let startCenter = focalPoint ?? center
         ctx.drawRadialGradient(
             gradient,

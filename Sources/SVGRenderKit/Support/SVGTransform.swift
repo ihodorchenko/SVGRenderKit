@@ -38,9 +38,12 @@ open class SVGTransform {
                 let valueArr: [String] = SVGUtils.split(string: tempValue, separatorSet: charSet)
                 var numberArr: [CGFloat] = []
                 for num in valueArr {
-                    if let d = Double(num) {
-                        numberArr.append(CGFloat(d))
+                    // A non-numeric or non-finite argument makes the whole transform invalid
+                    // (previously it was silently dropped: `translate(foo 10)` became `translate(10)`).
+                    guard let d = Double(num), d.isFinite else {
+                        throw SVGError.parseError(text: "invalid transform argument '\(num)' in \(key.trimmed)")
                     }
+                    numberArr.append(CGFloat(d))
                 }
                 if valueArr.count > 0 {
                     if let type = SVGTransformType.init(rawValue: key.trimmed) {

@@ -18,6 +18,9 @@ open class SVGFilter: SVGChildObject {
     var blurStdDeviation: CGFloat?
     /// The `feDropShadow` effect, if the filter contains one.
     var dropShadow: SVGDropShadow?
+    /// A blur that applies to the element itself *in addition to* `dropShadow`
+    /// (`feGaussianBlur` + `feDropShadow` in one filter).
+    var layerBlur: CGFloat?
 
     /// Initializes a filter by parsing its `feGaussianBlur`, `feDropShadow`, and the
     /// SVG 1.1 drop-shadow primitive chain (`feOffset` + `feFlood`) as well as the
@@ -36,18 +39,22 @@ open class SVGFilter: SVGChildObject {
         // matrix; the latter carries the shadow's RGB and opacity).
         var tintColor: UIColor?
         var tintOpacity: CGFloat = 1
+        var separateBlur: CGFloat?
+        var hasExplicitDropShadow = false
 
         for child in xmlElement.xmlChildren {
             switch child.name {
             case "feGaussianBlur":
-                if let str = child.attribute(by: "stdDeviation")?.text, let f = Float(str.trimmed) {
-                    blurStdDeviation = CGFloat(f)
+                if let str = child.attribute(by: "stdDeviation")?.text, let f = SVGFilter.parseStdDeviation(str) {
+                    blurStdDeviation = f
+                    separateBlur = f
                 }
             case "feDropShadow":
                 var shadow = SVGDropShadow()
                 if let str = child.attribute(by: "dx")?.text, let f = Float(str.trimmed) { shadow.dx = CGFloat(f) }
                 if let str = child.attribute(by: "dy")?.text, let f = Float(str.trimmed) { shadow.dy = CGFloat(f) }
-                if let str = child.attribute(by: "stdDeviation")?.text, let f = Float(str.trimmed) { shadow.stdDeviation = CGFloat(f) }
+                if let str = child.attribute(by: "stdDeviation")?.text, let f = SVGFilter.parseStdDeviation(str) { shadow.stdDeviation = f }
+                hasExplicitDropShadow = true
                 if let str = child.attribute(by: "flood-color")?.text { shadow.color = SVGColors.getColor(string: str) }
                 if let str = child.attribute(by: "flood-opacity")?.text, let f = Float(str.trimmed) { shadow.opacity = CGFloat(f) }
                 dropShadow = shadow
@@ -81,6 +88,9 @@ open class SVGFilter: SVGChildObject {
             }
         }
 
+        // An explicit `feDropShadow` next to a standalone `feGaussianBlur` blurs the element too.
+        if hasExplicitDropShadow, let blur = separateBlur { layerBlur = blur }
+
         // Figma/Sketch drop-shadow: an feOffset + feGaussianBlur + feColorMatrix
         // color tint. The tint overrides the (transparent) feFlood background fix.
         if dropShadow == nil, hasOffset, let tintColor = tintColor {
@@ -106,6 +116,15 @@ open class SVGFilter: SVGChildObject {
         }
     }
 
+    /// Parses `stdDeviation`, which is one number or an `x y` pair. `CIGaussianBlur` and `CALayer`
+    /// shadows are isotropic, so a pair is approximated by its mean.
+    static func parseStdDeviation(_ raw: String) -> CGFloat? {
+        let separators = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ","))
+        let numbers = raw.components(separatedBy: separators).filter { !$0.isEmpty }.compactMap { Double($0) }
+        guard !numbers.isEmpty, numbers.count <= 2, numbers.allSatisfy({ $0.isFinite && $0 >= 0 }) else { return nil }
+        return CGFloat(numbers.reduce(0, +) / Double(numbers.count))
+    }
+
     /// Parses a 4×5 `feColorMatrix` `values` list (20 numbers) into an array.
     private static func parseColorMatrix(_ raw: String) -> [Float]? {
         let separators = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ","))
@@ -129,7 +148,11 @@ extension SVGFilter {
             layer.shadowOpacity = Float(shadow.opacity)
             layer.shadowRadius = shadow.stdDeviation
             layer.shadowOffset = CGSize(width: shadow.dx, height: shadow.dy)
-            // The blur radius is folded into the shadow; don't also blur the layer.
+            // The blur radius is folded into the shadow; only an explicit, separate blur is applied too.
+            if let blur = layerBlur, let ciFilter = CIFilter(name: "CIGaussianBlur") {
+                ciFilter.setValue(blur, forKey: kCIInputRadiusKey)
+                layer.filters = [ciFilter]
+            }
             return
         }
         if let blur = blurStdDeviation, let ciFilter = CIFilter(name: "CIGaussianBlur") {

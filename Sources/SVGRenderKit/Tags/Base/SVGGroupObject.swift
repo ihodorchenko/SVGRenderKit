@@ -126,10 +126,9 @@ extension SVGGroupObject {
 
 extension SVGGroupObject {
     @discardableResult fileprivate func addIfNeedLinearGradient(children: XMLElement) throws -> SVGLinearGradientTag {
-        if let id = children.attribute(by: "id")?.text, let obj = all.get(key: id) as? SVGLinearGradientTag {
-            return obj
-        }
-        if let classStr = children.attribute(by: "class")?.text, let obj = all.get(key: classStr) as? SVGLinearGradientTag {
+        // Keys are stored with a `#` prefix. A duplicate id resolves to the first definition (as in
+        // browsers). Class is not a gradient identity, so distinct gradients sharing a class are kept.
+        if let id = children.attribute(by: "id")?.text, let obj = all.get(key: id.hasPrefix("#") ? id : "#" + id) as? SVGLinearGradientTag {
             return obj
         }
         let obj = try SVGLinearGradientTag(xmlElement: children, parent: self)
@@ -138,10 +137,9 @@ extension SVGGroupObject {
     }
 
     @discardableResult fileprivate func addIfNeedRadialGradient(children: XMLElement) throws -> SVGRadialGradientTag {
-        if let id = children.attribute(by: "id")?.text, let obj = all.get(key: id) as? SVGRadialGradientTag {
-            return obj
-        }
-        if let classStr = children.attribute(by: "class")?.text, let obj = all.get(key: classStr) as? SVGRadialGradientTag {
+        // Keys are stored with a `#` prefix. A duplicate id resolves to the first definition (as in
+        // browsers). Class is not a gradient identity, so distinct gradients sharing a class are kept.
+        if let id = children.attribute(by: "id")?.text, let obj = all.get(key: id.hasPrefix("#") ? id : "#" + id) as? SVGRadialGradientTag {
             return obj
         }
         let obj = try SVGRadialGradientTag(xmlElement: children, parent: self)
@@ -515,6 +513,10 @@ extension SVGGroupObject {
                 result = result.union(shape.path.bounds)
             } else if let group = element as? SVGGroupObject {
                 result = result.union(group.contentBounds)
+            } else if let image = element as? SVGImage {
+                result = result.union(image.frame(viewBox: getSvgOptions().viewBox))
+            } else if let use = element as? SVGUseTag, let bounds = use.contentBounds {
+                result = result.union(bounds)
             }
         }
         return result.isNull ? .zero : result
