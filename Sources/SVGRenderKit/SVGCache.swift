@@ -1,11 +1,5 @@
 import UIKit
 
-fileprivate extension Array where Element: Equatable {
-    func getIndexes(of element: Element) -> [Int] {
-        return self.enumerated().compactMap { ($0.element == element) ? $0.offset : nil }
-    }
-}
-
 /// A shared cache that stores parsed SVG roots keyed by an MD5 hash.
 open class SVGCache: @unchecked Sendable {
     /// Whether the cache is used when parsing SVGs.
@@ -20,53 +14,49 @@ open class SVGCache: @unchecked Sendable {
         set { SVGConfiguration.shared.updateNotificationName = newValue }
     }
 
-    private let accessQueue = DispatchQueue(label: "SynchronizedArrayAccess")
+    private let lock = NSLock()
     /// The shared singleton cache instance.
     static public let s = SVGCache()
 
     let maxCount: Int = 100
-    var parserCache: [String: SVGRoot] = [:]
-    var parserIDs: [String] = []
+    private struct Entry {
+        let root: SVGRoot
+        var lastUsed: UInt64
+    }
+    private var entries: [String: Entry] = [:]
+    private var tick: UInt64 = 0
 
     private init() {
     }
 
     /// Removes all cached parsed SVG roots.
     open func resetCache() {
-        accessQueue.sync {
-            parserCache.removeAll()
-            parserIDs.removeAll()
-        }
+        lock.lock()
+        defer { lock.unlock() }
+        entries.removeAll()
     }
 
     func get(md5: String) -> SVGRoot? {
-        if isSVGParserUseCache {
-            var obj: SVGRoot?
-            accessQueue.sync {
-                obj = parserCache[md5]
-            }
-            return obj
-        } else {
-            return nil
-        }
+        guard isSVGParserUseCache else { return nil }
+        lock.lock()
+        defer { lock.unlock() }
+        guard var entry = entries[md5] else { return nil }
+        // A hit refreshes recency, so frequently used documents are the last to be evicted.
+        tick &+= 1
+        entry.lastUsed = tick
+        entries[md5] = entry
+        return entry.root
     }
 
     func set(md5: String, object: SVGRoot) {
-        if isSVGParserUseCache {
-            accessQueue.sync {
-                if parserIDs.count >= maxCount {
-                    if let first = parserIDs.first {
-                        parserCache.removeValue(forKey: first)
-                    }
-                    parserIDs.removeFirst()
-                }
-                parserCache[md5] = object
-                let indexes = parserIDs.getIndexes(of: md5)
-                if indexes.count > 0 {
-                    parserIDs.remove(at: indexes[0])
-                }
-                parserIDs.append(md5)
-            }
+        guard isSVGParserUseCache else { return }
+        lock.lock()
+        defer { lock.unlock() }
+        if entries[md5] == nil, entries.count >= maxCount,
+           let oldest = entries.min(by: { $0.value.lastUsed < $1.value.lastUsed })?.key {
+            entries.removeValue(forKey: oldest)
         }
+        tick &+= 1
+        entries[md5] = Entry(root: object, lastUsed: tick)
     }
 }

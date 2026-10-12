@@ -158,8 +158,28 @@ open class SVGTextTag: SVGShapeObject {
         return textLayer
     }
 
-    /// Builds a `UIFont` from the resolved font-related style values.
+    private struct FontKey: Hashable {
+        let family: String?
+        let size: CGFloat
+        let weight: Float?
+        let style: SVGFontStyle?
+    }
+
+    private static let fontCache = SVGBoundedCache<FontKey, UIFont>(limit: 64)
+
+    /// Resolves the font for the style, reusing fonts across text nodes: font lookup by name and
+    /// descriptor is comparatively expensive and repeats identically for every run.
     private func makeFont(from sourceStyle: SVGSourceStyleElement) -> UIFont {
+        let key = FontKey(
+            family: sourceStyle.fontFamily,
+            size: sourceStyle.fontSize?.resolvedPx(relativeTo: 17.0) ?? 17.0,
+            weight: sourceStyle.fontWeight,
+            style: sourceStyle.fontStyle)
+        return Self.fontCache.value(for: key) { buildFont(from: sourceStyle) } ?? buildFont(from: sourceStyle)
+    }
+
+    /// Builds a `UIFont` from the resolved font-related style values.
+    private func buildFont(from sourceStyle: SVGSourceStyleElement) -> UIFont {
         let size = sourceStyle.fontSize?.resolvedPx(relativeTo: 17.0) ?? 17.0
 
         // Prefer an explicitly named family; try each comma-separated candidate.

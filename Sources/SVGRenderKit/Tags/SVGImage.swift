@@ -21,6 +21,9 @@ open class SVGImage: SVGObject, SVGRendering {
     /// The raw `href` value (a `data:` URI, or an unsupported external URL).
     var imageHref: String?
 
+    /// Decoded raster shared by every `createLayer` of this node (per `<use>`, pattern tile and mask render).
+    private let decodedImageCache = SVGBoundedCache<String, UIImage>(limit: 1)
+
     /// Initializes an `<image>` tag by parsing its position, size, href, and style.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         self.parent = parent
@@ -85,7 +88,7 @@ open class SVGImage: SVGObject, SVGRendering {
         let layer = CALayer()
         layer.frame = CGRect(x: resolvedX, y: resolvedY, width: resolvedWidth, height: resolvedHeight)
 
-        if let href = imageHref, let image = SVGImage.decode(dataURI: href) {
+        if let href = imageHref, let image = decodedImageCache.value(for: href, make: { SVGImage.decode(dataURI: href) }) {
             let imageSize = image.size
             if preserveAspectRatio.align == .none || imageSize.width <= 0 || imageSize.height <= 0 {
                 layer.contents = image.cgImage

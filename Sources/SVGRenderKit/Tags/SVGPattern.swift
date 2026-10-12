@@ -24,6 +24,18 @@ open class SVGPattern: SVGChildObject {
     var width: SVGLength = SVGLength.px(value: 0)
     var height: SVGLength = SVGLength.px(value: 0)
 
+    /// Everything that changes the rendered tile: the tile region, the element bounding box (only when
+    /// the content is scaled to it) and the output scale.
+    private struct TileKey: Hashable {
+        let region: [CGFloat]
+        let bbox: [CGFloat]
+        let scale: CGFloat
+    }
+
+    /// Tiles are identical for every shape that shares the same region and scale, so a hatch fill used by
+    /// hundreds of shapes is rasterized once instead of once per shape.
+    private let tileCache = SVGBoundedCache<TileKey, UIImage>(limit: 16)
+
     /// Initializes a pattern by parsing its geometry attributes and child elements.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
@@ -69,21 +81,30 @@ open class SVGPattern: SVGChildObject {
         let region = tileRegion(bbox: bbox, viewBox: viewBox)
         guard region.width > 0, region.height > 0 else { return nil }
         let size = region.size
-        let format = UIGraphicsImageRendererFormat.default()
-        getSvgOptions().usesPatterns = true
-        format.scale = max(1, getSvgOptions().renderScale)
-        format.opaque = false
-        let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        return renderer.image { context in
-            if let layer = try? createLayer(overrideElements: nil) {
-                let cg = context.cgContext
-                if patternContentUnits == .objectBoundingBox {
-                    cg.translateBy(x: bbox.origin.x - region.origin.x, y: bbox.origin.y - region.origin.y)
-                    cg.scaleBy(x: bbox.width, y: bbox.height)
-                } else {
-                    cg.translateBy(x: -region.origin.x, y: -region.origin.y)
+        let options = getSvgOptions()
+        options.usesPatterns = true
+        let scale = max(1, options.renderScale)
+        let usesBBox = patternContentUnits == .objectBoundingBox
+        let key = TileKey(
+            region: [region.origin.x, region.origin.y, region.width, region.height],
+            bbox: usesBBox ? [bbox.origin.x, bbox.origin.y, bbox.width, bbox.height] : [],
+            scale: scale)
+        return tileCache.value(for: key) {
+            let format = UIGraphicsImageRendererFormat.default()
+            format.scale = scale
+            format.opaque = false
+            let renderer = UIGraphicsImageRenderer(size: size, format: format)
+            return renderer.image { context in
+                if let layer = try? createLayer(overrideElements: nil) {
+                    let cg = context.cgContext
+                    if usesBBox {
+                        cg.translateBy(x: bbox.origin.x - region.origin.x, y: bbox.origin.y - region.origin.y)
+                        cg.scaleBy(x: bbox.width, y: bbox.height)
+                    } else {
+                        cg.translateBy(x: -region.origin.x, y: -region.origin.y)
+                    }
+                    layer.render(in: cg)
                 }
-                layer.render(in: cg)
             }
         }
     }

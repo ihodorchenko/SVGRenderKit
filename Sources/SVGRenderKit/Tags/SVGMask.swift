@@ -27,6 +27,17 @@ open class SVGMask: SVGChildObject {
     var maskContentUnits: MaskUnits = MaskUnits.userSpaceOnUse
     var maskType: MaskType = MaskType.luminance
 
+    /// What changes the rendered mask bitmap: its region, the element bounding box (only when the content
+    /// is scaled to it) and the output scale (nested patterns rasterize at it).
+    private struct MaskKey: Hashable {
+        let region: [CGFloat]
+        let bbox: [CGFloat]
+        let scale: CGFloat
+    }
+
+    /// The bitmap is identical for every element that shares the mask, so it is rendered once per key.
+    private let maskImageCache = SVGBoundedCache<MaskKey, CGImage>(limit: 16)
+
     /// The mask region, defaulting to -10%/-10%/120%/120% (object-bounding-box units).
     var x: SVGLength = SVGLength.percent(value: -0.1)
     var y: SVGLength = SVGLength.percent(value: -0.1)
@@ -120,15 +131,38 @@ extension SVGMask: SVGRendering {
     /// to be assigned to an element's `mask`. Handles `maskUnits`, `maskContentUnits`
     /// and `mask-type` (luminance vs alpha), which `CALayer.mask` alone does not.
     public func maskLayer(bbox: CGRect, viewBox: CGRect, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
-        let contentLayer = try createLayer(addStyle: nil, overrideElements: overrideElements)
         let region = maskRegion(bbox: bbox, viewBox: viewBox)
+
+        // A cached bitmap skips building the content layer tree as well. Per-element style overrides change
+        // the content, so they bypass the cache.
+        let cacheKey: MaskKey?
+        if overrideElements == nil, region.width > 0, region.height > 0 {
+            let usesBBox = maskContentUnits == .objectBoundingBox
+            cacheKey = MaskKey(
+                region: [region.origin.x, region.origin.y, region.width, region.height],
+                bbox: usesBBox ? [bbox.origin.x, bbox.origin.y, bbox.width, bbox.height] : [],
+                scale: getSvgOptions().renderScale)
+            if let key = cacheKey, let cached = maskImageCache.value(for: key) {
+                return Self.makeMaskLayer(image: cached, region: region)
+            }
+        } else {
+            cacheKey = nil
+        }
+
+        let contentLayer = try createLayer(addStyle: nil, overrideElements: overrideElements)
         guard region.width > 0, region.height > 0 else { return contentLayer }
         guard let cgImage = renderMaskImage(contentLayer: contentLayer, region: region, bbox: bbox) else {
             return contentLayer
         }
+        if let key = cacheKey { maskImageCache.set(cgImage, for: key) }
+        return Self.makeMaskLayer(image: cgImage, region: region)
+    }
+
+    /// A layer is single-parent, so every use gets its own layer around the shared bitmap.
+    private static func makeMaskLayer(image: CGImage, region: CGRect) -> CALayer {
         let layer = CALayer()
         layer.frame = region
-        layer.contents = cgImage
+        layer.contents = image
         layer.contentsScale = 1
         layer.contentsGravity = .resize
         return layer
@@ -190,31 +224,31 @@ extension SVGMask: SVGRendering {
         guard let cgImage = image.cgImage else { return nil }
         let width = cgImage.width
         let height = cgImage.height
-        let bytesPerRow = width * 4
-        var data = [UInt8](repeating: 0, count: height * bytesPerRow)
         let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
         let bitmapInfo = CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
+        // Let CoreGraphics own the buffer: it is converted in place and turned into the image with no copy.
         guard let context = CGContext(
-            data: &data, width: width, height: height, bitsPerComponent: 8,
-            bytesPerRow: bytesPerRow, space: colorSpace, bitmapInfo: bitmapInfo) else { return nil }
+            data: nil, width: width, height: height, bitsPerComponent: 8,
+            bytesPerRow: 0, space: colorSpace, bitmapInfo: bitmapInfo),
+              let base = context.data else { return nil }
+        let bytesPerRow = context.bytesPerRow
         context.clear(CGRect(x: 0, y: 0, width: width, height: height))
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-        for i in stride(from: 0, to: data.count, by: 4) {
-            let red = Double(data[i])
-            let green = Double(data[i + 1])
-            let blue = Double(data[i + 2])
-            let luma = 0.2126 * red + 0.7152 * green + 0.0722 * blue
-            let luminance = UInt8(max(0.0, min(255.0, luma)))
-            data[i] = luminance
-            data[i + 1] = luminance
-            data[i + 2] = luminance
-            data[i + 3] = luminance
+        let pixels = base.assumingMemoryBound(to: UInt8.self)
+        for row in 0..<height {
+            var p = pixels + row * bytesPerRow
+            for _ in 0..<width {
+                // Rec. 709 luma in 16-bit fixed point (0.2126 / 0.7152 / 0.0722); the weights sum to 65536.
+                let luma = (13933 * UInt32(p[0]) + 46871 * UInt32(p[1]) + 4732 * UInt32(p[2])) >> 16
+                let luminance = UInt8(truncatingIfNeeded: luma)
+                p[0] = luminance
+                p[1] = luminance
+                p[2] = luminance
+                p[3] = luminance
+                p += 4
+            }
         }
-        guard let provider = CGDataProvider(data: Data(data) as CFData) else { return nil }
-        return CGImage(
-            width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32,
-            bytesPerRow: bytesPerRow, space: colorSpace, bitmapInfo: CGBitmapInfo(rawValue: bitmapInfo),
-            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
+        return context.makeImage()
     }
 }
 
