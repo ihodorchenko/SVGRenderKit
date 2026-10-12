@@ -40,26 +40,36 @@ open class SVGParser {
         }
     }
 
+    /// Cache key for in-memory sources: the name *and* a digest of the content, so reusing a
+    /// name with different markup never returns a stale tree.
+    /// `Hasher` is per-process seeded, which is fine for an in-memory cache and far cheaper than MD5
+    /// over the whole document on every cache hit.
+    private class func cacheKey<T: Hashable>(name: String, content: T) -> String {
+        return SVGUtils.md5(name) + ":" + String(content.hashValue)
+    }
+
     class func getParser(svgData: Data, name: String? = nil) throws -> SVGParser {
-        if SVGCache.s.isSVGParserUseCache == true, let name = name, let parsedRoot = SVGCache.s.get(md5: SVGUtils.md5(name)) {
+        let key = name.map { cacheKey(name: $0, content: svgData) }
+        if SVGCache.s.isSVGParserUseCache == true, let key = key, let parsedRoot = SVGCache.s.get(md5: key) {
             let parser = try SVGParser(svgData: svgData, parsedRoot: parsedRoot)
             return parser
         }
         let parser = try SVGParser(svgData: svgData, parsedRoot: nil)
-        if SVGCache.s.isSVGParserUseCache == true, let name = name {
-            SVGCache.s.set(md5: SVGUtils.md5(name), object: parser.root)
+        if SVGCache.s.isSVGParserUseCache == true, let key = key {
+            SVGCache.s.set(md5: key, object: parser.root)
         }
         return parser
     }
 
     class func getParser(svgString: String, name: String? = nil) throws -> SVGParser {
-        if SVGCache.s.isSVGParserUseCache == true, let name = name, let parsedRoot = SVGCache.s.get(md5: SVGUtils.md5(name)) {
+        let key = name.map { cacheKey(name: $0, content: svgString) }
+        if SVGCache.s.isSVGParserUseCache == true, let key = key, let parsedRoot = SVGCache.s.get(md5: key) {
             let parser = try SVGParser(svgString: svgString, parsedRoot: parsedRoot)
             return parser
         }
         let parser = try SVGParser(svgString: svgString, parsedRoot: nil)
-        if SVGCache.s.isSVGParserUseCache == true, let name = name {
-            SVGCache.s.set(md5: SVGUtils.md5(name), object: parser.root)
+        if SVGCache.s.isSVGParserUseCache == true, let key = key {
+            SVGCache.s.set(md5: key, object: parser.root)
         }
         return parser
     }

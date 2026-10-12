@@ -101,7 +101,14 @@ extension SVGClipPath: SVGRendering {
         }
 
         for path in shapes.array {
-            let layer = try path.createLayer(addStyle: clipStyle, overrideElements: overrideElements)
+            // Inside a clipPath the winding rule comes from `clip-rule` (own or inherited from
+            // the clipPath element), not from `fill-rule`.
+            let shapeStyle = clipStyle.combine(child: SVGSourceStyleElement())
+            switch path.resolvedStyle(overrideElements: overrideElements).clipRule ?? .nonzero {
+            case .evenodd: shapeStyle.fillRule = .evenodd
+            case .nonzero, .inherit: shapeStyle.fillRule = .nonzero
+            }
+            let layer = try path.createLayer(addStyle: shapeStyle, overrideElements: overrideElements)
             mainLayer.addSublayer(layer)
         }
 

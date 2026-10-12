@@ -561,16 +561,6 @@ extension SVGSourceStyleElement {
             case .local(let key):
                 if let clipPathObj = group.getClipPath(byKey: key, fromParents: true) {
                     let rendering = try clipPathObj.createLayer(overrideElements: overrideElements)
-                    if let rendering = rendering as? CAShapeLayer {
-                        switch self.clipRule ?? .nonzero {
-                        case .nonzero:
-                            rendering.fillRule = .nonZero
-                        case .evenodd:
-                            rendering.fillRule = .evenOdd
-                        case .inherit:
-                            rendering.fillRule = .nonZero
-                        }
-                    }
                     if clipPathObj.clipPathUnits == .objectBoundingBox {
                         // The clip path's coordinates are in [0,1] object-bounding-box
                         // units; map them onto the element's bbox via
@@ -669,13 +659,6 @@ extension SVGSourceStyleElement {
                     throw SVGError.content(text: "iri not found: \(key)")
                 }
                 let rendering = try clipPathObj.createLayer(overrideElements: overrideElements)
-                if let shapeLayer = rendering as? CAShapeLayer {
-                    switch self.clipRule ?? .nonzero {
-                    case .nonzero: shapeLayer.fillRule = .nonZero
-                    case .evenodd: shapeLayer.fillRule = .evenOdd
-                    case .inherit: shapeLayer.fillRule = .nonZero
-                    }
-                }
                 if clipPathObj.clipPathUnits == .objectBoundingBox {
                     // Map [0,1] object-bounding-box units onto the group's bbox.
                     // CATransform3D helpers post-multiply, so translate then scale.

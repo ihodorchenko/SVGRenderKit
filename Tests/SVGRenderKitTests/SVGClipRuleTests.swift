@@ -30,22 +30,32 @@ final class SVGClipRuleTests: XCTestCase {
         XCTAssertNil(style.clipRule)
     }
 
+    private func pathLayers(in layer: CALayer) -> [CAShapeLayer] {
+        var out: [CAShapeLayer] = []
+        if let s = layer as? CAShapeLayer, s.path != nil { out.append(s) }
+        for sub in layer.sublayers ?? [] { out += pathLayers(in: sub) }
+        return out
+    }
+
     // MARK: Applied to mask
 
-    func testClipRuleEvenOddAppliedToMask() throws {
+    func testClipRuleOnClipPathChildAppliedToMask() throws {
         let svg = """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <defs>
-                <clipPath id="c"><rect x="0" y="0" width="50" height="50"/></clipPath>
+                <clipPath id="c"><rect x="0" y="0" width="50" height="50" clip-rule="evenodd"/></clipPath>
             </defs>
-            <rect width="100" height="100" fill="#ff0000" clip-path="url(#c)" clip-rule="evenodd"/>
+            <rect width="100" height="100" fill="#ff0000" clip-path="url(#c)"/>
         </svg>
         """
         let parser = try SVGParser(svgString: svg, parsedRoot: nil)
         let layer = try parser.getLayer(overrideElements: nil)
         let masked = try XCTUnwrap(findMaskedLayer(in: layer))
-        let mask = try XCTUnwrap(masked.mask as? CAShapeLayer)
-        XCTAssertEqual(mask.fillRule.rawValue, CAShapeLayerFillRule.evenOdd.rawValue)
+        let mask = try XCTUnwrap(masked.mask)
+        // `clip-rule` on a clipPath child drives that child's winding rule.
+        let paths = pathLayers(in: mask)
+        XCTAssertFalse(paths.isEmpty)
+        for p in paths { XCTAssertEqual(p.fillRule.rawValue, CAShapeLayerFillRule.evenOdd.rawValue) }
     }
 
     func testClipRuleDefaultsToNonZero() throws {
@@ -60,7 +70,9 @@ final class SVGClipRuleTests: XCTestCase {
         let parser = try SVGParser(svgString: svg, parsedRoot: nil)
         let layer = try parser.getLayer(overrideElements: nil)
         let masked = try XCTUnwrap(findMaskedLayer(in: layer))
-        let mask = try XCTUnwrap(masked.mask as? CAShapeLayer)
-        XCTAssertEqual(mask.fillRule.rawValue, CAShapeLayerFillRule.nonZero.rawValue)
+        let mask = try XCTUnwrap(masked.mask)
+        let paths = pathLayers(in: mask)
+        XCTAssertFalse(paths.isEmpty)
+        for p in paths { XCTAssertEqual(p.fillRule.rawValue, CAShapeLayerFillRule.nonZero.rawValue) }
     }
 }
