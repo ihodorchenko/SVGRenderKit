@@ -107,6 +107,10 @@ open class SVGOptions {
     /// the final output resolution instead of the device screen scale. Defaults to `1`.
     var renderScale: CGFloat = 1
 
+    /// Set once a pattern tile has been rasterized from this document, so `SVGView` knows
+    /// the result depends on `renderScale` and must be re-rendered when its size changes.
+    var usesPatterns = false
+
     /// The `version` attribute of the root `<svg>` element (e.g. `"1.1"`).
     var version: String?
     /// The `baseProfile` attribute of the root `<svg>` element (e.g. `"tiny"`).

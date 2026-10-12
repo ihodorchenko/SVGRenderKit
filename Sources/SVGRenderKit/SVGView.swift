@@ -18,6 +18,16 @@ open class SVGView: UIView {
 
     internal static var updateNotificationName: NSNotification.Name?
 
+    /// Parsing and layer building share per-document state (`SVGOptions.renderScale` on cached roots),
+    /// so loads run one at a time on a single background queue: this also bounds the thread count
+    /// when many views are created at once.
+    private static let loadQueue = DispatchQueue(label: "SVGRenderKit.SVGView.load", qos: .userInitiated)
+
+    /// The `renderScale` the current layer was rasterized with; `nil` if the view had no size yet.
+    internal private(set) var renderedScale: CGFloat?
+    /// Whether the current document contains patterns (whose tiles depend on `renderScale`).
+    internal private(set) var rendersPatterns = false
+
     /// Tracks the latest requested load so stale async results are discarded.
     private var loadGeneration: Int = 0
 
@@ -178,7 +188,7 @@ open class SVGView: UIView {
         // `UIScreen` is main-thread API; capture the scale here for the background render.
         SVGTextTag.screenScale = window?.screen.scale ?? UIScreen.main.scale
 
-        DispatchQueue.global().async {
+        SVGView.loadQueue.async {
             do {
                 let parser: SVGParser
                 switch source {
@@ -195,16 +205,21 @@ open class SVGView: UIView {
                 // the on-screen result independently of the render destination.
                 let options = parser.root.getSvgOptions()
                 let viewBox = options.viewBox
+                var scale: CGFloat?
                 if containerSize.width > 0, containerSize.height > 0,
                    viewBox.width > 0, viewBox.height > 0 {
                     let resolved = options.preserveAspectRatio.resolve(viewBox: viewBox, containerSize: containerSize)
-                    options.renderScale = max(resolved.scaleX, resolved.scaleY)
+                    scale = max(resolved.scaleX, resolved.scaleY)
+                    options.renderScale = scale!
                 }
 
                 let layer = try parser.getLayer(overrideElements: overrideElements)
+                let usesPatterns = options.usesPatterns
 
                 DispatchQueue.main.async {
                     guard generation == self.loadGeneration else { return }
+                    self.renderedScale = scale
+                    self.rendersPatterns = usesPatterns
                     self.parser = parser
                     self.shapeLayer = layer
                     self.set(layer: layer)
@@ -229,6 +244,8 @@ open class SVGView: UIView {
         clear()
         shapeLayer = nil
         parser = nil
+        renderedScale = nil
+        rendersPatterns = false
     }
 
     private func set(layer: CALayer) {
@@ -308,6 +325,16 @@ open class SVGView: UIView {
         shapeLayer.transform = transform
 
         contentView.frame = self.bounds
+
+        // Pattern tiles are rasterized at the scale known at load time. If the view had no size
+        // then (or has grown noticeably since), re-render so tiles are not blurry.
+        if rendersPatterns, let source = currentSource, containingSize.width > 0, containingSize.height > 0,
+           viewBox.width > 0, viewBox.height > 0 {
+            let needed = max(resolved.scaleX, resolved.scaleY)
+            if renderedScale == nil || needed > (renderedScale ?? 0) * 1.5 {
+                load(source, overrideElements: overrideElements)
+            }
+        }
     }
 }
 
