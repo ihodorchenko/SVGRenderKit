@@ -1,0 +1,55 @@
+name: Performance
+
+# Release-mode benchmarks (`SVGPerformanceTests`). They are excluded from the regular CI job: Debug
+# timings are not representative and the suite takes several minutes.
+#
+# Runs on pushes to main, manually, and on pull requests carrying the `perf` label.
+# Results go to the job summary and to the `perf-results` artifact (perf.json).
+#
+# Regression gate: if `.github/perf-baseline.json` exists, a test slower than 2x its baseline fails the
+# job (baselines under 10 ms are only reported). Create it from a green main run: download `perf.json`
+# from the `perf-results` artifact and commit it as `.github/perf-baseline.json`. Do not take baseline
+# numbers from a laptop; use the same kind of runner.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  pull_request:
+    types: [labeled, synchronize]
+
+jobs:
+  perf:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'perf')
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run performance tests (Release)
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -m1 "iPhone" | grep -oE '[0-9A-F-]{36}' | head -1)
+          echo "Using simulator: $UDID"
+          set -o pipefail
+          xcodebuild -scheme SVGRenderKit-Package \
+            -configuration Release ENABLE_TESTABILITY=YES \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            -only-testing:SVGRenderKitTests/SVGPerformanceTests \
+            test > perf.log 2>&1 || { tail -n 60 perf.log; exit 1; }
+
+      - name: Report and compare with baseline
+        run: |
+          {
+            echo '## Performance (Release, macos-latest)'
+            python3 -I Scripts/perf_report.py perf.log --json perf.json \
+              --baseline .github/perf-baseline.json
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "${PIPESTATUS[0]}"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-results
+          path: |
+            perf.json
+            perf.log

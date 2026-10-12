@@ -24,6 +24,7 @@ jobs:
           xcodebuild -scheme SVGRenderKit-Package \
             SWIFT_VERSION=${{ matrix.swift }} \
             -destination "platform=iOS Simulator,id=$UDID" \
+            -skip-testing:SVGRenderKitTests/SVGPerformanceTests \
             test 2>&1 | tee xcodebuild.log
 
       - name: Corpus parity report
