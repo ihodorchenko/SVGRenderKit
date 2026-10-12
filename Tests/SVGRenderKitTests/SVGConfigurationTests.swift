@@ -1,6 +1,7 @@
 import XCTest
 @testable import SVGRenderKit
 
+@MainActor
 final class SVGConfigurationTests: XCTestCase {
 
     override func tearDown() {

@@ -26,14 +26,11 @@ public final class SVGConfiguration: @unchecked Sendable {
             if let name = updateNotificationName {
                 NotificationCenter.default.addObserver(
                     self, selector: #selector(handleUpdateNotification), name: name, object: nil)
-                SVGView.updateNotificationName = updateSvgImagesNotification
-            } else {
-                SVGView.updateNotificationName = nil
             }
         }
     }
 
-    private let updateSvgImagesNotification = NSNotification.Name("SVGView_updateSvgImagesNSNotification")
+    let updateSvgImagesNotification = NSNotification.Name("SVGView_updateSvgImagesNSNotification")
 
     private let accessQueue = DispatchQueue(label: "SVG.Configuration", attributes: .concurrent)
     private var colorOverrides: [String: String] = [:]

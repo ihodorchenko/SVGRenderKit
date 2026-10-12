@@ -1,6 +1,7 @@
 import XCTest
 @testable import SVGRenderKit
 
+@MainActor
 final class SVGViewLifecycleTests: XCTestCase {
 
     private let markup = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><rect width=\"10\" height=\"10\"/></svg>"
@@ -86,20 +87,34 @@ final class SVGViewLifecycleTests: XCTestCase {
 }
 
 // B73/B74: thread-safety.
+@MainActor
 final class SVGThreadSafetyTests: XCTestCase {
     private let markup = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><rect width=\"10\" height=\"10\"/></svg>"
 
+    private struct UncheckedSendable<Value>: @unchecked Sendable {
+        let value: Value
+    }
+
+    /// Runs `body` on a background queue. The main-actor isolation is erased on purpose:
+    /// these tests verify that the public API is safe to call from any thread.
+    private func runOffMain(_ body: @escaping @MainActor () -> Void) {
+        let erased = UncheckedSendable(value: unsafeBitCast(body, to: (() -> Void).self))
+        DispatchQueue.global().async { erased.value() }
+    }
+
     func testLoadRequestedFromBackgroundThreadRenders() {
         let view = SVGView(frame: CGRect(x: 0, y: 0, width: 20, height: 20))
-        DispatchQueue.global().async { view.svgString = self.markup }
+        let markup = self.markup
+        runOffMain { view.svgString = markup }
         wait(for: [expectation(for: NSPredicate { _, _ in view.shapeLayer != nil }, evaluatedWith: nil)], timeout: 5)
     }
 
     func testLastBackgroundRequestWinsOverStale() {
         let view = SVGView(frame: CGRect(x: 0, y: 0, width: 20, height: 20))
         let done = expectation(description: "bg")
-        DispatchQueue.global().async {
-            view.svgString = self.markup
+        let markup = self.markup
+        runOffMain {
+            view.svgString = markup
             view.svgString = nil
             done.fulfill()
         }
@@ -111,12 +126,13 @@ final class SVGThreadSafetyTests: XCTestCase {
     func testCacheFlagAndResetAreSafeUnderConcurrency() {
         let original = SVGConfiguration.shared.isParserCacheEnabled
         defer { SVGConfiguration.shared.isParserCacheEnabled = original }
+        let markup = self.markup
         DispatchQueue.concurrentPerform(iterations: 2000) { i in
             switch i % 4 {
             case 0: SVGConfiguration.shared.isParserCacheEnabled = (i % 8 == 0)
             case 1: _ = SVGConfiguration.shared.isParserCacheEnabled
             case 2: SVGCache.s.resetCache()
-            default: _ = try? SVGParser.getParser(svgString: self.markup, name: "k\(i % 5)")
+            default: _ = try? SVGParser.getParser(svgString: markup, name: "k\(i % 5)")
             }
         }
     }

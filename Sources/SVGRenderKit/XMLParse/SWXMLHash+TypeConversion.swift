@@ -509,7 +509,7 @@ public extension XMLElement {
 
 // MARK: - XMLDeserializationError
 /// The error that is thrown if there is a problem with deserialization
-public enum XMLDeserializationError: Error, CustomStringConvertible {
+public enum XMLDeserializationError: Error, @unchecked Sendable, CustomStringConvertible {
     case implementationIsMissing(method: String)
     case nodeIsInvalid(node: XMLIndexer)
     case nodeHasNoValue

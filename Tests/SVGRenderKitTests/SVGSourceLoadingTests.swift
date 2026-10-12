@@ -1,17 +1,18 @@
 import XCTest
 @testable import SVGRenderKit
 
+@MainActor
 final class SVGSourceLoadingTests: XCTestCase {
 
     private var dir: URL!
 
-    override func setUpWithError() throws {
+    override func setUp() async throws {
         dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         SVGCache.s.resetCache()
     }
 
-    override func tearDownWithError() throws {
+    override func tearDown() async throws {
         try? FileManager.default.removeItem(at: dir)
         SVGCache.s.resetCache()
     }

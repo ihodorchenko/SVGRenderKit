@@ -225,6 +225,7 @@ enum CorpusLoader {
 // MARK: - Kit renderer
 
 /// Renders an SVG with the library under test (`SVGView`).
+@MainActor
 enum KitRenderer {
     /// Renders `svg` offscreen at the given size and returns a rasterized image.
     ///
@@ -331,7 +332,7 @@ enum ReferenceRenderer {
     /// Renders `svg` at the given size, scaling the content to fit (`xMidYMid meet`),
     /// matching `SVGView`'s layout. Returns `nil` if CoreSVG is unavailable.
     static func render(_ svg: String, size: CGSize) -> UIImage? {
-        guard coreSVG != nil,
+        guard coreSVG.pointer != nil,
               let data = svg.data(using: .utf8),
               let document = createFromData(data as CFData, nil)?.takeUnretainedValue() else {
             return nil

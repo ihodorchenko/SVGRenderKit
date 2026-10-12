@@ -3,6 +3,7 @@ import XCTest
 
 /// Regression tests for the former Task.md backlog (B41…B72), including the items that were
 /// verified and closed as "won't fix" (the tests pin the verified behaviour).
+@MainActor
 final class SVGBacklogTests: XCTestCase {
 
     private func layer(_ body: String, viewBox: String = "0 0 100 100") throws -> CALayer {

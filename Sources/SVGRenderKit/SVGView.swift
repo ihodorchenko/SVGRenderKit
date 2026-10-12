@@ -16,7 +16,10 @@ open class SVGView: UIView {
     var parser: SVGParser?
     var contentView: UIView = UIView()
 
-    internal static var updateNotificationName: NSNotification.Name?
+    internal nonisolated static var updateNotificationName: NSNotification.Name? {
+        let configuration = SVGConfiguration.shared
+        return configuration.updateNotificationName == nil ? nil : configuration.updateSvgImagesNotification
+    }
 
     /// Parsing and layer building share per-document state (`SVGOptions.renderScale` on cached roots),
     /// so loads run one at a time on a single background queue: this also bounds the thread count
@@ -174,6 +177,10 @@ open class SVGView: UIView {
     }
 
     /// Hands the parser and layer built off-main over to the main thread, which owns them from then on.
+    private struct UncheckedSendable<Value>: @unchecked Sendable {
+        let value: Value
+    }
+
     private struct LoadResult: @unchecked Sendable {
         let parser: SVGParser
         let layer: CALayer
@@ -194,6 +201,7 @@ open class SVGView: UIView {
         // `UIScreen` is main-thread API; capture the scale here for the background render.
         SVGTextTag.screenScale = window?.screen.scale ?? UIScreen.main.scale
 
+        let overrides = UncheckedSendable(value: overrideElements)
         SVGView.loadQueue.async {
             do {
                 let parser: SVGParser
@@ -219,7 +227,7 @@ open class SVGView: UIView {
                     options.renderScale = scale!
                 }
 
-                let layer = try parser.getLayer(overrideElements: overrideElements)
+                let layer = try parser.getLayer(overrideElements: overrides.value)
                 let usesPatterns = options.usesPatterns
 
                 // The layer tree is built on the load queue and only touched on main afterwards.

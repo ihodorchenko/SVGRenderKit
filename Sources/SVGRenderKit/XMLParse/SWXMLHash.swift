@@ -497,7 +497,7 @@ public struct ParsingError: Error {
 }
 
 /// Error type that is thrown when an indexing or parsing operation fails.
-public enum IndexingError: Error {
+public enum IndexingError: Error, @unchecked Sendable {
     case attribute(attr: String)
     case attributeValue(attr: String, value: String)
     case key(key: String)
