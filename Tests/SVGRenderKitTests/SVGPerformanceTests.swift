@@ -418,4 +418,124 @@ final class SVGPerformanceTests: XCTestCase {
             for fixture in corpus { _ = SWXMLHash.parse(fixture.svg) }
         }
     }
+
+    // MARK: - Feature cost
+
+    /// 256x256 document with 200 overlapping 64x64 rects at LCG positions; `defs` goes into `<defs>`,
+    /// `wrap` builds the element(s) for one rect from its `x`/`y`.
+    private static func featureDoc(defs: String = "", rect: (_ x: Int, _ y: Int) -> String) -> String {
+        var rng = LCG(state: 42)
+        var body = ""
+        for _ in 0..<200 {
+            body += rect(rng.int(193), rng.int(193)) + "\n"
+        }
+        return """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+        <defs>\(defs)</defs>
+        \(body)</svg>
+        """
+    }
+
+    private static func plainRect(_ x: Int, _ y: Int, _ attrs: String) -> String {
+        "<rect x=\"\(x)\" y=\"\(y)\" width=\"64\" height=\"64\" \(attrs)/>"
+    }
+
+    private func measureFeature(_ svg: String) {
+        SVGCache.s.isSVGParserUseCache = false
+        measure(metrics: [XCTClockMetric()], options: options) {
+            switch Self.renderBlocking(svg, scale: 1, name: nil) {
+            case .success(let data): XCTAssertFalse(data.isEmpty)
+            case .failure(let error): XCTFail("render failed: \(error)")
+            }
+        }
+    }
+
+    func testPerf_feature_solid() {
+        measureFeature(Self.featureDoc { Self.plainRect($0, $1, "fill=\"#3366cc\"") })
+    }
+    func testPerf_feature_stroke() {
+        measureFeature(Self.featureDoc { Self.plainRect($0, $1, "fill=\"none\" stroke=\"#3366cc\" stroke-width=\"2\"") })
+    }
+    func testPerf_feature_linearGradient() {
+        let defs = "<linearGradient id=\"g\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0\" stop-color=\"#3366cc\"/><stop offset=\"0.5\" stop-color=\"#cc6633\"/><stop offset=\"1\" stop-color=\"#33cc66\"/></linearGradient>"
+        measureFeature(Self.featureDoc(defs: defs) { Self.plainRect($0, $1, "fill=\"url(#g)\"") })
+    }
+    func testPerf_feature_radialGradient() {
+        let defs = "<radialGradient id=\"g\" cx=\"0.5\" cy=\"0.5\" r=\"0.5\"><stop offset=\"0\" stop-color=\"#3366cc\"/><stop offset=\"0.5\" stop-color=\"#cc6633\"/><stop offset=\"1\" stop-color=\"#33cc66\"/></radialGradient>"
+        measureFeature(Self.featureDoc(defs: defs) { Self.plainRect($0, $1, "fill=\"url(#g)\"") })
+    }
+    func testPerf_feature_clipPath() {
+        let defs = "<clipPath id=\"c\" clipPathUnits=\"userSpaceOnUse\"><circle cx=\"128\" cy=\"128\" r=\"100\"/></clipPath>"
+        measureFeature(Self.featureDoc(defs: defs) { "<g clip-path=\"url(#c)\">" + Self.plainRect($0, $1, "fill=\"#3366cc\"") + "</g>" })
+    }
+    func testPerf_feature_mask() {
+        let defs = "<linearGradient id=\"mg\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"0\"><stop offset=\"0\" stop-color=\"#fff\"/><stop offset=\"1\" stop-color=\"#000\"/></linearGradient>"
+            + "<mask id=\"m\" maskUnits=\"userSpaceOnUse\" x=\"0\" y=\"0\" width=\"256\" height=\"256\"><rect x=\"0\" y=\"0\" width=\"256\" height=\"256\" fill=\"url(#mg)\"/></mask>"
+        measureFeature(Self.featureDoc(defs: defs) { Self.plainRect($0, $1, "fill=\"#3366cc\" mask=\"url(#m)\"") })
+    }
+    func testPerf_feature_groupOpacity() {
+        measureFeature(Self.featureDoc { "<g opacity=\"0.5\">" + Self.plainRect($0, $1, "fill=\"#3366cc\"") + "</g>" })
+    }
+    func testPerf_feature_shapeOpacity() {
+        measureFeature(Self.featureDoc { Self.plainRect($0, $1, "fill=\"#3366cc\" opacity=\"0.5\"") })
+    }
+    func testPerf_feature_dropShadow() {
+        let defs = "<filter id=\"f\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"2\" dy=\"2\" stdDeviation=\"2\" flood-color=\"#000000\" flood-opacity=\"0.5\"/></filter>"
+        measureFeature(Self.featureDoc(defs: defs) { Self.plainRect($0, $1, "fill=\"#3366cc\" filter=\"url(#f)\"") })
+    }
+    func testPerf_feature_pattern() {
+        let defs = "<pattern id=\"p\" width=\"8\" height=\"8\" patternUnits=\"userSpaceOnUse\"><circle cx=\"4\" cy=\"4\" r=\"3\" fill=\"#3366cc\"/></pattern>"
+        measureFeature(Self.featureDoc(defs: defs) { Self.plainRect($0, $1, "fill=\"url(#p)\"") })
+    }
+
+    /// Renders every corpus file once (PNG 128x128 @1x), timing each, and prints a per-feature breakdown.
+    func testPerf_feature_corpusExport() throws {
+        let corpus = CorpusLoader.load()
+        try XCTSkipIf(corpus.isEmpty, "corpus is empty")
+        SVGCache.s.isSVGParserUseCache = false
+
+        let tagChecks: [(String, [String])] = [
+            ("hasGradient", ["linearGradient", "radialGradient"]),
+            ("hasClip", ["clipPath"]),
+            ("hasMask", ["<mask"]),
+            ("hasFilter", ["<filter"]),
+            ("hasPattern", ["<pattern"]),
+            ("hasText", ["<text"]),
+            ("hasImage", ["<image"]),
+        ]
+        struct Sample { let name: String; let ms: Double; let tags: [String] }
+        var samples: [Sample] = []
+        var errors = 0
+        let totalStart = CFAbsoluteTimeGetCurrent()
+        for fixture in corpus {
+            var tags = tagChecks.filter { _, needles in needles.contains { fixture.svg.contains($0) } }.map { $0.0 }
+            if tags.isEmpty { tags = ["plain"] }
+            let size = CGSize(width: 128, height: 128)
+            let start = CFAbsoluteTimeGetCurrent()
+            let semaphore = DispatchSemaphore(value: 0)
+            let failed = FailureCounter()
+            SVGRenderer.render(.string(fixture.svg, name: nil), size: size, format: .png, scale: 1) { result in
+                if case .failure = result { failed.increment() }
+                semaphore.signal()
+            }
+            semaphore.wait()
+            let ms = (CFAbsoluteTimeGetCurrent() - start) * 1000
+            errors += failed.value
+            samples.append(Sample(name: fixture.name, ms: ms, tags: tags))
+        }
+        let totalMs = (CFAbsoluteTimeGetCurrent() - totalStart) * 1000
+
+        let allTags = tagChecks.map { $0.0 } + ["plain"]
+        for tag in allTags {
+            let times = samples.filter { $0.tags.contains(tag) }.map { $0.ms }.sorted()
+            guard !times.isEmpty else { print("FEATURE_COST \(tag) files=0 totalMs=0 meanMs=0 p95Ms=0"); continue }
+            let sum = times.reduce(0, +)
+            let p95 = times[min(times.count - 1, Int((Double(times.count) * 0.95).rounded(.up)) - 1)]
+            print(String(format: "FEATURE_COST %@ files=%d totalMs=%.1f meanMs=%.2f p95Ms=%.2f", tag, times.count, sum, sum / Double(times.count), p95))
+        }
+        print(String(format: "FEATURE_COST_TOTAL files=%d totalMs=%.1f errors=%d", samples.count, totalMs, errors))
+        for s in samples.sorted(by: { $0.ms > $1.ms }).prefix(10) {
+            print(String(format: "FEATURE_SLOW %@ %.1f %@", s.name, s.ms, s.tags.joined(separator: ",")))
+        }
+    }
 }
