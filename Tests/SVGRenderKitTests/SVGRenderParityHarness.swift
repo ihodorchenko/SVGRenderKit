@@ -169,6 +169,18 @@ enum ParityFixtures {
             <rect x="10" y="10" width="80" height="80" fill="#e67e22" clip-path="url(#c)"/>
         </svg>
         """),
+        ParityFixture(name: "group-object-bounding-box-clip-transform", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <clipPath id="c" clipPathUnits="objectBoundingBox">
+                    <rect x="0" y="0" width="0.5" height="1"/>
+                </clipPath>
+            </defs>
+            <g clip-path="url(#c)">
+                <rect x="50" y="10" width="50" height="80" fill="#2f80ed" transform="translate(-20 0)"/>
+            </g>
+        </svg>
+        """),
         // CoreSVG rasterizes masks at a low resolution (soft edges) while the kit
         // renders them at `renderScale` (crisp), so the mask edge needs more headroom.
         ParityFixture(name: "mask-luminance", svg: """
