@@ -233,8 +233,8 @@ extension SVGSVGTag: SVGRendering {
     public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CAShapeLayer = CAShapeLayer()
 
-
-        if let sourceStyle = sourceStyle, let display = sourceStyle.display {
+        let ownStyle = self.ownStyle()
+        if let display = ownStyle.display {
             switch display {
             case .inline:
                 break
@@ -268,9 +268,7 @@ extension SVGSVGTag: SVGRendering {
             mainLayer.transform = transform
         }
 
-        if let sourceStyle = sourceStyle {
-            try sourceStyle.applyGroupComposite(to: mainLayer, bbox: contentBounds, container: self, overrideElements: overrideElements)
-        }
+        try ownStyle.applyGroupComposite(to: mainLayer, bbox: contentBounds, container: self, overrideElements: overrideElements)
 
         return mainLayer
     }

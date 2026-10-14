@@ -33,7 +33,7 @@
 | `<path>`, `<rect>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>` | ✅ |
 | `<linearGradient>`, `<radialGradient>`, `<stop>` | ✅ (`stop-color`, `stop-opacity`, `offset`) |
 | `<text>`, `<tspan>` | ✅ `text-anchor`, multi-line `<tspan>` |
-| `<style>` | ✅ id / class / tag selectors |
+| `<style>` | ✅ id / class / tag selectors (matched on the element itself, including containers such as `<g class="…">`) |
 | `<filter>` | ✅ `feGaussianBlur` (SVG 1.1) + `feDropShadow` (SVG 2.0) + `feOffset`/`feFlood`/`feColorMatrix` drop-shadow chain (Figma/Sketch) |
 | `<animate>`, `<animateTransform>`, `<set>` | ✅ SMIL subset (see below) |
 | `<image>` | ✅ inline data-URI rasters (no external URLs) |
@@ -82,7 +82,8 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 ### CSS
 
 - Inline `style="…"` ✅
-- `<style>` blocks with id / class / tag selectors ✅
+- `<style>` blocks with id / class / tag selectors ✅ (matched on the element itself,
+  so a matched `<g>` styles itself and is inherited by its descendants)
 - Cascade, specificity, `inherit` resolution, descendant/combinator selectors,
   pseudo-classes, `@media`, `@font-face` ❌ out of scope
 

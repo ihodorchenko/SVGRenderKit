@@ -14,8 +14,9 @@ extension SVGGTag: SVGRendering {
     /// Builds and returns a layer containing the rendered layers of this group's child elements.
     public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CAShapeLayer = CAShapeLayer()
+        let ownStyle = self.ownStyle()
 
-        if let sourceStyle = sourceStyle, let display = sourceStyle.display {
+        if let display = ownStyle.display {
             switch display {
             case .inline:
                 break
@@ -49,9 +50,7 @@ extension SVGGTag: SVGRendering {
             mainLayer.transform = transform
         }
 
-        if let sourceStyle = sourceStyle {
-            try sourceStyle.applyGroupComposite(to: mainLayer, bbox: contentBounds, container: self, overrideElements: overrideElements)
-        }
+        try ownStyle.applyGroupComposite(to: mainLayer, bbox: contentBounds, container: self, overrideElements: overrideElements)
 
         for anim in animations {
             anim.apply(to: mainLayer, pathLayer: nil)

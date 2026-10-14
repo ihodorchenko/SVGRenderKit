@@ -11,7 +11,11 @@ open class SVGGroupObject: SVGChildObject, SVGGroupProtocol {
     /// Every child object, used for id/class lookups regardless of type.
     private(set) var all: SVGTags<SVGObject> = SVGTags<SVGObject>()
 
-    var sourceStyle: SVGSourceStyleElement?
+    /// The group's presentation attributes, kept apart from its inline `style` so a
+    /// `<style>`-block rule can slot between them in the cascade (B91).
+    private(set) var presentationStyle: SVGSourceStyleElement = SVGSourceStyleElement()
+    /// The group's inline `style` attribute value (the highest priority of its own styles).
+    private(set) var inlineStyle: SVGSourceStyleElement = SVGSourceStyleElement()
     /// All `<style>` children; a group may carry more than one.
     private(set) var styleTagsList: [SVGStyleTag] = []
 
@@ -21,12 +25,17 @@ open class SVGGroupObject: SVGChildObject, SVGGroupProtocol {
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
-        let tsStyle: SVGSourceStyleElement = SVGSourceStyleElement()
-        try tsStyle.set(attributeDict: attributeDict)
+        // Keep the presentation attributes and the inline `style` apart so a
+        // `<style>`-block rule can slot between them in the cascade (B91).
+        let presentation: SVGSourceStyleElement = SVGSourceStyleElement()
+        try presentation.set(attributeDict: attributeDict)
+        presentationStyle = presentation
+
+        let inline: SVGSourceStyleElement = SVGSourceStyleElement()
         if let str = attributeDict["style"] {
-            try tsStyle.set(styleStr: str, force: false)
+            try inline.set(styleStr: str, force: false)
         }
-        sourceStyle = tsStyle
+        inlineStyle = inline
 
         if let str = attributeDict["transform"] {
             transform = try SVGTransform.get(string: str)
@@ -379,21 +388,37 @@ extension SVGGroupObject {
     /// `<style>`-block selectors target the shape itself, so they override inherited
     /// group styles. Applied root→leaf so a nested `<style>` wins.
     public func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
+        return selectorStyle(for: forObject)
+    }
+
+    /// Resolves the `<style>`-block rules (tag/class/id) matching any object, so a
+    /// selector can target a container such as `<g class="st0">`, not only a shape (B91).
+    private func selectorStyle(for object: SVGObject) -> SVGSourceStyleElement {
         var style = SVGSourceStyleElement()
         for styleTag in styleTags() {
-            if let tagStyle = styleTag.byTagDict[forObject.key] {
+            if let tagStyle = styleTag.byTagDict[object.key] {
                 style = style.combine(child: tagStyle)
             }
-            for className in forObject.classNames {
+            for className in object.classNames {
                 if let classStyle = styleTag.byClassDict[className] {
                     style = style.combine(child: classStyle)
                 }
             }
-            if let idStr = forObject.id, let idStyle = styleTag.byIdDict[idStr] {
+            if let idStr = object.id, let idStyle = styleTag.byIdDict[idStr] {
                 style = style.combine(child: idStyle)
             }
         }
         return style
+    }
+
+    /// This group's own effective style: presentation attributes, then the `<style>`-block
+    /// rules that target the group itself (`<g class="st0">` with `.st0{…}`), then its
+    /// inline `style`. A selector outranks a presentation attribute; inline `style`
+    /// outranks both (B91).
+    func ownStyle() -> SVGSourceStyleElement {
+        return presentationStyle
+            .combine(child: selectorStyle(for: self))
+            .combine(child: inlineStyle)
     }
 
     /// Walks up the group chain combining inherited group styles (no selectors).
@@ -407,17 +432,16 @@ extension SVGGroupObject {
         } else {
             style = parent.getStyle(forObject: forObject, overrideElements: overrideElements)
         }
-        if let selfStyle = sourceStyle {
-            // Group-compositing properties (opacity, clip-path, mask, filter) are
-            // applied to the group as a whole, not inherited to child shapes.
-            let inheritable = SVGSourceStyleElement()
-            inheritable.set(element: selfStyle)
-            inheritable.opacity = nil
-            inheritable.clipPath = nil
-            inheritable.mask = nil
-            inheritable.filter = nil
-            style = style.combine(child: inheritable)
-        }
+        let selfStyle = ownStyle()
+        // Group-compositing properties (opacity, clip-path, mask, filter) are
+        // applied to the group as a whole, not inherited to child shapes.
+        let inheritable = SVGSourceStyleElement()
+        inheritable.set(element: selfStyle)
+        inheritable.opacity = nil
+        inheritable.clipPath = nil
+        inheritable.mask = nil
+        inheritable.filter = nil
+        style = style.combine(child: inheritable)
         if let overrideElements = overrideElements {
             if let tagElem = overrideElements[key] {
                 style = style.combine(child: tagElem)
