@@ -22,6 +22,8 @@ open class SVGMask: SVGChildObject {
     private(set) var all: SVGTags<SVGObject> = SVGTags<SVGObject>()
     private(set) var uses: SVGTags<SVGUseTag> = SVGTags<SVGUseTag>()
     private(set) var shapes: SVGTags<SVGShapeObject> = SVGTags<SVGShapeObject>()
+    private(set) var groups: SVGTags<SVGGTag> = SVGTags<SVGGTag>()
+    private(set) var images: SVGTags<SVGImage> = SVGTags<SVGImage>()
 
     var maskUnits: MaskUnits = MaskUnits.objectBoundingBox
     var maskContentUnits: MaskUnits = MaskUnits.userSpaceOnUse
@@ -77,6 +79,14 @@ open class SVGMask: SVGChildObject {
         case SVGUseTag.key:
             let use: SVGUseTag = try SVGUseTag(xmlElement: children, parent: self)
             try self.add(uses: [use])
+        case SVGGTag.key:
+            let group: SVGGTag = try SVGGTag(xmlElement: children, parent: self)
+            self.groups.add(item: group)
+            self.all.add(item: group)
+        case SVGImage.key:
+            let image: SVGImage = try SVGImage(xmlElement: children, parent: self)
+            self.images.add(item: image)
+            self.all.add(item: image)
         default:
             if let shapeTag = try SVGShapeObject.create(xml: children, parent: self) {
                 try self.add(shapes: [shapeTag])
@@ -105,18 +115,30 @@ extension SVGMask {
     }
 }
 
+extension SVGMask: SVGGroupHosting {}
+
 extension SVGMask: SVGRendering {
     /// Builds and returns a layer containing the mask's shapes and `<use>` references.
     public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CAShapeLayer = CAShapeLayer()
 
+        for group in groups.array {
+            let layer = try group.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+            mainLayer.addSublayer(layer)
+        }
+
         for use in uses.array {
-            let layer = try use.createLayer(overrideElements: overrideElements)
+            let layer = try use.createLayer(addStyle: addStyle, overrideElements: overrideElements)
             mainLayer.addSublayer(layer)
         }
 
         for path in shapes.array {
-            let layer = try path.createLayer(overrideElements: overrideElements)
+            let layer = try path.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+            mainLayer.addSublayer(layer)
+        }
+
+        for image in images.array {
+            let layer = try image.createLayer(addStyle: addStyle, overrideElements: overrideElements)
             mainLayer.addSublayer(layer)
         }
 

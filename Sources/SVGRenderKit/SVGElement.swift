@@ -378,4 +378,9 @@ extension SVGRoot: SVGGroupProtocol {
         return nil
     }
 
+    /// Looks up an image by key. The root has no parent elements and returns `nil`.
+    public func getImage(byKey: String, fromParents: Bool) -> SVGImage? {
+        return nil
+    }
+
 }

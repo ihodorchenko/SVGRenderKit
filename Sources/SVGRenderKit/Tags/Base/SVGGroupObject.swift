@@ -312,7 +312,7 @@ extension SVGGroupObject {
         return fromParents ? parent.getSymbol(byKey: byKey, fromParents: fromParents) : nil
     }
 
-    /// Returns a renderable (shape, group, or symbol) matching the key, optionally searching parent groups.
+    /// Returns a renderable (shape, group, symbol, or image) matching the key, optionally searching parent groups.
     public func getRendering(byKey: String, fromParents: Bool) -> SVGRendering? {
         if let share = getShape(byKey: byKey, fromParents: true) {
             return share
@@ -323,7 +323,23 @@ extension SVGGroupObject {
         if let symbol = getSymbol(byKey: byKey, fromParents: true) {
             return symbol
         }
+        if let image = getImage(byKey: byKey, fromParents: true) {
+            return image
+        }
         return fromParents ? parent.getRendering(byKey: byKey, fromParents: fromParents) : nil
+    }
+
+    /// Returns the `<image>` matching the key, optionally searching parent groups.
+    public func getImage(byKey: String, fromParents: Bool) -> SVGImage? {
+        if let defs = defs {
+            if let img = defs.getImage(byKey: byKey, fromParents: false) {
+                return img
+            }
+        }
+        if let img = all.get(key: byKey) as? SVGImage {
+            return img
+        }
+        return fromParents ? parent.getImage(byKey: byKey, fromParents: fromParents) : nil
     }
 
     /// Returns the linear gradient matching the key, optionally searching parent groups.

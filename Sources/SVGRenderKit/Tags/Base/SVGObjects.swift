@@ -72,7 +72,7 @@ open class SVGObject {
 open class SVGChildObject: SVGObject {
     /// The owning parent. `unowned` because the parent owns its children and always
     /// outlives them; a strong reference here would retain-cycle the whole document.
-    unowned var parent: SVGGroupProtocol
+    public unowned var parent: SVGGroupProtocol
     /// Initializes a child object from its XML element, optional attributes, and parent group.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         self.parent = parent

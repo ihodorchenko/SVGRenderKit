@@ -74,6 +74,40 @@ public protocol SVGGroupProtocol: SVGShapesContainer {
 
     /// Returns the radial gradient matching the key, optionally searching parent groups.
     func getRadialGradients(byKey: String, fromParents: Bool) -> SVGRadialGradientTag?
+
+    /// Returns the `<image>` matching the key, optionally searching parent groups.
+    func getImage(byKey: String, fromParents: Bool) -> SVGImage?
+}
+
+/// A rendering container (mask / pattern / marker / clipPath) that can host a `<g>`.
+/// The group lookups are delegated to its parent, so the container can act as the
+/// group's parent without duplicating the whole container protocol.
+public protocol SVGGroupHosting: SVGGroupProtocol {
+    var parent: SVGGroupProtocol { get }
+}
+
+extension SVGGroupHosting {
+    public func getObject(byKey: String, fromParents: Bool) -> SVGObject? {
+        return parent.getObject(byKey: byKey, fromParents: true)
+    }
+    public func getG(byKey: String, fromParents: Bool) -> SVGGTag? {
+        return parent.getG(byKey: byKey, fromParents: true)
+    }
+    public func getShape(byKey: String, fromParents: Bool) -> SVGShapeObject? {
+        return parent.getShape(byKey: byKey, fromParents: true)
+    }
+    public func getSymbol(byKey: String, fromParents: Bool) -> SVGSymbol? {
+        return parent.getSymbol(byKey: byKey, fromParents: true)
+    }
+    public func getLinearGradient(byKey: String, fromParents: Bool) -> SVGLinearGradientTag? {
+        return parent.getLinearGradient(byKey: byKey, fromParents: true)
+    }
+    public func getRadialGradients(byKey: String, fromParents: Bool) -> SVGRadialGradientTag? {
+        return parent.getRadialGradients(byKey: byKey, fromParents: true)
+    }
+    public func getImage(byKey: String, fromParents: Bool) -> SVGImage? {
+        return parent.getImage(byKey: byKey, fromParents: true)
+    }
 }
 
 extension SVGShapesContainer {

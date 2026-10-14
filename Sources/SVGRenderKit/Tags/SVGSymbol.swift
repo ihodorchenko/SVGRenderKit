@@ -45,6 +45,9 @@ extension SVGSymbol: SVGRendering {
             } else if let use = layerElement as? SVGUseTag {
                 let layer = try use.createLayer(addStyle: addStyle, overrideElements: overrideElements)
                 mainLayer.addSublayer(layer)
+            } else if let image = layerElement as? SVGImage {
+                let layer = try image.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+                mainLayer.addSublayer(layer)
             }
         }
 

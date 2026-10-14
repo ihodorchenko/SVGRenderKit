@@ -17,6 +17,7 @@ open class SVGClipPath: SVGChildObject {
     private(set) var all: SVGTags<SVGObject> = SVGTags<SVGObject>()
     private(set) var uses: SVGTags<SVGUseTag> = SVGTags<SVGUseTag>()
     private(set) var shapes: SVGTags<SVGShapeObject> = SVGTags<SVGShapeObject>()
+    private(set) var groups: SVGTags<SVGGTag> = SVGTags<SVGGTag>()
 
     var clipPathUnits: ClipPathUnits = ClipPathUnits.userSpaceOnUse
 
@@ -52,6 +53,11 @@ open class SVGClipPath: SVGChildObject {
             let use: SVGUseTag = try SVGUseTag(xmlElement: children, parent: self)
             try self.add(uses: [use])
             break
+        case SVGGTag.key:
+            let group: SVGGTag = try SVGGTag(xmlElement: children, parent: self)
+            self.groups.add(item: group)
+            self.all.add(item: group)
+            break
         default:
             if let shapeTag = try SVGShapeObject.create(xml: children, parent: self) {
                 try self.add(shapes: [shapeTag])
@@ -82,10 +88,18 @@ extension SVGClipPath {
 
 }
 
+extension SVGClipPath: SVGGroupHosting {}
+
 extension SVGClipPath: SVGRendering {
     /// Builds and returns a layer containing the clip path's shapes and `<use>` references.
     public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CAShapeLayer = CAShapeLayer()
+
+        for group in groups.array {
+            let layer = try group.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+            SVGClipPath.forceClipMask(layer, fillRule: .nonZero)
+            mainLayer.addSublayer(layer)
+        }
 
         for use in uses.array {
             let layer = try use.createLayer(addStyle: addStyle, overrideElements: overrideElements)
