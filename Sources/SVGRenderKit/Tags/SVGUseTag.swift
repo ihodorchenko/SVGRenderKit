@@ -107,14 +107,16 @@ open class SVGUseTag: SVGObject, SVGRendering {
                         _transform = CATransform3DTranslate(_transform, -viewBox.origin.x, -viewBox.origin.y, 0)
                     }
 
-                    if let transform = transform {
-                        _transform = CATransform3DConcat(transform, _transform)
-                    }
-                    // `x`/`y` on `<use>` is a translate applied in the *parent*
-                    // coordinate space, i.e. after the element's own transform.
-                    // CATransform3DConcat(a,b) == a·b, so we post-multiply here.
+                    // Per SVG 1.1 §5.6 the referenced content is wrapped as
+                    // `<g transform="[use.transform] translate(x,y)">`, with the
+                    // viewBox fit innermost. CATransform3DConcat(a, b) == a·b, so the
+                    // left-to-right product V·translate·transform is built by
+                    // appending each factor on the right.
                     if x != 0 || y != 0 {
                         _transform = CATransform3DConcat(_transform, CATransform3DMakeTranslation(x, y, 0))
+                    }
+                    if let transform = transform {
+                        _transform = CATransform3DConcat(_transform, transform)
                     }
                     if !CATransform3DIsIdentity(_transform) {
                         layer.transform = _transform
