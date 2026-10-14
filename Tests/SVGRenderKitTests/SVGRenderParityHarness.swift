@@ -245,6 +245,9 @@ enum ParityFixtures {
             </g>
         </svg>
         """),
+        // CoreSVG does not apply the element's transform to a userSpaceOnUse clip-path,
+        // so it clips where a browser (and the kit) does not. Render-only (B95); the
+        // geometry is asserted in SVGClipPathTransformTests.
         ParityFixture(name: "group-clip-path-transform", svg: """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <defs>
@@ -254,7 +257,15 @@ enum ParityFixtures {
                 <rect width="80" height="80" fill="#27ae60"/>
             </g>
         </svg>
-        """),
+        """, referenceLimited: true),
+        ParityFixture(name: "shape-clip-path-transform", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <clipPath id="c"><rect width="80" height="80"/></clipPath>
+            </defs>
+            <rect width="80" height="80" fill="#27ae60" clip-path="url(#c)" transform="scale(1.25)"/>
+        </svg>
+        """, referenceLimited: true),
         ParityFixture(name: "group-opacity", svg: """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <g opacity="0.5">
@@ -588,6 +599,11 @@ enum ParityTriage {
         // ── Mask boundary ──
         "svg_2.0/menu/commission.svg": "mask: region boundary anti-aliasing",
         "svg_3.0/action/icon__action__transaction_special.svg": "mask: region boundary anti-aliasing",
+
+        // ── Clip-path ──
+        // CoreSVG ignores the element's own transform on a userSpaceOnUse clip-path, so
+        // it clips where a browser (and the kit) does not (verified against WKWebView).
+        "svg_1.0/flags1x1/by.svg": "clip-path: CoreSVG ignores the element transform on a userSpaceOnUse clip",
 
         // ── Complex logos: path rasterization / anti-aliasing vs CoreSVG ──
         "svg_1.0/widget/america.svg": "logo: many-path rasterization / AA",
