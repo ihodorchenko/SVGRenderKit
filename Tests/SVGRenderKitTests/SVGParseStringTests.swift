@@ -224,4 +224,37 @@ final class SVGParseStringTests: XCTestCase {
         // to a graceful error rather than aborting.
         XCTAssertNotNil(result.error)
     }
+
+    // MARK: Compact elliptical-arc flags (B84)
+
+    private func assertSameGeometry(_ compact: String, _ spaced: String,
+                                    file: StaticString = #filePath, line: UInt = #line) throws {
+        let c = SVGParseString.parseSVGPath(pathString: compact)
+        let s = SVGParseString.parseSVGPath(pathString: spaced)
+        XCTAssertNil(c.error, "compact form errored: \(String(describing: c.error))", file: file, line: line)
+        XCTAssertNil(s.error, file: file, line: line)
+        let cp = try XCTUnwrap(c.path, file: file, line: line)
+        let sp = try XCTUnwrap(s.path, file: file, line: line)
+        XCTAssertEqual(elementCount(cp), elementCount(sp), file: file, line: line)
+        XCTAssertEqual(cp.bounds.minX, sp.bounds.minX, accuracy: 1e-6, file: file, line: line)
+        XCTAssertEqual(cp.bounds.minY, sp.bounds.minY, accuracy: 1e-6, file: file, line: line)
+        XCTAssertEqual(cp.bounds.maxX, sp.bounds.maxX, accuracy: 1e-6, file: file, line: line)
+        XCTAssertEqual(cp.bounds.maxY, sp.bounds.maxY, accuracy: 1e-6, file: file, line: line)
+    }
+
+    func testCompactArcFlagsParseLikeSpacedForm() throws {
+        // SVGO emits the flags without separators: `a2 2 0 011 1` is
+        // large-arc=0, sweep=1, then x=1, y=1 (each flag is a single character).
+        try assertSameGeometry("M0 0a2 2 0 011 1", "M0 0a2 2 0 0 1 1 1")
+    }
+
+    func testCompactArcFlagFollowedByMultiDigitCoordinate() throws {
+        // "0111" is large-arc=0, sweep=1, then x=11 (the coordinate is read greedily).
+        try assertSameGeometry("M0 0a2 2 0 0111 1", "M0 0a2 2 0 0 1 11 1")
+    }
+
+    func testCompactArcFlagsAcrossRepeatedGroups() throws {
+        try assertSameGeometry("M0 0a2 2 0 011 1 2 2 0 011 1",
+                               "M0 0a2 2 0 0 1 1 1 2 2 0 0 1 1 1")
+    }
 }

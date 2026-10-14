@@ -292,6 +292,11 @@ public class SVGParseString {
         return string[index...].first ?? "?"
     }
 
+    @inline(__always)
+    fileprivate class func isASCIIDigit(_ byte: UInt8) -> Bool {
+        return byte >= UInt8(ascii: "0") && byte <= UInt8(ascii: "9")
+    }
+
     /// Parses an SVG path data string into a `UIBezierPath`.
     /// - parameter pathString: The SVG path data string, which must begin with a MoveTo (`M`/`m`) command.
     /// - parameter forPath: An optional existing path to append the parsed commands to.
@@ -384,6 +389,15 @@ public class SVGParseString {
                     pushCoordinateAndClear()
                 }
                 currentNumber.push(byte)
+                // The elliptical-arc large-arc / sweep flags are single characters
+                // (SVG 1.1 §8.3.8), so flush right after the flag byte. Otherwise
+                // compact output like `a2 2 0 011 1` (SVGO) reads "011" as one number.
+                if currentPathCommand is EllipticalArcTo, isASCIIDigit(byte) {
+                    let parameterIndex = currentPathCommand.parameters.count % currentPathCommand.numberOfRequiredParameters
+                    if parameterIndex == 3 || parameterIndex == 4 {
+                        pushCoordinateAndClear()
+                    }
+                }
             case .invalid:
                 returnPath.removeAllPoints()
                 return (path: nil, error: SVGError.parseError(text: "Invalid character \"\(invalidCharacter(in: workingString, utf8Offset: index))\" found"))
