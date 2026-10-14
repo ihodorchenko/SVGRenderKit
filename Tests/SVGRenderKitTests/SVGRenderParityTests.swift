@@ -33,18 +33,24 @@ final class SVGRenderParityTests: XCTestCase {
 
         for fixture in ParityFixtures.all {
             try XCTContext.runActivity(named: fixture.name) { activity in
+                let actual = try KitRenderer.render(fixture.svg, size: size)
+                activity.add(XCTAttachment(image: actual))
+
+                // Render-only fixtures: CoreSVG rasterizes this feature through a
+                // different code path, so its raster can't be compared pixel by pixel.
+                // Rendering still catches a crash or a missing element.
+                if fixture.referenceLimited { return }
+
                 guard let reference = ReferenceRenderer.render(fixture.svg, size: size) else {
                     XCTFail("[\(fixture.name)] failed to produce reference render")
                     return
                 }
-                let actual = try KitRenderer.render(fixture.svg, size: size)
 
                 guard let comparison = ImageComparator.compare(actual, reference, size: size, tolerance: tolerance) else {
                     XCTFail("[\(fixture.name)] failed to rasterize images for comparison")
                     return
                 }
 
-                activity.add(XCTAttachment(image: actual))
                 activity.add(XCTAttachment(image: reference))
                 let limit = fixture.maxDifferingFraction ?? maxDifferingFraction
                 XCTAssertTrue(

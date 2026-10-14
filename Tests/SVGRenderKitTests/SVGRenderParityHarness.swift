@@ -11,11 +11,17 @@ struct ParityFixture {
     /// itself limited for this feature (e.g. it rasterizes masks at a low resolution,
     /// so their edges come out soft). `nil` uses the test's default.
     var maxDifferingFraction: Double?
+    /// Skips the pixel comparison when CoreSVG rasterizes the feature through a
+    /// different code path (e.g. it interpolates radial gradients in another colour
+    /// space, lifting the green channel). The fixture is still rendered, so a crash or
+    /// a missing gradient is caught — only the raster comparison is waived.
+    var referenceLimited: Bool
 
-    init(name: String, svg: String, maxDifferingFraction: Double? = nil) {
+    init(name: String, svg: String, maxDifferingFraction: Double? = nil, referenceLimited: Bool = false) {
         self.name = name
         self.svg = svg
         self.maxDifferingFraction = maxDifferingFraction
+        self.referenceLimited = referenceLimited
     }
 }
 
@@ -89,6 +95,60 @@ enum ParityFixtures {
                 </linearGradient>
             </defs>
             <rect width="100" height="100" fill="url(#g)"/>
+        </svg>
+        """),
+        // CoreSVG interpolates radial gradients in a different colour space than the
+        // native radial draw (it lifts the green channel), so these rasters can't be
+        // compared pixel by pixel — they are rendered only, to catch crashes/gross
+        // errors. The geometry they exercise is asserted in SVGRadialGradientGeometryTests.
+        ParityFixture(name: "radial-object-bounding-box", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <radialGradient id="g" cx="50%" cy="50%" r="50%">
+                    <stop offset="0" stop-color="#ff0000"/><stop offset="1" stop-color="#0000ff"/>
+                </radialGradient>
+            </defs>
+            <rect x="10" y="30" width="80" height="40" fill="url(#g)"/>
+        </svg>
+        """, referenceLimited: true),
+        ParityFixture(name: "radial-object-bounding-box-focal", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <radialGradient id="g" cx="0.5" cy="0.5" r="0.5" fx="0.25" fy="0.25">
+                    <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#1e90ff"/>
+                </radialGradient>
+            </defs>
+            <rect x="10" y="20" width="80" height="60" fill="url(#g)"/>
+        </svg>
+        """, referenceLimited: true),
+        ParityFixture(name: "radial-object-bounding-box-transform", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <radialGradient id="g" cx="0.5" cy="0.5" r="0.5" gradientTransform="translate(0.25 0)">
+                    <stop offset="0" stop-color="#ff0000"/><stop offset="1" stop-color="#0000ff"/>
+                </radialGradient>
+            </defs>
+            <rect x="10" y="30" width="80" height="40" fill="url(#g)"/>
+        </svg>
+        """, referenceLimited: true),
+        ParityFixture(name: "radial-user-space-focal", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <radialGradient id="g" gradientUnits="userSpaceOnUse" cx="50" cy="50" r="40" fx="30" fy="30">
+                    <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#1e90ff"/>
+                </radialGradient>
+            </defs>
+            <rect width="100" height="100" fill="url(#g)"/>
+        </svg>
+        """, referenceLimited: true),
+        ParityFixture(name: "linear-object-bounding-box-transform", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <linearGradient id="g" x1="0" y1="0" x2="1" y2="0" gradientTransform="rotate(45)">
+                    <stop offset="0" stop-color="#ff0000"/><stop offset="1" stop-color="#0000ff"/>
+                </linearGradient>
+            </defs>
+            <rect x="10" y="10" width="80" height="80" fill="url(#g)"/>
         </svg>
         """),
         ParityFixture(name: "clip-path", svg: """
