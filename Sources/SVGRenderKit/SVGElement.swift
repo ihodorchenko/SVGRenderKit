@@ -282,9 +282,15 @@ extension SVGSVGTag: SVGRendering {
 open class SVGRoot {
     private(set) var svgElement: SVGSVGTag!
 
+    /// Document-wide `id` → object map (keys keep the `#` prefix), so a reference can
+    /// resolve any element in the document, not only one on the ancestor chain or a
+    /// direct child (B88). First definition wins, as in browsers.
+    private var idMap: [String: SVGObject] = [:]
+
     /// Initializes the root from a single `svg` element.
     public init(xmlSvgElement: XMLElement) throws {
         self.svgElement = try SVGSVGTag(xmlElement: xmlSvgElement, addDict: nil, parent: self)
+        buildIdMap()
     }
 
     /// Initializes the root from an array of XML elements, using the first element.
@@ -293,6 +299,27 @@ open class SVGRoot {
             throw SVGError.parseError(text: "no 'svg' tag")
         }
         self.svgElement = try SVGSVGTag(xmlElement: xmlSvgElements[0], addDict: nil, parent: self)
+        buildIdMap()
+    }
+
+    private func buildIdMap() {
+        var map: [String: SVGObject] = [:]
+        SVGRoot.collect(svgElement, into: &map)
+        idMap = map
+    }
+
+    private static func collect(_ group: SVGGroupObject, into map: inout [String: SVGObject]) {
+        for object in group.all.array {
+            if let id = object.id, map[id] == nil {
+                map[id] = object
+            }
+            if let nested = object as? SVGGroupObject {
+                collect(nested, into: &map)
+            }
+        }
+        for defs in group.defsList {
+            collect(defs, into: &map)
+        }
     }
 
     /// Builds and returns the root `CALayer` for the SVG document.
@@ -303,59 +330,59 @@ open class SVGRoot {
 }
 
 extension SVGRoot: SVGGroupProtocol {
-    /// Looks up a clip path by key. The root has no parent elements and returns `nil`.
+    /// Returns the clip path with the given `id` from anywhere in the document.
     public func getClipPath(byKey: String, fromParents: Bool) -> SVGClipPath? {
-        return nil
+        return idMap[byKey] as? SVGClipPath
     }
 
-    /// Looks up a mask by key. The root has no parent elements and returns `nil`.
+    /// Returns the mask with the given `id` from anywhere in the document.
     public func getMask(byKey: String, fromParents: Bool) -> SVGMask? {
-        return nil
+        return idMap[byKey] as? SVGMask
     }
 
-    /// Looks up a pattern by key. The root has no parent elements and returns `nil`.
+    /// Returns the pattern with the given `id` from anywhere in the document.
     public func getPattern(byKey: String, fromParents: Bool) -> SVGPattern? {
-        return nil
+        return idMap[byKey] as? SVGPattern
     }
 
-    /// Looks up a marker by key. The root has no parent elements and returns `nil`.
+    /// Returns the marker with the given `id` from anywhere in the document.
     public func getMarker(byKey: String, fromParents: Bool) -> SVGMarker? {
-        return nil
+        return idMap[byKey] as? SVGMarker
     }
 
-    /// Looks up a filter by key. The root has no parent elements and returns `nil`.
+    /// Returns the filter with the given `id` from anywhere in the document.
     public func getFilter(byKey: String, fromParents: Bool) -> SVGFilter? {
-        return nil
+        return idMap[byKey] as? SVGFilter
     }
 
-    /// Looks up an object by key. The root has no parent elements and returns `nil`.
+    /// Returns the object with the given `id` from anywhere in the document.
     public func getObject(byKey: String, fromParents: Bool) -> SVGObject? {
-        return nil
+        return idMap[byKey]
     }
 
-    /// Looks up a group (`<g>`) by key. The root has no parent elements and returns `nil`.
+    /// Returns the group with the given `id` from anywhere in the document.
     public func getG(byKey: String, fromParents: Bool) -> SVGGTag? {
-        return nil
+        return idMap[byKey] as? SVGGTag
     }
 
-    /// Looks up a shape by key. The root has no parent elements and returns `nil`.
+    /// Returns the shape with the given `id` from anywhere in the document.
     public func getShape(byKey: String, fromParents: Bool) -> SVGShapeObject? {
-        return nil
+        return idMap[byKey] as? SVGShapeObject
     }
 
-    /// Looks up a symbol by key. The root has no parent elements and returns `nil`.
+    /// Returns the symbol with the given `id` from anywhere in the document.
     public func getSymbol(byKey: String, fromParents: Bool) -> SVGSymbol? {
-        return nil
+        return idMap[byKey] as? SVGSymbol
     }
 
-    /// Looks up a linear gradient by key. The root has no parent elements and returns `nil`.
+    /// Returns the linear gradient with the given `id` from anywhere in the document.
     public func getLinearGradient(byKey: String, fromParents: Bool) -> SVGLinearGradientTag? {
-        return nil
+        return idMap[byKey] as? SVGLinearGradientTag
     }
 
-    /// Looks up a radial gradient by key. The root has no parent elements and returns `nil`.
+    /// Returns the radial gradient with the given `id` from anywhere in the document.
     public func getRadialGradients(byKey: String, fromParents: Bool) -> SVGRadialGradientTag? {
-        return nil
+        return idMap[byKey] as? SVGRadialGradientTag
     }
 
     /// Returns the default empty style for the given shape.
@@ -368,19 +395,18 @@ extension SVGRoot: SVGGroupProtocol {
         return svgElement.getSvgOptions()
     }
 
-    /// Looks up a renderable element by key. The root has no parent elements and returns `nil`.
+    /// Returns the renderable with the given `id` from anywhere in the document.
     public func getRendering(byKey: String, fromParents: Bool) -> SVGRendering? {
-        return nil
+        return idMap[byKey] as? SVGRendering
     }
 
-    /// Looks up a gradient by key. The root has no parent elements and returns `nil`.
+    /// Returns the gradient with the given `id` from anywhere in the document.
     public func getGradient(byKey: String, fromParents: Bool) -> SVGBaseGradient? {
-        return nil
+        return idMap[byKey] as? SVGBaseGradient
     }
 
-    /// Looks up an image by key. The root has no parent elements and returns `nil`.
+    /// Returns the image with the given `id` from anywhere in the document.
     public func getImage(byKey: String, fromParents: Bool) -> SVGImage? {
-        return nil
+        return idMap[byKey] as? SVGImage
     }
-
 }

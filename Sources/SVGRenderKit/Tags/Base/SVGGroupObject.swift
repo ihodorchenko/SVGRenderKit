@@ -7,16 +7,13 @@ open class SVGGroupObject: SVGChildObject, SVGGroupProtocol {
 
     /// Renderable children in document order (groups, shapes, and use elements).
     private(set) var layerElements: SVGTags<SVGObject> = SVGTags<SVGObject>()
-    var defs: SVGDefsGroupTag? {
-        didSet {
-            defs?.parent = self
-        }
-    }
+    var defsList: [SVGDefsGroupTag] = []
     /// Every child object, used for id/class lookups regardless of type.
     private(set) var all: SVGTags<SVGObject> = SVGTags<SVGObject>()
 
     var sourceStyle: SVGSourceStyleElement?
-    var styleTag: SVGStyleTag?
+    /// All `<style>` children; a group may carry more than one.
+    private(set) var styleTagsList: [SVGStyleTag] = []
 
     var animations: [SVGAnimation] = []
 
@@ -68,7 +65,7 @@ extension SVGGroupObject {
             break
         case SVGStyleTag.key:
             let styleTag: SVGStyleTag = try SVGStyleTag(xmlElement: children, parent: self)
-            self.styleTag = styleTag
+            self.styleTagsList.append(styleTag)
             break
         case SVGGTag.key:
             let newGroup: SVGGTag = try SVGGTag(xmlElement: children, parent: self)
@@ -80,7 +77,8 @@ extension SVGGroupObject {
             break
         case SVGDefsGroupTag.key:
             let defs: SVGDefsGroupTag = try SVGDefsGroupTag(xmlElement: children, parent: self)
-            self.defs = defs
+            defs.parent = self
+            self.defsList.append(defs)
             break
         case SVGClipPath.key:
             let cp: SVGClipPath = try SVGClipPath(xmlElement: children, parent: self)
@@ -275,7 +273,7 @@ extension SVGGroupObject {
 
     /// Returns the group matching the key, optionally searching parent groups.
     public func getG(byKey: String, fromParents: Bool) -> SVGGTag? {
-        if let defs = defs {
+        for defs in defsList {
             if let gr = defs.getG(byKey: byKey, fromParents: false) {
                 return gr
             }
@@ -288,7 +286,7 @@ extension SVGGroupObject {
 
     /// Returns the shape matching the key, optionally searching parent groups.
     public func getShape(byKey: String, fromParents: Bool) -> SVGShapeObject? {
-        if let defs = defs {
+        for defs in defsList {
             if let gr = defs.getShape(byKey: byKey, fromParents: false) {
                 return gr
             }
@@ -301,7 +299,7 @@ extension SVGGroupObject {
 
     /// Returns the symbol matching the key, optionally searching parent groups.
     public func getSymbol(byKey: String, fromParents: Bool) -> SVGSymbol? {
-        if let defs = defs {
+        for defs in defsList {
             if let s = defs.getSymbol(byKey: byKey, fromParents: false) {
                 return s
             }
@@ -331,7 +329,7 @@ extension SVGGroupObject {
 
     /// Returns the `<image>` matching the key, optionally searching parent groups.
     public func getImage(byKey: String, fromParents: Bool) -> SVGImage? {
-        if let defs = defs {
+        for defs in defsList {
             if let img = defs.getImage(byKey: byKey, fromParents: false) {
                 return img
             }
@@ -344,7 +342,7 @@ extension SVGGroupObject {
 
     /// Returns the linear gradient matching the key, optionally searching parent groups.
     public func getLinearGradient(byKey: String, fromParents: Bool) -> SVGLinearGradientTag? {
-        if let defs = defs {
+        for defs in defsList {
             if let gr = defs.getLinearGradient(byKey: byKey, fromParents: false) {
                 return gr
             }
@@ -357,7 +355,7 @@ extension SVGGroupObject {
 
     /// Returns the radial gradient matching the key, optionally searching parent groups.
     public func getRadialGradients(byKey: String, fromParents: Bool) -> SVGRadialGradientTag? {
-        if let defs = defs {
+        for defs in defsList {
             if let gr = defs.getRadialGradients(byKey: byKey, fromParents: false) {
                 return gr
             }
@@ -442,11 +440,16 @@ extension SVGGroupObject {
         if let groupParent = parent as? SVGGroupObject {
             tags = groupParent.styleTags()
         }
-        if let styleTag = styleTag {
-            tags.append(styleTag)
-        }
-        if let defs = defs, let styleTag = defs.styleTag {
-            tags.append(styleTag)
+        tags.append(contentsOf: ownStyleTags())
+        return tags
+    }
+
+    /// The `<style>` blocks declared directly on this element and inside its own
+    /// `<defs>` (recursively), without walking up the parent chain.
+    private func ownStyleTags() -> [SVGStyleTag] {
+        var tags = styleTagsList
+        for defs in defsList {
+            tags.append(contentsOf: defs.ownStyleTags())
         }
         return tags
     }
@@ -464,7 +467,7 @@ extension SVGGroupObject {
 
     /// Returns the clip path matching the key, optionally searching parent groups.
     public func getClipPath(byKey: String, fromParents: Bool) -> SVGClipPath? {
-        if let defs = defs {
+        for defs in defsList {
             if let gr = defs.getClipPath(byKey: byKey, fromParents: false) {
                 return gr
             }
@@ -477,7 +480,7 @@ extension SVGGroupObject {
 
     /// Returns the mask matching the key, optionally searching parent groups.
     public func getMask(byKey: String, fromParents: Bool) -> SVGMask? {
-        if let defs = defs {
+        for defs in defsList {
             if let m = defs.getMask(byKey: byKey, fromParents: false) {
                 return m
             }
@@ -490,7 +493,7 @@ extension SVGGroupObject {
 
     /// Returns the pattern matching the key, optionally searching parent groups.
     public func getPattern(byKey: String, fromParents: Bool) -> SVGPattern? {
-        if let defs = defs {
+        for defs in defsList {
             if let p = defs.getPattern(byKey: byKey, fromParents: false) {
                 return p
             }
@@ -503,7 +506,7 @@ extension SVGGroupObject {
 
     /// Returns the marker matching the key, optionally searching parent groups.
     public func getMarker(byKey: String, fromParents: Bool) -> SVGMarker? {
-        if let defs = defs {
+        for defs in defsList {
             if let m = defs.getMarker(byKey: byKey, fromParents: false) {
                 return m
             }
@@ -516,7 +519,7 @@ extension SVGGroupObject {
 
     /// Returns the filter matching the key, optionally searching parent groups.
     public func getFilter(byKey: String, fromParents: Bool) -> SVGFilter? {
-        if let defs = defs {
+        for defs in defsList {
             if let f = defs.getFilter(byKey: byKey, fromParents: false) {
                 return f
             }

@@ -11,15 +11,13 @@ open class SVGLinearGradientTag: SVGBaseGradient {
 
     /// Returns whether this gradient has at least one color stop and can be rendered.
     public override func isEnable() -> Bool {
-        var res: Bool = true
-        if stops.count < 1 {
-            res = false
-        }
-        return res
+        resolveHref()
+        return stops.count >= 1
     }
 
     /// Builds a masked layer that draws this linear gradient along its axis.
     open override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
+        resolveHref()
         var colors: [CGColor] = []
         var locations: [CGFloat] = []
 
@@ -114,38 +112,9 @@ open class SVGLinearGradientTag: SVGBaseGradient {
         return nil
     }
 
-    /// Creates a linear gradient by parsing attributes, href references, and color stops.
+    /// Creates a linear gradient by parsing attributes and color stops.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
-
-        if let href = href {
-            switch href {
-            case .local(let key):
-                if let hrefGradient: SVGLinearGradientTag = parent.getLinearGradient(byKey: key, fromParents: true) {
-                    x1 = hrefGradient.x1
-                    x2 = hrefGradient.x2
-                    y1 = hrefGradient.y1
-                    y2 = hrefGradient.y2
-
-                    stops = hrefGradient.stops
-                    // Attributes explicitly set on the referencing gradient take
-                    // precedence over the referenced (href) gradient; only inherit
-                    // when the referencing element leaves them unset (SVG 1.1 §13.2.4).
-                    if attributeDict["gradientTransform"] == nil {
-                        transform = hrefGradient.transform
-                    }
-                    if attributeDict["gradientUnits"] == nil {
-                        gradientUnits = hrefGradient.gradientUnits
-                    }
-                    if attributeDict["spreadMethod"] == nil {
-                        spreadMethod = hrefGradient.spreadMethod
-                    }
-                }
-                break
-            case .web:
-                throw SVGError.parseError(text: "web href not supported")
-            }
-        }
 
         if let str = attributeDict["x1"] {
             x1 = try SVGLength.get(string: str)
@@ -161,9 +130,20 @@ open class SVGLinearGradientTag: SVGBaseGradient {
         }
 
         try parseStops(childs: xmlElement.xmlChildren)
-        if stops.count < 1 {
+        // Stops may be inherited later through `xlink:href`; only a gradient with
+        // neither its own stops nor a reference is unusable.
+        if stops.count < 1, href == nil {
             throw SVGError.parseError(text: "LinearGradient no stop's")
         }
+    }
+
+    /// Inherits the gradient axis from a referenced gradient when this one does not set it.
+    override func inherit(from source: SVGBaseGradient) {
+        guard let source = source as? SVGLinearGradientTag else { return }
+        if attributeDict["x1"] == nil { x1 = source.x1 }
+        if attributeDict["x2"] == nil { x2 = source.x2 }
+        if attributeDict["y1"] == nil { y1 = source.y1 }
+        if attributeDict["y2"] == nil { y2 = source.y2 }
     }
 }
 

@@ -102,6 +102,29 @@ open class SVGBaseGradient: SVGChildObject {
         }
     }
 
+    /// Whether `xlink:href` inheritance has already been resolved.
+    private var hrefResolved = false
+
+    /// Resolves `xlink:href` inheritance lazily (SVG 1.1 §13.2.4). It runs at render time
+    /// so a gradient may reference one defined later in the document (a forward reference)
+    /// or one of the other gradient type, neither of which worked when this was resolved
+    /// eagerly during parsing. Idempotent; a href cycle stops at the first repeat.
+    func resolveHref() {
+        guard !hrefResolved, case .local(let key)? = href else { return }
+        hrefResolved = true
+        guard let source = parent.getGradient(byKey: key, fromParents: true) else { return }
+        source.resolveHref()
+        if stops.isEmpty { stops = source.stops }
+        if attributeDict["gradientTransform"] == nil, transform == nil { transform = source.transform }
+        if attributeDict["gradientUnits"] == nil { gradientUnits = source.gradientUnits }
+        if attributeDict["spreadMethod"] == nil { spreadMethod = source.spreadMethod }
+        inherit(from: source)
+    }
+
+    /// Copies geometry attributes this gradient does not set itself from the referenced
+    /// gradient. Overridden by the concrete gradient types.
+    func inherit(from source: SVGBaseGradient) {}
+
     /// Returns the layer that renders this gradient, or nil if it cannot be built.
     open func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
         return nil

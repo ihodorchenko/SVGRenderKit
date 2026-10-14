@@ -17,11 +17,13 @@ open class SVGRadialGradientTag: SVGBaseGradient {
 
     /// Returns whether the gradient has at least one color stop and can be rendered.
     public override func isEnable() -> Bool {
+        resolveHref()
         return stops.count >= 1
     }
 
     /// Builds a masked layer that draws this radial gradient.
     open override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
+        resolveHref()
         var colors: [CGColor] = []
         var locations: [CGFloat] = []
 
@@ -131,38 +133,9 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         return newLayer
     }
 
-    /// Creates a radial gradient by parsing center/radius, href references, and color stops.
+    /// Creates a radial gradient by parsing center/radius and color stops.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
-
-        if let href = href {
-            switch href {
-            case .local(let key):
-                if let hrefGradient: SVGRadialGradientTag = parent.getRadialGradients(byKey: key, fromParents: true) {
-                    cx = hrefGradient.cx
-                    cy = hrefGradient.cy
-                    r = hrefGradient.r
-                    fx = hrefGradient.fx
-                    fy = hrefGradient.fy
-
-                    stops = hrefGradient.stops
-                    // Attributes explicitly set on the referencing gradient take
-                    // precedence over the referenced (href) gradient; only inherit
-                    // when the referencing element leaves them unset (SVG 1.1 §13.2.4).
-                    if attributeDict["gradientTransform"] == nil {
-                        transform = hrefGradient.transform
-                    }
-                    if attributeDict["gradientUnits"] == nil {
-                        gradientUnits = hrefGradient.gradientUnits
-                    }
-                    if attributeDict["spreadMethod"] == nil {
-                        spreadMethod = hrefGradient.spreadMethod
-                    }
-                }
-            case .web:
-                break
-            }
-        }
 
         if let str = attributeDict["cx"] {
             cx = try SVGLength.get(string: str)
@@ -181,5 +154,15 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         }
 
         try parseStops(childs: xmlElement.xmlChildren)
+    }
+
+    /// Inherits the center/radius from a referenced gradient when this one does not set them.
+    override func inherit(from source: SVGBaseGradient) {
+        guard let source = source as? SVGRadialGradientTag else { return }
+        if attributeDict["cx"] == nil { cx = source.cx }
+        if attributeDict["cy"] == nil { cy = source.cy }
+        if attributeDict["r"] == nil { r = source.r }
+        if attributeDict["fx"] == nil { fx = source.fx }
+        if attributeDict["fy"] == nil { fy = source.fy }
     }
 }
