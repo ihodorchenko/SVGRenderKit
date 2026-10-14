@@ -7,7 +7,9 @@ open class SVGShapeObject: SVGObject, SVGRendering {
     var presentationStyle: SVGSourceStyleElement!
     /// Inline `style` attribute only; ranks above `<style>` rules.
     var inlineStyle: SVGSourceStyleElement!
-    var parent: SVGShapesContainer
+    /// The owning parent. `unowned`: the parent owns this shape and always outlives
+    /// it, so a strong reference would retain-cycle the document.
+    unowned var parent: SVGShapesContainer
 
     var transform: CATransform3D?
     

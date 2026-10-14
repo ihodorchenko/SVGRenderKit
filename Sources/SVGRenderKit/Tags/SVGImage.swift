@@ -7,7 +7,8 @@ import UIKit
 open class SVGImage: SVGObject, SVGRendering {
     class override var key: String { get { return "image" }}
 
-    var parent: SVGShapesContainer
+    /// The owning parent. `unowned`: the parent owns this `<image>` and always outlives it.
+    unowned var parent: SVGShapesContainer
 
     var sourceStyle: SVGSourceStyleElement?
     var transform: CATransform3D?

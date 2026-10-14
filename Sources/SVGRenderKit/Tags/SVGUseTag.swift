@@ -4,7 +4,8 @@ import UIKit
 open class SVGUseTag: SVGObject, SVGRendering {
     class override var key: String { get { return "use" }}
 
-    var parent: SVGShapesContainer
+    /// The owning parent. `unowned`: the parent owns this `<use>` and always outlives it.
+    unowned var parent: SVGShapesContainer
 
     var sourceStyle: SVGSourceStyleElement?
     var transform: CATransform3D?

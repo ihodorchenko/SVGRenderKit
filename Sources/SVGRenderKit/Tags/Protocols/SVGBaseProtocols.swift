@@ -16,7 +16,11 @@ extension SVGRendering {
 }
 
 /// Abstraction for containers that resolve styles and look up renderable shapes.
-public protocol SVGShapesContainer {
+///
+/// Class-bound so child objects can hold their parent as an `unowned` reference
+/// (the parent owns its children and always outlives them): this keeps the parsed
+/// document a plain ownership tree instead of a web of retain cycles.
+public protocol SVGShapesContainer: AnyObject {
     /// Returns the resolved style for a shape, combining inherited and override styles.
     func getStyle(forObject: SVGShapeObject, overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement
     /// Returns only the `<style>`-block rules (tag/class/id selectors) matching a shape.
