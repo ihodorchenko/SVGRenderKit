@@ -263,11 +263,11 @@ final class SVGBacklogTests: XCTestCase {
 
     func testB58PatternFillOpacityIsApplied() throws {
         let l = try layer("""
-        <defs><pattern id="p" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="#f00"/></pattern></defs>
+        <defs><pattern id="p" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="#f00"/></pattern></defs>
         <rect width="50" height="50" fill="url(#p)" fill-opacity="0.5"/>
         """)
-        let shape = try XCTUnwrap(all(CAShapeLayer.self, in: l).first { $0.path != nil })
-        XCTAssertEqual(try XCTUnwrap(shape.fillColor).alpha, 0.5, accuracy: 0.01)
+        // A coloured pattern carries fill-opacity in its tint, so check the rendered alpha.
+        XCTAssertEqual(alpha(l, at: CGPoint(x: 25, y: 50)), 128, accuracy: 12)
     }
 
     // MARK: B60 — fromParents is honored

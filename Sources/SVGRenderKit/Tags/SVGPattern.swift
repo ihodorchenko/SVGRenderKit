@@ -25,6 +25,15 @@ open class SVGPattern: SVGChildObject {
     var y: SVGLength = SVGLength.px(value: 0)
     var width: SVGLength = SVGLength.px(value: 0)
     var height: SVGLength = SVGLength.px(value: 0)
+    /// When present, the content's `viewBox` is fitted into the tile and
+    /// `patternContentUnits` is ignored (SVG 1.1 §13.3).
+    var viewBox: CGRect?
+    var preserveAspectRatio = SVGPreserveAspectRatio()
+
+    /// Whether `xlink:href` inheritance has already been resolved.
+    private var hrefResolved = false
+    /// The pattern whose children this one inherits when it has none of its own.
+    private var inheritedContent: SVGPattern?
 
     /// Everything that changes the rendered tile: the tile region, the element bounding box (only when
     /// the content is scaled to it) and the output scale.
@@ -32,6 +41,7 @@ open class SVGPattern: SVGChildObject {
         let region: [CGFloat]
         let bbox: [CGFloat]
         let scale: CGFloat
+        let opacity: CGFloat
     }
 
     /// Tiles are identical for every shape that shares the same region and scale, so a hatch fill used by
@@ -58,6 +68,16 @@ open class SVGPattern: SVGChildObject {
         if let str = attributeDict["patternTransform"] {
             transform = try SVGTransform.get(string: str)
         }
+        if let str = attributeDict["viewBox"] {
+            let numbers = str.trimmed
+                .components(separatedBy: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ",")))
+                .filter { !$0.isEmpty }
+                .compactMap { Double($0) }
+            if numbers.count == 4 {
+                viewBox = CGRect(x: numbers[0], y: numbers[1], width: numbers[2], height: numbers[3])
+            }
+        }
+        preserveAspectRatio = SVGPreserveAspectRatio.get(string: attributeDict["preserveAspectRatio"])
 
         for children in xmlElement.xmlChildren {
             try parse(children: children)
@@ -83,48 +103,67 @@ open class SVGPattern: SVGChildObject {
             }
         }
     }
+}
 
-    /// Renders the pattern content into a tile image, or `nil` if the tile has no size.
-    /// `patternUnits`/`patternContentUnits` control how the tile and its content are
-    /// mapped onto the element's bounding box.
-    func tileImage(bbox: CGRect, viewBox: CGRect) -> UIImage? {
-        let region = tileRegion(bbox: bbox, viewBox: viewBox)
-        guard region.width > 0, region.height > 0 else { return nil }
-        let size = region.size
-        let options = getSvgOptions()
-        options.usesPatterns = true
-        let scale = max(1, options.renderScale)
-        let usesBBox = patternContentUnits == .objectBoundingBox
-        let key = TileKey(
-            region: [region.origin.x, region.origin.y, region.width, region.height],
-            bbox: usesBBox ? [bbox.origin.x, bbox.origin.y, bbox.width, bbox.height] : [],
-            scale: scale)
-        return tileCache.value(for: key) {
-            let format = UIGraphicsImageRendererFormat.default()
-            format.scale = scale
-            format.opaque = false
-            let renderer = UIGraphicsImageRenderer(size: size, format: format)
-            return renderer.image { context in
-                if let layer = try? createLayer(overrideElements: nil) {
-                    let cg = context.cgContext
-                    if usesBBox {
-                        cg.translateBy(x: bbox.origin.x - region.origin.x, y: bbox.origin.y - region.origin.y)
-                        cg.scaleBy(x: bbox.width, y: bbox.height)
-                    } else {
-                        cg.translateBy(x: -region.origin.x, y: -region.origin.y)
-                    }
-                    layer.render(in: cg)
-                }
-            }
+// MARK: - xlink:href inheritance
+
+extension SVGPattern {
+    private var hasOwnContent: Bool {
+        !shapes.array.isEmpty || !groups.array.isEmpty || !uses.array.isEmpty || !images.array.isEmpty
+    }
+
+    /// Resolves `xlink:href` inheritance (SVG 1.1 §13.3): missing attributes and, when
+    /// this pattern has no children of its own, the referenced pattern's children.
+    /// Lazy so a forward reference works; idempotent.
+    func resolveHref() {
+        guard !hrefResolved, case .local(let key)? = href else { return }
+        hrefResolved = true
+        guard let source = parent.getPattern(byKey: key, fromParents: true), source !== self else { return }
+        source.resolveHref()
+
+        if attributeDict["x"] == nil { x = source.x }
+        if attributeDict["y"] == nil { y = source.y }
+        if attributeDict["width"] == nil { width = source.width }
+        if attributeDict["height"] == nil { height = source.height }
+        if attributeDict["patternUnits"] == nil { patternUnits = source.patternUnits }
+        if attributeDict["patternContentUnits"] == nil { patternContentUnits = source.patternContentUnits }
+        if attributeDict["patternTransform"] == nil { transform = source.transform }
+        if attributeDict["viewBox"] == nil { viewBox = source.viewBox }
+        if attributeDict["preserveAspectRatio"] == nil { preserveAspectRatio = source.preserveAspectRatio }
+
+        if !hasOwnContent {
+            inheritedContent = source.hasOwnContent ? source : source.inheritedContent
         }
     }
 
-    private func resolveLength(_ length: SVGLength, bboxDimension: CGFloat, viewBoxDimension: CGFloat) -> CGFloat {
+    /// The shapes/groups/uses/images to render, honoring inherited content.
+    private var contentSource: SVGPattern { inheritedContent ?? self }
+}
+
+// MARK: - Tiling
+
+extension SVGPattern {
+    /// A `CGPattern` fill whose grid carries the tile phase (`x`/`y`) and
+    /// `patternTransform`; the tile image only holds the content. `nil` for an empty tile.
+    func fillColor(bbox: CGRect, viewBox viewBoxRect: CGRect, opacity: CGFloat?) -> CGColor? {
+        resolveHref()
+        guard let image = tileImage(bbox: bbox, viewBox: viewBoxRect, opacity: opacity) else { return nil }
+        guard let pattern = makePattern(image: image, bbox: bbox, viewBox: viewBoxRect) else { return nil }
+        guard let space = CGColorSpace(patternBaseSpace: nil) else { return nil }
+        // A coloured pattern carries the fill-opacity baked into its tile (the pattern's
+        // colour components are not a tint), so the components stay neutral.
+        var components: [CGFloat] = [1, 1, 1, 1]
+        return CGColor(patternSpace: space, pattern: pattern, components: &components)
+    }
+
+    /// A length in the tile's own coordinate system (`objectBoundingBox` values are
+    /// fractions of the box, `userSpaceOnUse` percentages are relative to the viewport).
+    private func tileValue(_ length: SVGLength, viewBoxDimension: CGFloat) -> CGFloat {
         switch patternUnits {
         case .objectBoundingBox:
             switch length {
-            case .px(let value): return value * bboxDimension
-            case .percent(let value): return value * bboxDimension
+            case .px(let value): return value
+            case .percent(let value): return value
             }
         case .userSpaceOnUse:
             switch length {
@@ -134,16 +173,126 @@ open class SVGPattern: SVGChildObject {
         }
     }
 
-    private func tileRegion(bbox: CGRect, viewBox: CGRect) -> CGRect {
-        let rx = resolveLength(x, bboxDimension: bbox.width, viewBoxDimension: viewBox.width)
-        let ry = resolveLength(y, bboxDimension: bbox.height, viewBoxDimension: viewBox.height)
-        let rw = resolveLength(width, bboxDimension: bbox.width, viewBoxDimension: viewBox.width)
-        let rh = resolveLength(height, bboxDimension: bbox.height, viewBoxDimension: viewBox.height)
+    private func tileSize(bbox: CGRect, viewBox viewBoxRect: CGRect) -> CGSize {
+        let w = tileValue(width, viewBoxDimension: viewBoxRect.width)
+        let h = tileValue(height, viewBoxDimension: viewBoxRect.height)
         switch patternUnits {
-        case .objectBoundingBox:
-            return CGRect(x: bbox.origin.x + rx, y: bbox.origin.y + ry, width: rw, height: rh)
+        case .objectBoundingBox: return CGSize(width: w * bbox.width, height: h * bbox.height)
+        case .userSpaceOnUse: return CGSize(width: w, height: h)
+        }
+    }
+
+    /// The tile's top-left in user space (the phase anchor, before `patternTransform`).
+    private func tileOrigin(bbox: CGRect, viewBox viewBoxRect: CGRect) -> CGPoint {
+        let px = tileValue(x, viewBoxDimension: viewBoxRect.width)
+        let py = tileValue(y, viewBoxDimension: viewBoxRect.height)
+        switch patternUnits {
+        case .objectBoundingBox: return CGPoint(x: bbox.origin.x + px * bbox.width, y: bbox.origin.y + py * bbox.height)
+        case .userSpaceOnUse: return CGPoint(x: px, y: py)
+        }
+    }
+
+    /// `patternTransform` re-expressed in user space (it acts in bounding-box units for
+    /// `objectBoundingBox`), applied to the grid together with the tile phase.
+    private func gridTransform(bbox: CGRect) -> CGAffineTransform {
+        guard let transform = transform else { return .identity }
+        let m = CATransform3DGetAffineTransform(transform)
+        switch patternUnits {
         case .userSpaceOnUse:
-            return CGRect(x: rx, y: ry, width: rw, height: rh)
+            return m
+        case .objectBoundingBox:
+            guard bbox.width > 0, bbox.height > 0 else { return m }
+            let toUser = CGAffineTransform(scaleX: bbox.width, y: bbox.height)
+            let fromUser = CGAffineTransform(scaleX: 1 / bbox.width, y: 1 / bbox.height)
+            return fromUser.concatenating(m).concatenating(toUser)
+        }
+    }
+
+    private func makePattern(image: UIImage, bbox: CGRect, viewBox viewBoxRect: CGRect) -> CGPattern? {
+        let size = tileSize(bbox: bbox, viewBox: viewBoxRect)
+        guard size.width > 0, size.height > 0 else { return nil }
+        let origin = tileOrigin(bbox: bbox, viewBox: viewBoxRect)
+        let matrix = CGAffineTransform(translationX: origin.x, y: origin.y)
+            .concatenating(gridTransform(bbox: bbox))
+
+        let info = Unmanaged.passRetained(image).toOpaque()
+        var callbacks = CGPatternCallbacks(version: 0,
+                                           drawPattern: SVGPattern.drawTile,
+                                           releaseInfo: SVGPattern.releaseTile)
+        return CGPattern(info: info,
+                         bounds: CGRect(origin: .zero, size: size),
+                         matrix: matrix, xStep: size.width, yStep: size.height,
+                         tiling: .constantSpacing, isColored: true, callbacks: &callbacks)
+    }
+
+    /// `CGPatternCreate` takes a C function pointer, so the tile image travels via `info`.
+    private static let drawTile: CGPatternDrawPatternCallback = { info, ctx in
+        guard let info = info else { return }
+        let image = Unmanaged<UIImage>.fromOpaque(info).takeUnretainedValue()
+        guard let cgImage = image.cgImage else { return }
+        // The tile was rasterized y-down (UIKit) but a pattern context is y-up, so flip
+        // it back to keep the content the right way up.
+        ctx.saveGState()
+        ctx.translateBy(x: 0, y: image.size.height)
+        ctx.scaleBy(x: 1, y: -1)
+        ctx.draw(cgImage, in: CGRect(origin: .zero, size: image.size))
+        ctx.restoreGState()
+    }
+
+    private static let releaseTile: CGPatternReleaseInfoCallback = { info in
+        guard let info = info else { return }
+        Unmanaged<UIImage>.fromOpaque(info).release()
+    }
+
+    /// Renders the pattern content into a tile image, or `nil` if the tile has no size.
+    /// `viewBox` (if present) fits the content into the tile; otherwise
+    /// `patternContentUnits` maps it.
+    func tileImage(bbox: CGRect, viewBox viewBoxRect: CGRect, opacity: CGFloat?) -> UIImage? {
+        resolveHref()
+        let size = tileSize(bbox: bbox, viewBox: viewBoxRect)
+        guard size.width > 0, size.height > 0 else { return nil }
+        let origin = tileOrigin(bbox: bbox, viewBox: viewBoxRect)
+        let fillOpacity = min(max(opacity ?? 1, 0), 1)
+
+        let options = getSvgOptions()
+        options.usesPatterns = true
+        let scale = max(1, options.renderScale)
+        let usesBBox = patternContentUnits == .objectBoundingBox && viewBox == nil
+        let key = TileKey(
+            region: [origin.x, origin.y, size.width, size.height],
+            bbox: (usesBBox || patternUnits == .objectBoundingBox) ? [bbox.origin.x, bbox.origin.y, bbox.width, bbox.height] : [],
+            scale: scale,
+            opacity: fillOpacity)
+        return tileCache.value(for: key) {
+            let format = UIGraphicsImageRendererFormat.default()
+            format.scale = scale
+            format.opaque = false
+            let renderer = UIGraphicsImageRenderer(size: size, format: format)
+            return renderer.image { context in
+                if let layer = try? contentSource.createLayer(overrideElements: nil) {
+                    layer.opacity = Float(fillOpacity)
+                    let cg = context.cgContext
+                    if let viewBox = viewBox, viewBox.width > 0, viewBox.height > 0 {
+                        // A `viewBox` fits the content into the tile's own box, whose size
+                        // in tile units is then scaled up to the image (user) size.
+                        let wP = tileValue(self.width, viewBoxDimension: viewBoxRect.width)
+                        let hP = tileValue(self.height, viewBoxDimension: viewBoxRect.height)
+                        let unitX = wP != 0 ? size.width / wP : 1
+                        let unitY = hP != 0 ? size.height / hP : 1
+                        let fit = preserveAspectRatio.resolve(viewBox: viewBox, containerSize: CGSize(width: wP, height: hP))
+                        cg.scaleBy(x: unitX, y: unitY)
+                        cg.translateBy(x: fit.translateX, y: fit.translateY)
+                        cg.scaleBy(x: fit.scaleX, y: fit.scaleY)
+                        cg.translateBy(x: -viewBox.origin.x, y: -viewBox.origin.y)
+                    } else if usesBBox {
+                        cg.translateBy(x: bbox.origin.x - origin.x, y: bbox.origin.y - origin.y)
+                        cg.scaleBy(x: bbox.width, y: bbox.height)
+                    }
+                    // `userSpaceOnUse` content: its coordinate system already has its
+                    // origin at the tile's (x, y), so no extra transform is needed.
+                    layer.render(in: cg)
+                }
+            }
         }
     }
 }
@@ -174,29 +323,26 @@ extension SVGPattern: SVGRendering {
     /// Builds a layer containing the pattern's shapes and `<use>` references.
     public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CAShapeLayer = CAShapeLayer()
+        let source = contentSource
 
-        for group in groups.array {
+        for group in source.groups.array {
             let layer = try group.createLayer(addStyle: addStyle, overrideElements: overrideElements)
             mainLayer.addSublayer(layer)
         }
 
-        for use in uses.array {
+        for use in source.uses.array {
             let layer = try use.createLayer(addStyle: addStyle, overrideElements: overrideElements)
             mainLayer.addSublayer(layer)
         }
 
-        for path in shapes.array {
+        for path in source.shapes.array {
             let layer = try path.createLayer(addStyle: addStyle, overrideElements: overrideElements)
             mainLayer.addSublayer(layer)
         }
 
-        for image in images.array {
+        for image in source.images.array {
             let layer = try image.createLayer(addStyle: addStyle, overrideElements: overrideElements)
             mainLayer.addSublayer(layer)
-        }
-
-        if let transform = transform {
-            mainLayer.transform = transform
         }
 
         return mainLayer
@@ -213,7 +359,7 @@ extension SVGPattern: SVGShapesContainer {
     }
 
     public func getPattern(byKey: String, fromParents: Bool) -> SVGPattern? {
-        return nil
+        return parent.getPattern(byKey: byKey, fromParents: true)
     }
 
     public func getMarker(byKey: String, fromParents: Bool) -> SVGMarker? {

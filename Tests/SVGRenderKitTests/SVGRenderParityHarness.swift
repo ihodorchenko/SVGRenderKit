@@ -205,6 +205,40 @@ enum ParityFixtures {
             <rect width="100" height="100" fill="url(#p)"/>
         </svg>
         """),
+        // CoreSVG rasterizes pattern tiles natively, while the kit rasterizes the tile at
+        // the output scale; a sub-pixel phase/rotation therefore diverges at the edges.
+        // Render-only (B98); the geometry is asserted in SVGPatternTests.
+        ParityFixture(name: "pattern-phase", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <pattern id="p" x="5" y="5" width="20" height="20" patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse">
+                    <rect width="10" height="10" fill="#ff0000"/>
+                    <rect x="10" y="10" width="10" height="10" fill="#0000ff"/>
+                </pattern>
+            </defs>
+            <rect width="100" height="100" fill="url(#p)"/>
+        </svg>
+        """, referenceLimited: true),
+        ParityFixture(name: "pattern-transform", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <pattern id="p" width="20" height="20" patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse" patternTransform="rotate(30)">
+                    <rect width="20" height="10" fill="#2f80ed"/>
+                </pattern>
+            </defs>
+            <rect width="100" height="100" fill="url(#p)"/>
+        </svg>
+        """, referenceLimited: true),
+        ParityFixture(name: "pattern-viewbox", svg: """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+                <pattern id="p" width="20" height="20" patternUnits="userSpaceOnUse" viewBox="0 0 10 10">
+                    <rect width="5" height="10" fill="#ff0000"/>
+                </pattern>
+            </defs>
+            <rect width="100" height="100" fill="url(#p)"/>
+        </svg>
+        """),
         ParityFixture(name: "transform", svg: """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <g transform="translate(50 50)">

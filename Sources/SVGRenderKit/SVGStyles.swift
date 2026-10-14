@@ -740,9 +740,8 @@ extension SVGSourceStyleElement {
     }
 
     private func applyPattern(pathLayer: CAShapeLayer, pattern: SVGPattern, group: SVGShapesContainer, path: UIBezierPath, opacity: CGFloat?) {
-        if let image = pattern.tileImage(bbox: path.bounds, viewBox: group.getSvgOptions().viewBox) {
-            let color = UIColor(patternImage: image)
-            pathLayer.fillColor = (opacity.map { color.withAlphaComponent(min(max($0, 0), 1)) } ?? color).cgColor
+        if let color = pattern.fillColor(bbox: path.bounds, viewBox: group.getSvgOptions().viewBox, opacity: opacity) {
+            pathLayer.fillColor = color
         }
     }
 
@@ -791,11 +790,11 @@ extension SVGSourceStyleElement {
     }
 
     private func applyStrokePattern(mainLayer: CAShapeLayer, path: UIBezierPath, pattern: SVGPattern, viewBox: CGRect, opacity: CGFloat) {
-        guard let image = pattern.tileImage(bbox: path.bounds, viewBox: viewBox) else { return }
+        guard let color = pattern.fillColor(bbox: path.bounds, viewBox: viewBox, opacity: opacity) else { return }
         let stroked = strokedPath(from: path, viewBox: viewBox)
         let patternLayer = CAShapeLayer()
         patternLayer.path = stroked
-        patternLayer.fillColor = UIColor(patternImage: image).withAlphaComponent(min(max(opacity, 0), 1)).cgColor
+        patternLayer.fillColor = color
         mainLayer.insertSublayer(patternLayer, at: 0)
     }
 
