@@ -7,6 +7,16 @@ import UIKit
 struct ParityFixture {
     let name: String
     let svg: String
+    /// Overrides the default differing-fraction limit when the CoreSVG reference is
+    /// itself limited for this feature (e.g. it rasterizes masks at a low resolution,
+    /// so their edges come out soft). `nil` uses the test's default.
+    var maxDifferingFraction: Double?
+
+    init(name: String, svg: String, maxDifferingFraction: Double? = nil) {
+        self.name = name
+        self.svg = svg
+        self.maxDifferingFraction = maxDifferingFraction
+    }
 }
 
 /// The corpus of fixtures exercised by the on-the-fly parity tests.
@@ -99,6 +109,8 @@ enum ParityFixtures {
             <rect x="10" y="10" width="80" height="80" fill="#e67e22" clip-path="url(#c)"/>
         </svg>
         """),
+        // CoreSVG rasterizes masks at a low resolution (soft edges) while the kit
+        // renders them at `renderScale` (crisp), so the mask edge needs more headroom.
         ParityFixture(name: "mask-luminance", svg: """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <defs>
@@ -109,7 +121,7 @@ enum ParityFixtures {
             </defs>
             <rect width="100" height="100" fill="#ff0000" mask="url(#m)"/>
         </svg>
-        """),
+        """, maxDifferingFraction: 0.06),
         ParityFixture(name: "pattern-user-space", svg: """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <defs>

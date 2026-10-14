@@ -155,6 +155,11 @@ extension SVGMask: SVGRendering {
     public func maskLayer(bbox: CGRect, viewBox: CGRect, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let region = maskRegion(bbox: bbox, viewBox: viewBox)
 
+        // Rasterize at the output scale (`renderScale`), like patterns: the region-sized
+        // bitmap is stretched by the view transform, so at 1 px per unit it blurs by that
+        // same factor (B92).
+        let scale = max(1, getSvgOptions().renderScale)
+
         // A cached bitmap skips building the content layer tree as well. Per-element style overrides change
         // the content, so they bypass the cache.
         let cacheKey: MaskKey?
@@ -163,9 +168,9 @@ extension SVGMask: SVGRendering {
             cacheKey = MaskKey(
                 region: [region.origin.x, region.origin.y, region.width, region.height],
                 bbox: usesBBox ? [bbox.origin.x, bbox.origin.y, bbox.width, bbox.height] : [],
-                scale: getSvgOptions().renderScale)
+                scale: scale)
             if let key = cacheKey, let cached = maskImageCache.value(for: key) {
-                return Self.makeMaskLayer(image: cached, region: region)
+                return Self.makeMaskLayer(image: cached, region: region, scale: scale)
             }
         } else {
             cacheKey = nil
@@ -173,19 +178,19 @@ extension SVGMask: SVGRendering {
 
         let contentLayer = try createLayer(addStyle: nil, overrideElements: overrideElements)
         guard region.width > 0, region.height > 0 else { return contentLayer }
-        guard let cgImage = renderMaskImage(contentLayer: contentLayer, region: region, bbox: bbox) else {
+        guard let cgImage = renderMaskImage(contentLayer: contentLayer, region: region, bbox: bbox, scale: scale) else {
             return contentLayer
         }
         if let key = cacheKey { maskImageCache.set(cgImage, for: key) }
-        return Self.makeMaskLayer(image: cgImage, region: region)
+        return Self.makeMaskLayer(image: cgImage, region: region, scale: scale)
     }
 
     /// A layer is single-parent, so every use gets its own layer around the shared bitmap.
-    private static func makeMaskLayer(image: CGImage, region: CGRect) -> CALayer {
+    private static func makeMaskLayer(image: CGImage, region: CGRect, scale: CGFloat) -> CALayer {
         let layer = CALayer()
         layer.frame = region
         layer.contents = image
-        layer.contentsScale = 1
+        layer.contentsScale = scale
         layer.contentsGravity = .resize
         return layer
     }
@@ -218,13 +223,13 @@ extension SVGMask: SVGRendering {
         }
     }
 
-    private func renderMaskImage(contentLayer: CALayer, region: CGRect, bbox: CGRect) -> CGImage? {
+    private func renderMaskImage(contentLayer: CALayer, region: CGRect, bbox: CGRect, scale: CGFloat) -> CGImage? {
         let width = Int(region.width.rounded(.up))
         let height = Int(region.height.rounded(.up))
         guard width > 0, height > 0 else { return nil }
 
         let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
+        format.scale = scale
         format.opaque = false
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format)
         let image = renderer.image { renderContext in

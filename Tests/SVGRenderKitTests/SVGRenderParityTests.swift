@@ -46,8 +46,9 @@ final class SVGRenderParityTests: XCTestCase {
 
                 activity.add(XCTAttachment(image: actual))
                 activity.add(XCTAttachment(image: reference))
+                let limit = fixture.maxDifferingFraction ?? maxDifferingFraction
                 XCTAssertTrue(
-                    comparison.passed(maxDifferingFraction: maxDifferingFraction),
+                    comparison.passed(maxDifferingFraction: limit),
                     "[\(fixture.name)] differing=\(String(format: "%.3f", comparison.differingFraction)) "
                         + "(\(comparison.differingPixelCount)/\(comparison.totalPixelCount)) "
                         + "maxDelta=\(comparison.maxChannelDelta) "
