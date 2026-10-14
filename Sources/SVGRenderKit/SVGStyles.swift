@@ -683,12 +683,10 @@ extension SVGSourceStyleElement {
                     t = CATransform3DTranslate(t, bbox.origin.x, bbox.origin.y, 0)
                     t = CATransform3DScale(t, bbox.width, bbox.height, 1)
                     rendering.transform = CATransform3DConcat(t, rendering.transform)
-                } else if !CATransform3DIsIdentity(layer.transform) {
-                    // userSpaceOnUse: the clip is in the parent (user) space. Bring
-                    // it into this layer's local space so the layer's own transform
-                    // maps it back to the user space on screen.
-                    rendering.transform = CATransform3DConcat(CATransform3DInvert(layer.transform), rendering.transform)
                 }
+                // userSpaceOnUse: the clip is in the element's own user space, so the
+                // group's transform moves it together with the content — exactly as for
+                // a shape. Do not counter-transform it (B95).
                 clipMaskLayer = rendering
             case .web(let url):
                 SVGLog.addSLog(errorStr: "skipped clip-path: external url \(url) not supported")
