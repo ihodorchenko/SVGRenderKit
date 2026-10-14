@@ -11,7 +11,7 @@ final class SVGPerformanceTests: XCTestCase {
 
     // MARK: - Setup
 
-    private var savedCacheFlag = true
+    private nonisolated(unsafe) var savedCacheFlag = true
 
     override func setUp() {
         super.setUp()
