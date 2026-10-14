@@ -142,22 +142,75 @@ open class SVGFilter: SVGChildObject {
 
 extension SVGFilter {
     /// Applies the parsed filter effects to the given layer.
-    func apply(to layer: CALayer) {
+    /// - Parameters:
+    ///   - layer: the layer whose content is filtered.
+    ///   - bbox: the element's bounds in the layer's local space (the filter-region base).
+    ///   - scale: pixels per user unit, so the blur is rasterized at the output resolution.
+    func apply(to layer: CALayer, bbox: CGRect, scale: CGFloat) {
         if let shadow = dropShadow {
             layer.shadowColor = shadow.color.cgColor
             layer.shadowOpacity = Float(shadow.opacity)
             layer.shadowRadius = shadow.stdDeviation
             layer.shadowOffset = CGSize(width: shadow.dx, height: shadow.dy)
-            // The blur radius is folded into the shadow; only an explicit, separate blur is applied too.
-            if let blur = layerBlur, let ciFilter = CIFilter(name: "CIGaussianBlur") {
-                ciFilter.setValue(blur, forKey: kCIInputRadiusKey)
-                layer.filters = [ciFilter]
-            }
+            // The blur is folded into the shadow; only an explicit, separate blur applies too.
+            if let blur = layerBlur { bakeBlur(into: layer, bbox: bbox, stdDeviation: blur, scale: scale) }
             return
         }
-        if let blur = blurStdDeviation, let ciFilter = CIFilter(name: "CIGaussianBlur") {
-            ciFilter.setValue(blur, forKey: kCIInputRadiusKey)
-            layer.filters = [ciFilter]
+        if let blur = blurStdDeviation {
+            bakeBlur(into: layer, bbox: bbox, stdDeviation: blur, scale: scale)
         }
+    }
+
+    /// `CIGaussianBlur`, shared because building a `CIContext` per call is expensive.
+    private static let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+
+    /// SVG's initial filter region is `-10% -10% 120% 120%` of the bounding box: the blur
+    /// spills outside the shape, so rasterize (and keep) that padded region.
+    private static let filterRegion = CGRect(x: -0.1, y: -0.1, width: 1.2, height: 1.2)
+
+    /// Rasterizes the layer's content, blurs it and puts the result back as the layer's
+    /// only child. `CALayer.filters` is a no-op on iOS, so the blur must be baked in (B97).
+    private func bakeBlur(into layer: CALayer, bbox: CGRect, stdDeviation: CGFloat, scale: CGFloat) {
+        guard bbox.width > 0, bbox.height > 0, scale > 0, stdDeviation > 0 else { return }
+
+        let region = CGRect(
+            x: bbox.origin.x + Self.filterRegion.origin.x * bbox.width,
+            y: bbox.origin.y + Self.filterRegion.origin.y * bbox.height,
+            width: Self.filterRegion.width * bbox.width,
+            height: Self.filterRegion.height * bbox.height)
+
+        // Rasterize without the layer's own mask: the filter applies to the element's
+        // geometry, and the mask (clip-path/mask) clips the *result* afterwards.
+        let savedMask = layer.mask
+        layer.mask = nil
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        format.opaque = false
+        let image = UIGraphicsImageRenderer(size: region.size, format: format).image { ctx in
+            ctx.cgContext.translateBy(x: -region.origin.x, y: -region.origin.y)
+            layer.render(in: ctx.cgContext)
+        }
+        layer.mask = savedMask
+
+        guard let cgImage = image.cgImage, let blurred = Self.blur(cgImage, radius: stdDeviation * scale) else { return }
+
+        layer.sublayers?.forEach { $0.removeFromSuperlayer() }
+        let imageLayer = CALayer()
+        imageLayer.frame = region
+        imageLayer.contents = blurred
+        imageLayer.contentsScale = scale
+        imageLayer.contentsGravity = .resize
+        layer.addSublayer(imageLayer)
+    }
+
+    /// Blurs a bitmap, keeping its extent so it still lines up with the region it covers.
+    private static func blur(_ image: CGImage, radius: CGFloat) -> CGImage? {
+        let input = CIImage(cgImage: image)
+        guard let filter = CIFilter(name: "CIGaussianBlur") else { return nil }
+        // Clamping avoids the darkened edges a finite extent would otherwise produce.
+        filter.setValue(input.clampedToExtent(), forKey: kCIInputImageKey)
+        filter.setValue(radius, forKey: kCIInputRadiusKey)
+        guard let output = filter.outputImage else { return nil }
+        return ciContext.createCGImage(output, from: input.extent)
     }
 }

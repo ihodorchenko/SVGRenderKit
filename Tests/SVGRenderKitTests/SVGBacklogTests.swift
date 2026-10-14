@@ -23,6 +23,18 @@ final class SVGBacklogTests: XCTestCase {
         return out
     }
 
+    /// Alpha at a pixel after rendering the layer. Sample at y=50 to avoid the raw
+    /// (y-up) context's flip relative to `CALayer.render`.
+    private func alpha(_ layer: CALayer, at point: CGPoint, size: Int = 100) -> UInt8 {
+        var pixels = [UInt8](repeating: 0, count: size * size * 4)
+        guard let ctx = CGContext(data: &pixels, width: size, height: size, bitsPerComponent: 8,
+                                  bytesPerRow: size * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return 0 }
+        layer.frame = CGRect(x: 0, y: 0, width: size, height: size)
+        layer.render(in: ctx)
+        return pixels[(Int(point.y) * size + Int(point.x)) * 4 + 3]
+    }
+
     // MARK: B41 — <use>+<symbol> transform order (verified correct)
 
     func testB41SymbolUseCentersAndScalesContent() throws {
@@ -184,20 +196,24 @@ final class SVGBacklogTests: XCTestCase {
     }
 
     func testB55BlurWithPairStdDeviationIsApplied() throws {
+        // `stdDeviation="3 4"` averages to 3.5, so the element is actually blurred:
+        // the band just outside the rect is partly opaque (B97 bakes the blur in).
         let l = try layer("""
         <defs><filter id="f"><feGaussianBlur stdDeviation="3 4"/></filter></defs>
-        <rect width="50" height="50" filter="url(#f)"/>
+        <rect x="0" y="25" width="50" height="50" fill="#000000" filter="url(#f)"/>
         """)
-        XCTAssertNotNil(all(CALayer.self, in: l).first { !($0.filters ?? []).isEmpty })
+        XCTAssertGreaterThan(alpha(l, at: CGPoint(x: 53, y: 50)), 0)
     }
 
     func testB56BlurAndDropShadowAreCombined() throws {
         let l = try layer("""
         <defs><filter id="f"><feGaussianBlur stdDeviation="2"/><feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.5"/></filter></defs>
-        <rect width="50" height="50" filter="url(#f)"/>
+        <rect x="0" y="25" width="50" height="50" fill="#000000" filter="url(#f)"/>
         """)
         let filtered = try XCTUnwrap(all(CALayer.self, in: l).first { $0.shadowOpacity > 0 })
-        XCTAssertFalse((filtered.filters ?? []).isEmpty)
+        XCTAssertGreaterThan(filtered.shadowRadius, 0)
+        // The element itself is blurred too: a baked bitmap replaces its sublayers.
+        XCTAssertTrue(all(CALayer.self, in: filtered).contains { $0.contents != nil })
     }
 
     // MARK: B57 — <image> preserveAspectRatio

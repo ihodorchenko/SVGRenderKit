@@ -15,16 +15,19 @@ final class SVGFilterTests: XCTestCase {
         return nil
     }
 
-    private func findLayerWithFilters(in layer: CALayer) -> CALayer? {
-        if let filters = layer.filters, !filters.isEmpty {
-            return layer
-        }
-        for sublayer in layer.sublayers ?? [] {
-            if let found = findLayerWithFilters(in: sublayer) {
-                return found
-            }
-        }
-        return nil
+    private func render(_ body: String) throws -> CALayer {
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">\(body)</svg>"
+        return try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil)
+    }
+
+    private func alpha(_ layer: CALayer, at point: CGPoint, size: Int = 100) -> UInt8 {
+        var pixels = [UInt8](repeating: 0, count: size * size * 4)
+        guard let ctx = CGContext(data: &pixels, width: size, height: size, bitsPerComponent: 8,
+                                  bytesPerRow: size * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return 0 }
+        layer.frame = CGRect(x: 0, y: 0, width: size, height: size)
+        layer.render(in: ctx)
+        return pixels[(Int(point.y) * size + Int(point.x)) * 4 + 3]
     }
 
     func testDropShadowApplied() throws {
@@ -66,18 +69,20 @@ final class SVGFilterTests: XCTestCase {
         XCTAssertEqual(shadowLayer.shadowOpacity, 0.5, accuracy: 0.001)
     }
 
-    func testGaussianBlurApplied() throws {
-        let svg = """
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-            <defs>
-                <filter id="f"><feGaussianBlur stdDeviation="3"/></filter>
-            </defs>
-            <rect width="50" height="50" fill="#ff0000" filter="url(#f)"/>
-        </svg>
-        """
-        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
-        let layer = try parser.getLayer(overrideElements: nil)
-        XCTAssertNotNil(findLayerWithFilters(in: layer))
+    func testGaussianBlurBlursTheElement() throws {
+        // A 50×50 rect with ~3px blur: the band just outside the rect is partly opaque,
+        // unlike the unfiltered rect. Sampling at y=50 (the rect is vertically centred)
+        // avoids the raw-context y-flip.
+        let blurred = try render("<defs><filter id=\"f\"><feGaussianBlur stdDeviation=\"3\"/></filter></defs><rect x=\"0\" y=\"25\" width=\"50\" height=\"50\" fill=\"#000000\" filter=\"url(#f)\"/>")
+        let sharp = try render("<rect x=\"0\" y=\"25\" width=\"50\" height=\"50\" fill=\"#000000\"/>")
+        XCTAssertGreaterThan(alpha(blurred, at: CGPoint(x: 53, y: 50)), 0)
+        XCTAssertEqual(alpha(sharp, at: CGPoint(x: 53, y: 50)), 0)
+    }
+
+    func testGaussianBlurSpreadsFurtherWithLargerStdDeviation() throws {
+        let small = try render("<defs><filter id=\"f\"><feGaussianBlur stdDeviation=\"2\"/></filter></defs><rect x=\"0\" y=\"25\" width=\"50\" height=\"50\" fill=\"#000000\" filter=\"url(#f)\"/>")
+        let large = try render("<defs><filter id=\"f\"><feGaussianBlur stdDeviation=\"8\"/></filter></defs><rect x=\"0\" y=\"25\" width=\"50\" height=\"50\" fill=\"#000000\" filter=\"url(#f)\"/>")
+        XCTAssertGreaterThan(alpha(large, at: CGPoint(x: 54, y: 50)), alpha(small, at: CGPoint(x: 54, y: 50)))
     }
 
     func testFigmaDropShadowChainApplied() throws {

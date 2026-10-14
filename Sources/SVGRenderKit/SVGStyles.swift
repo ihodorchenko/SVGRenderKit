@@ -643,7 +643,7 @@ extension SVGSourceStyleElement {
             switch filter {
             case .local(let key):
                 if let filter = group.getFilter(byKey: key, fromParents: true) {
-                    filter.apply(to: mainLayer)
+                    filter.apply(to: mainLayer, bbox: path.bounds, scale: group.getSvgOptions().renderScale)
                 } else {
                     SVGLog.addSLog(errorStr: "skipped filter: url(#\(key)) not found")
                 }
@@ -717,7 +717,7 @@ extension SVGSourceStyleElement {
                     SVGLog.addSLog(errorStr: "skipped filter: url(#\(key)) not found")
                     break
                 }
-                filterObj.apply(to: layer)
+                filterObj.apply(to: layer, bbox: bbox(), scale: container.getSvgOptions().renderScale)
             case .web(let url):
                 SVGLog.addSLog(errorStr: "skipped filter: external url \(url) not supported")
             }
