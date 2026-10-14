@@ -1,6 +1,6 @@
 import UIKit
 
-/// A shared cache that stores parsed SVG roots keyed by an MD5 hash.
+/// A shared cache that stores parsed SVG roots, keyed by an opaque string built by `SVGParser`.
 open class SVGCache: @unchecked Sendable {
     /// Whether the cache is used when parsing SVGs.
     public var isSVGParserUseCache: Bool {

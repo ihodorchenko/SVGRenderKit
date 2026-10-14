@@ -72,9 +72,10 @@ All path commands are supported, including elliptical arcs:
 | `display` | ✅ `inline` / `block` / `none` |
 | `visibility` | ✅ `visible` / `hidden` / `collapse` |
 | `currentColor` | ✅ resolved via `color` |
+| `color` | ✅ (resolves `currentColor`) |
 | `font-family`, `font-style`, `font-weight`, `font-size` | ✅ (`px` / `%` / `em`) |
 | `marker-start`, `marker-mid`, `marker-end` | ✅ |
-| `color`, `paint-order`, `vector-effect` | ❌ out of scope |
+| `paint-order`, `vector-effect` | ❌ out of scope |
 
 Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba()`, `argb()`, `hsl()`, `hsla()`.
 
@@ -103,7 +104,7 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 - CSS cascade: specificity, `inherit` resolution, combinators, `!important`,
   `@media`, `@font-face`.
 - Nested `<svg>` viewports.
-- `paint-order`, `color`, `vector-effect`.
+- `paint-order`, `vector-effect`.
 - Full SMIL engine (event `begin`, `additive`/`accumulate`, `calcMode`, `fill="freeze"`).
 - Full filter pipeline: `feMorphology` (erode/dilate), `feComposite` operators
   beyond `out`/`in`, `feBlend` modes, and multi-input filter graphs. Figma/Sketch
@@ -146,4 +147,4 @@ against Apple's CoreSVG over a corpus of real icons, not by the W3C SVG test sui
   8-digit hex) are classified as *reference-limited* rather than failures.
 - New icons that fail are triaged as either bugs or new profile features.
 
-See `Task.md` for the concrete work items and the live parity numbers.
+The live corpus summary is reported by CI in the GitHub step summary; see [README.md](README.md#tests) for how the suite is run.

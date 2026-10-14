@@ -165,7 +165,10 @@ SVGColors.addOvverideUIColors(colors: ["#243B55": UIColor.label])
 
 ### Caching
 
-Parser caching is enabled by default and keyed by name/path (MD5). The cache keeps the
+Parser caching is enabled by default. In-memory sources (`svgString`/`svgData`) are cached
+only when a name is given, keyed by that name plus a digest of the content, so reusing a
+name with different markup never returns a stale tree. File URLs are keyed by path and the
+file's size and modification date, so a rewritten file is re-parsed. The cache keeps the
 100 most recently used documents (a hit refreshes a document's recency). A cache hit skips
 reading and XML-parsing the source entirely. Derived render data (pattern tiles, mask
 bitmaps, decoded embedded images, fonts) is cached internally per document. Disable parser
@@ -220,7 +223,7 @@ Inline `style="…"`, the `style` attribute, and `<style>` blocks with id / clas
 
 ### Convenience
 
-- Parser caching keyed by MD5
+- Parser caching keyed by name/path and a content digest
 - Runtime re-coloring by element `id` / `class`, plus a global color-override mechanism
 - `SVGRenderer`: render to PNG / JPEG / PDF `Data` without a view (`async` and callback)
 - `SVGImageView` (`SVGRenderKitSwiftUI`): SwiftUI wrapper around `SVGView`
@@ -243,8 +246,7 @@ Inline `style="…"`, the `style` attribute, and `<style>` blocks with id / clas
 - Conditional-processing attributes on `<switch>` (`requiredFeatures`/
   `requiredExtensions`/`systemLanguage`) are not evaluated; the first child
   without them is rendered.
-- `paint-order`, `vector-effect`, `color`, and `non-scaling-stroke` are not
-  supported.
+- `paint-order`, `vector-effect`, and `non-scaling-stroke` are not supported.
 
 See [CONFORMANCE.md](CONFORMANCE.md) for the full icon-profile contract.
 
