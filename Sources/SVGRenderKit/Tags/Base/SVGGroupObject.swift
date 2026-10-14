@@ -557,21 +557,41 @@ extension SVGGroupObject {
 
 extension SVGGroupObject {
     /// The bounding box of this group's rendered content in the group's local
-    /// coordinate space (union of descendant shape bounds, ignoring transforms).
-    /// Used to resolve `objectBoundingBox` clip paths and masks on a group.
+    /// coordinate space: the union of descendant bounds with each descendant's own
+    /// `transform` applied (the group's own transform is not — the box is in this
+    /// group's user space). Used to resolve `objectBoundingBox` clip paths and masks
+    /// on a group.
     var contentBounds: CGRect {
         var result = CGRect.null
         for element in layerElements.array {
-            if let shape = element as? SVGShapeObject {
-                result = result.union(shape.path.bounds)
-            } else if let group = element as? SVGGroupObject {
-                result = result.union(group.contentBounds)
-            } else if let image = element as? SVGImage {
-                result = result.union(image.frame(viewBox: getSvgOptions().viewBox))
-            } else if let use = element as? SVGUseTag, let bounds = use.contentBounds {
-                result = result.union(bounds)
-            }
+            result = result.union(bounds(of: element))
         }
         return result.isNull ? .zero : result
+    }
+
+    /// The bounds one child contributes to `contentBounds`, in this group's local
+    /// coordinate space (its own bounds with its `transform` applied).
+    private func bounds(of element: SVGObject) -> CGRect {
+        if let shape = element as? SVGShapeObject {
+            return shape.path.bounds.applying(svgTransform: shape.transform)
+        }
+        if let group = element as? SVGGroupObject {
+            return group.contentBounds.applying(svgTransform: group.transform)
+        }
+        if let image = element as? SVGImage {
+            return image.frame(viewBox: getSvgOptions().viewBox).applying(svgTransform: image.transform)
+        }
+        if let use = element as? SVGUseTag, let useBounds = use.contentBounds {
+            return useBounds.applying(svgTransform: use.transform)
+        }
+        return .null
+    }
+}
+
+extension CGRect {
+    /// The rectangle mapped by an optional SVG `transform` (identity when `nil`).
+    func applying(svgTransform transform: CATransform3D?) -> CGRect {
+        guard let transform = transform else { return self }
+        return applying(CATransform3DGetAffineTransform(transform))
     }
 }

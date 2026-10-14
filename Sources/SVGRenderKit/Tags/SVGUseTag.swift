@@ -53,17 +53,19 @@ open class SVGUseTag: SVGObject, SVGRendering {
         }
     }
 
-    /// Bounds of the referenced content, offset by `x`/`y` (transforms are ignored, like `contentBounds`).
+    /// Bounds of the referenced content in the `<use>` local space: the referenced
+    /// element's own bounds with its `transform` applied, offset by `x`/`y`. The `<use>`'s
+    /// own transform is not included (it places the whole clone in the parent space).
     var contentBounds: CGRect? {
         guard case .local(let key)? = href,
               let rendering = parent.getRendering(byKey: key, fromParents: true) else { return nil }
         let bounds: CGRect
         if let shape = rendering as? SVGShapeObject {
-            bounds = shape.path.bounds
+            bounds = shape.path.bounds.applying(svgTransform: shape.transform)
         } else if let group = rendering as? SVGGroupObject {
-            bounds = group.contentBounds
+            bounds = group.contentBounds.applying(svgTransform: group.transform)
         } else if let image = rendering as? SVGImage {
-            bounds = image.frame(viewBox: parent.getSvgOptions().viewBox)
+            bounds = image.frame(viewBox: parent.getSvgOptions().viewBox).applying(svgTransform: image.transform)
         } else {
             return nil
         }
