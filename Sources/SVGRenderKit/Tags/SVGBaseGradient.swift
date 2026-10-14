@@ -89,6 +89,16 @@ open class SVGBaseGradient: SVGChildObject {
         }
     }
 
+    /// A length in object-bounding-box units, where the gradient lives in the
+    /// element's unit square: both a percentage and a plain number are a fraction
+    /// of the box (the unit square's normalised diagonal is 1).
+    func unitFraction(_ length: SVGLength) -> CGFloat {
+        switch length {
+        case .px(let value): return value
+        case .percent(let value): return value
+        }
+    }
+
     internal func parseStops(childs: [XMLElement]) throws {
         var stops: [SVGGradientStop] = []
         for child in childs {

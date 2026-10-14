@@ -52,39 +52,63 @@ open class SVGRadialGradientTag: SVGBaseGradient {
 
         guard colors.count == locations.count, locations.count > 1 else { return nil }
 
-        let boundsToPoints: CGRect
         switch gradientUnits {
-        case .userSpaceOnUse:
-            boundsToPoints = viewBox
         case .objectBoundingBox:
-            boundsToPoints = path.bounds
+            return boundingBoxLayer(path: path, maskLayer: maskLayer, colors: colors, locations: locations)
+        case .userSpaceOnUse:
+            return userSpaceLayer(viewBox: viewBox, maskLayer: maskLayer, colors: colors, locations: locations)
         }
-        guard boundsToPoints.width > 0, boundsToPoints.height > 0 else { return nil }
+    }
+
+    /// `objectBoundingBox` radial gradient: the gradient is defined in the element's
+    /// unit square and mapped onto the bounding box with an independent x and y scale,
+    /// so a radius fraction `r` becomes the ellipse `r·w` by `r·h` — not a circle.
+    /// `gradientTransform` applies in the unit square, before that mapping (SVG 1.1
+    /// §13.2.2).
+    private func boundingBoxLayer(path: UIBezierPath, maskLayer: CALayer, colors: [CGColor], locations: [CGFloat]) -> CALayer? {
+        let bbox = path.bounds
+        guard bbox.width > 0, bbox.height > 0 else { return nil }
+
+        let center = CGPoint(x: unitFraction(cx), y: unitFraction(cy))
+        // The focal point defaults to the center when fx/fy are not specified.
+        let focal = CGPoint(x: unitFraction(fx ?? cx), y: unitFraction(fy ?? cy))
+        let radius = unitFraction(r)
+        // A negative radius disables the gradient (SVG 1.1).
+        guard radius >= 0 else { return nil }
+
+        var gradientToLocal = CGAffineTransform(scaleX: bbox.width, y: bbox.height)
+        if let transform = transform {
+            gradientToLocal = CATransform3DGetAffineTransform(transform).concatenating(gradientToLocal)
+        }
+        return makeRadialLayer(frame: bbox, maskLayer: maskLayer, center: center, focal: focal,
+                               radius: radius, gradientTransform: gradientToLocal,
+                               colors: colors, locations: locations)
+    }
+
+    /// `userSpaceOnUse` radial gradient: coordinates are absolute and the radius is a
+    /// plain length (a percentage is relative to the viewport's normalised diagonal).
+    private func userSpaceLayer(viewBox: CGRect, maskLayer: CALayer, colors: [CGColor], locations: [CGFloat]) -> CALayer? {
+        guard viewBox.width > 0, viewBox.height > 0 else { return nil }
 
         let center = CGPoint(
-            x: resolveCoordinate(cx, dimension: boundsToPoints.width),
-            y: resolveCoordinate(cy, dimension: boundsToPoints.height))
-
-        // The focal point defaults to the center when fx/fy are not specified.
+            x: resolveCoordinate(cx, dimension: viewBox.width),
+            y: resolveCoordinate(cy, dimension: viewBox.height))
         let focal = CGPoint(
-            x: resolveCoordinate(fx ?? cx, dimension: boundsToPoints.width),
-            y: resolveCoordinate(fy ?? cy, dimension: boundsToPoints.height))
+            x: resolveCoordinate(fx ?? cx, dimension: viewBox.width),
+            y: resolveCoordinate(fy ?? cy, dimension: viewBox.height))
 
-        // SVG normalizes radial radius against the diagonal of the viewport.
-        let diagonal = hypot(boundsToPoints.width, boundsToPoints.height) / sqrt(2)
+        // SVG normalizes a percentage radial radius against the viewport diagonal.
+        let diagonal = hypot(viewBox.width, viewBox.height) / sqrt(2)
         let radius: CGFloat
         switch r {
-        case .px(let value):
-            radius = (gradientUnits == .objectBoundingBox) ? value * diagonal : value
-        case .percent(let value):
-            radius = value * diagonal
+        case .px(let value): radius = value
+        case .percent(let value): radius = value * diagonal
         }
         // A negative radius disables the gradient (SVG 1.1).
         guard radius >= 0 else { return nil }
 
         // User-space coordinates are absolute while the layer's frame starts at the viewBox origin.
-        let origin: CGPoint = gradientUnits == .userSpaceOnUse ? boundsToPoints.origin : .zero
-        let toLocal = CGAffineTransform(translationX: -origin.x, y: -origin.y)
+        let toLocal = CGAffineTransform(translationX: -viewBox.origin.x, y: -viewBox.origin.y)
 
         var finalCenter = center
         var finalFocal = focal
@@ -113,20 +137,26 @@ open class SVGRadialGradientTag: SVGBaseGradient {
             finalFocal = focal
         }
 
+        return makeRadialLayer(frame: viewBox, maskLayer: maskLayer, center: finalCenter, focal: finalFocal,
+                               radius: finalRadius, gradientTransform: ellipticalTransform ?? .identity,
+                               colors: colors, locations: locations)
+    }
+
+    /// Assembles the layer that draws a resolved radial gradient.
+    private func makeRadialLayer(frame: CGRect, maskLayer: CALayer, center: CGPoint, focal: CGPoint,
+                                 radius: CGFloat, gradientTransform: CGAffineTransform,
+                                 colors: [CGColor], locations: [CGFloat]) -> CALayer {
         let newLayer: CALayer = CALayer()
         let gradLayer = RadialGradientLayer()
-        newLayer.frame = boundsToPoints
-        gradLayer.frame = boundsToPoints
-        gradLayer.mask = localizedMask(maskLayer, origin: boundsToPoints.origin)
+        newLayer.frame = frame
+        gradLayer.frame = frame
+        gradLayer.mask = localizedMask(maskLayer, origin: frame.origin)
         gradLayer.anchorPoint = CGPoint(x: 0, y: 0)
         gradLayer.position = CGPoint(x: 0, y: 0)
-        gradLayer.center = finalCenter
-        gradLayer.focalPoint = finalFocal
-        gradLayer.radius = finalRadius
-        if let ellipticalTransform = ellipticalTransform {
-            gradLayer.gradientTransform = ellipticalTransform
-        }
-
+        gradLayer.center = center
+        gradLayer.focalPoint = focal
+        gradLayer.radius = radius
+        gradLayer.gradientTransform = gradientTransform
         gradLayer.colors = colors
         gradLayer.locations = locations
         newLayer.addSublayer(gradLayer)

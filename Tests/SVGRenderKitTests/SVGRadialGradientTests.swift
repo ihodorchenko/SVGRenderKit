@@ -84,10 +84,14 @@ final class SVGRadialGradientTests: XCTestCase {
         let parser = try SVGParser(svgString: svg, parsedRoot: nil)
         let layer = try parser.getLayer(overrideElements: nil)
         let radial = try XCTUnwrap(findRadialGradientLayer(in: layer))
-        XCTAssertEqual(radial.center.x, 50, accuracy: 0.001)
-        XCTAssertEqual(radial.center.y, 50, accuracy: 0.001)
-        XCTAssertEqual(radial.focalPoint?.x ?? -1, 20, accuracy: 0.001)
-        XCTAssertEqual(radial.focalPoint?.y ?? -1, 30, accuracy: 0.001)
+        // objectBoundingBox keeps center/focal in the element's unit square and maps
+        // them onto the box via `gradientTransform`, so map back for the absolute point.
+        let center = radial.center.applying(radial.gradientTransform)
+        let focal = try XCTUnwrap(radial.focalPoint).applying(radial.gradientTransform)
+        XCTAssertEqual(center.x, 50, accuracy: 0.001)
+        XCTAssertEqual(center.y, 50, accuracy: 0.001)
+        XCTAssertEqual(focal.x, 20, accuracy: 0.001)
+        XCTAssertEqual(focal.y, 30, accuracy: 0.001)
     }
 
     func testRadialGradientFocalDefaultsToCenter() throws {
@@ -105,8 +109,9 @@ final class SVGRadialGradientTests: XCTestCase {
         let parser = try SVGParser(svgString: svg, parsedRoot: nil)
         let layer = try parser.getLayer(overrideElements: nil)
         let radial = try XCTUnwrap(findRadialGradientLayer(in: layer))
-        XCTAssertEqual(radial.focalPoint?.x ?? -1, 50, accuracy: 0.001)
-        XCTAssertEqual(radial.focalPoint?.y ?? -1, 50, accuracy: 0.001)
+        let focal = try XCTUnwrap(radial.focalPoint).applying(radial.gradientTransform)
+        XCTAssertEqual(focal.x, 50, accuracy: 0.001)
+        XCTAssertEqual(focal.y, 50, accuracy: 0.001)
     }
 
     func testRadialGradientNegativeRadiusDisables() throws {
