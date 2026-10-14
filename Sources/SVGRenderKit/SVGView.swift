@@ -250,6 +250,15 @@ open class SVGView: UIView {
                 }
             } catch {
                 SVGLog.addSLog(errorStr: "SVG load error: \(error.localizedDescription)")
+                // A failed load must not leave the previous document on screen: a reused
+                // cell would show a foreign icon and the reported name would not match
+                // what is drawn. Drop the stale content and report the failure (B96).
+                let failure = UncheckedSendable(value: error)
+                DispatchQueue.main.async {
+                    guard generation == self.loadGeneration else { return }
+                    self.resetContent()
+                    self.onLoadError?(failure.value)
+                }
             }
         }
     }
@@ -292,6 +301,11 @@ open class SVGView: UIView {
         }
         self.shapeLayer?.removeFromSuperlayer()
     }
+
+    /// Called on the main thread when a load fails, after the previous content has been
+    /// dropped (the view renders nothing rather than a stale document). Use it to show a
+    /// placeholder or retry.
+    open var onLoadError: ((Error) -> Void)?
 
     /// Creates an empty `SVGView`.
     public init() {
