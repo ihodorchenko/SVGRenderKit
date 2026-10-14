@@ -566,6 +566,7 @@ extension SVGSourceStyleElement {
             pathLayer.lineDashPhase = strokeDashoffset
         }
 
+        var clipMaskLayer: CALayer?
         if let clipPath = clipPath {
             switch clipPath {
             case .local(let key):
@@ -582,7 +583,7 @@ extension SVGSourceStyleElement {
                         t = CATransform3DScale(t, bbox.width, bbox.height, 1)
                         rendering.transform = CATransform3DConcat(t, rendering.transform)
                     }
-                    mainLayer.mask = rendering
+                    clipMaskLayer = rendering
                 } else {
                     SVGLog.addSLog(errorStr: "skipped clip-path: url(#\(key)) not found")
                 }
@@ -591,13 +592,13 @@ extension SVGSourceStyleElement {
             }
         }
 
+        var appliedMaskLayer: CALayer?
         if let mask = self.mask {
             switch mask {
             case .local(let key):
                 if let maskObj = group.getMask(byKey: key, fromParents: true) {
                     let options = group.getSvgOptions()
-                    let rendering = try maskObj.maskLayer(bbox: path.bounds, viewBox: options.viewBox, overrideElements: overrideElements)
-                    mainLayer.mask = rendering
+                    appliedMaskLayer = try maskObj.maskLayer(bbox: path.bounds, viewBox: options.viewBox, overrideElements: overrideElements)
                 } else {
                     SVGLog.addSLog(errorStr: "skipped mask: url(#\(key)) not found")
                 }
@@ -605,6 +606,8 @@ extension SVGSourceStyleElement {
                 SVGLog.addSLog(errorStr: "skipped mask: external url \(url) not supported")
             }
         }
+
+        mainLayer.mask = combineClipAndMask(clip: clipMaskLayer, mask: appliedMaskLayer)
 
         // Walking the whole path is only needed when a vertex-based marker is set.
         let vertices = (self.markerStart != nil || self.markerMid != nil) ? SVGUtils.pathVertices(path: path) : []
@@ -663,6 +666,7 @@ extension SVGSourceStyleElement {
             layer.opacity = (opacity >= 0 && opacity <= 1) ? opacity : 1
         }
 
+        var clipMaskLayer: CALayer?
         if let clipPath = self.clipPath {
             switch clipPath {
             case .local(let key):
@@ -685,12 +689,13 @@ extension SVGSourceStyleElement {
                     // maps it back to the user space on screen.
                     rendering.transform = CATransform3DConcat(CATransform3DInvert(layer.transform), rendering.transform)
                 }
-                layer.mask = rendering
+                clipMaskLayer = rendering
             case .web(let url):
                 SVGLog.addSLog(errorStr: "skipped clip-path: external url \(url) not supported")
             }
         }
 
+        var appliedMaskLayer: CALayer?
         if let mask = self.mask {
             switch mask {
             case .local(let key):
@@ -699,11 +704,13 @@ extension SVGSourceStyleElement {
                     break
                 }
                 let options = container.getSvgOptions()
-                layer.mask = try maskObj.maskLayer(bbox: bbox(), viewBox: options.viewBox, overrideElements: overrideElements)
+                appliedMaskLayer = try maskObj.maskLayer(bbox: bbox(), viewBox: options.viewBox, overrideElements: overrideElements)
             case .web(let url):
                 SVGLog.addSLog(errorStr: "skipped mask: external url \(url) not supported")
             }
         }
+
+        layer.mask = combineClipAndMask(clip: clipMaskLayer, mask: appliedMaskLayer)
 
         if let filter = self.filter {
             switch filter {
@@ -717,6 +724,21 @@ extension SVGSourceStyleElement {
                 SVGLog.addSLog(errorStr: "skipped filter: external url \(url) not supported")
             }
         }
+    }
+
+    /// Applies a `clip-path` and a `mask` to the same layer. They intersect, so the clip
+    /// becomes a mask of the mask layer instead of replacing it (B89).
+    private func combineClipAndMask(clip: CALayer?, mask: CALayer?) -> CALayer? {
+        guard let clip = clip else { return mask }
+        guard let mask = mask else { return clip }
+        // The mask layer's content is offset by its frame origin while the clip lives in
+        // the layer's own space, so shift the clip into the mask layer's local space.
+        let origin = mask.frame.origin
+        if origin != .zero {
+            clip.transform = CATransform3DConcat(clip.transform, CATransform3DMakeTranslation(-origin.x, -origin.y, 0))
+        }
+        mask.mask = clip
+        return mask
     }
 
     private func applyPattern(pathLayer: CAShapeLayer, pattern: SVGPattern, group: SVGShapesContainer, path: UIBezierPath, opacity: CGFloat?) {
