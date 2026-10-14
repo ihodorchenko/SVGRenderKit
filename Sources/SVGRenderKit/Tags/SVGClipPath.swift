@@ -87,28 +87,18 @@ extension SVGClipPath: SVGRendering {
     public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CAShapeLayer = CAShapeLayer()
 
-        // A clip path defines a 1-bit mask from the raw geometry of its children;
-        // fill/stroke opacity must not leak into the mask's alpha or the clipped
-        // content would be dimmed. Force fully-opaque paint for the mask.
-        let clipStyle = SVGSourceStyleElement()
-        clipStyle.fillOpacity = 1
-        clipStyle.strokeOpacity = 1
-        clipStyle.opacity = 1
-
         for use in uses.array {
-            let layer = try use.createLayer(addStyle: clipStyle, overrideElements: overrideElements)
+            let layer = try use.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+            SVGClipPath.forceClipMask(layer, fillRule: nil)
             mainLayer.addSublayer(layer)
         }
 
         for path in shapes.array {
             // Inside a clipPath the winding rule comes from `clip-rule` (own or inherited from
             // the clipPath element), not from `fill-rule`.
-            let shapeStyle = clipStyle.combine(child: SVGSourceStyleElement())
-            switch path.resolvedStyle(overrideElements: overrideElements).clipRule ?? .nonzero {
-            case .evenodd: shapeStyle.fillRule = .evenodd
-            case .nonzero, .inherit: shapeStyle.fillRule = .nonzero
-            }
-            let layer = try path.createLayer(addStyle: shapeStyle, overrideElements: overrideElements)
+            let clipRule = path.resolvedStyle(overrideElements: overrideElements).clipRule ?? .nonzero
+            let layer = try path.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+            SVGClipPath.forceClipMask(layer, fillRule: clipRule == .evenodd ? .evenOdd : .nonZero)
             mainLayer.addSublayer(layer)
         }
 
@@ -117,6 +107,21 @@ extension SVGClipPath: SVGRendering {
         }
 
         return mainLayer
+    }
+
+    /// A clip path is a 1-bit mask: its children contribute their raw geometry, so
+    /// fill/stroke opacity must not leak into the mask alpha (the clipped content
+    /// would be dimmed) and the winding rule is the clip rule, not `fill-rule`.
+    private static func forceClipMask(_ layer: CALayer, fillRule: CAShapeLayerFillRule?) {
+        if let shape = layer as? CAShapeLayer {
+            if let fillRule = fillRule { shape.fillRule = fillRule }
+            if let fill = shape.fillColor { shape.fillColor = fill.copy(alpha: 1) }
+            if let stroke = shape.strokeColor { shape.strokeColor = stroke.copy(alpha: 1) }
+            shape.opacity = 1
+        }
+        for sub in layer.sublayers ?? [] {
+            forceClipMask(sub, fillRule: fillRule)
+        }
     }
 }
 

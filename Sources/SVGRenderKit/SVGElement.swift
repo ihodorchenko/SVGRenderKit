@@ -248,18 +248,18 @@ extension SVGSVGTag: SVGRendering {
 
         for layerElement in layerElements.array {
             if let group = layerElement as? SVGGTag {
-                let layer = try group.createLayer(overrideElements: overrideElements)
+                let layer = try group.createLayer(addStyle: addStyle, overrideElements: overrideElements)
                 if layer.sublayers?.count ?? 0 > 0 {
                     mainLayer.addSublayer(layer)
                 }
             } else if let path = layerElement as? SVGShapeObject {
-                let layer = try path.createLayer(overrideElements: overrideElements)
+                let layer = try path.createLayer(addStyle: addStyle, overrideElements: overrideElements)
                 mainLayer.addSublayer(layer)
             } else if let use = layerElement as? SVGUseTag {
-                let layer = try use.createLayer(overrideElements: overrideElements)
+                let layer = try use.createLayer(addStyle: addStyle, overrideElements: overrideElements)
                 mainLayer.addSublayer(layer)
             } else if let image = layerElement as? SVGImage {
-                let layer = try image.createLayer(overrideElements: overrideElements)
+                let layer = try image.createLayer(addStyle: addStyle, overrideElements: overrideElements)
                 mainLayer.addSublayer(layer)
             }
         }

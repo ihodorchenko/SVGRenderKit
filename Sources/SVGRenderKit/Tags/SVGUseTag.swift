@@ -93,7 +93,11 @@ open class SVGUseTag: SVGObject, SVGRendering {
                         active.remove(marker)
                         threadDict[SVGUseTag.activeKey] = active
                     }
-                    let layer = try rendering.createLayer(addStyle: sourceStyle, overrideElements: overrideElements)
+                    var childStyle = addStyle ?? SVGSourceStyleElement()
+                    if let sourceStyle = sourceStyle {
+                        childStyle = childStyle.combine(child: sourceStyle)
+                    }
+                    let layer = try rendering.createLayer(addStyle: childStyle, overrideElements: overrideElements)
                     var _transform: CATransform3D = CATransform3DIdentity
 
                     if let symbol = rendering as? SVGSymbol, let viewBox = symbol.viewBox {
@@ -120,6 +124,11 @@ open class SVGUseTag: SVGObject, SVGRendering {
                     }
                     if !CATransform3DIsIdentity(_transform) {
                         layer.transform = _transform
+                    }
+                    // The `<use>`'s own opacity / clip-path / mask / filter composite the
+                    // referenced content as a whole, like a `<g>` (SVG 1.1 §5.6).
+                    if let sourceStyle = sourceStyle {
+                        try sourceStyle.applyGroupComposite(to: layer, bbox: contentBounds ?? .zero, container: parent, overrideElements: overrideElements)
                     }
                     return layer
                 } else {

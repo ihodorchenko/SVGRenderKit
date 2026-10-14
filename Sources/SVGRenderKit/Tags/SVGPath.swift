@@ -45,9 +45,17 @@ open class SVGShapeObject: SVGObject, SVGRendering {
         self.animations = SVGAnimation.parse(children: xmlElement.xmlChildren)
     }
 
-    /// Cascade for the shape itself: inherited → presentation attributes → `<style>` rules → inline `style`.
-    func resolvedStyle(overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement {
-        let inherited = parent.getStyle(forObject: self, overrideElements: overrideElements)
+    /// Cascade for the shape itself: (inherited ← `addStyle`) → presentation attributes
+    /// → `<style>` rules → inline `style`.
+    ///
+    /// `addStyle` comes from an instantiating `<use>` and is the *lowest* priority:
+    /// the referenced shape's own properties win (SVG 1.1 §5.6 — the cloned content
+    /// inherits from the `use` element, it is not overridden by it).
+    func resolvedStyle(overrideElements: [String: SVGSourceStyleElement]?, addStyle: SVGSourceStyleElement? = nil) -> SVGSourceStyleElement {
+        var inherited = parent.getStyle(forObject: self, overrideElements: overrideElements)
+        if let addStyle = addStyle {
+            inherited = inherited.combine(child: addStyle)
+        }
         return inherited
             .combine(child: presentationStyle)
             .combine(child: parent.selectorStyle(forObject: self))
@@ -61,12 +69,7 @@ open class SVGShapeObject: SVGObject, SVGRendering {
         pathLayer.path = self.path.cgPath
         mainLayer.addSublayer(pathLayer)
 
-        var sourceStyle: SVGSourceStyleElement = self.sourceStyle
-        sourceStyle = resolvedStyle(overrideElements: overrideElements)
-
-        if let addStyle = addStyle {
-            sourceStyle = sourceStyle.combine(child: addStyle)
-        }
+        var sourceStyle: SVGSourceStyleElement = resolvedStyle(overrideElements: overrideElements, addStyle: addStyle)
         if let overrideElements = overrideElements {
             if let tagElem = overrideElements[self.key] {
                 sourceStyle = sourceStyle.combine(child: tagElem)
