@@ -66,36 +66,53 @@ open class SVGLinearGradientTag: SVGBaseGradient {
                 gradLayer.anchorPoint = CGPoint.zero
                 gradLayer.position = CGPoint.zero
                 gradLayer.mask = localizedMask(maskLayer, origin: boundsToPoints.origin)
-                let x1: CGFloat = resolveCoordinate(self.x1, dimension: boundsToPoints.width)
-                let x2: CGFloat = resolveCoordinate(self.x2, dimension: boundsToPoints.width)
-                let y1: CGFloat = resolveCoordinate(self.y1, dimension: boundsToPoints.height)
-                let y2: CGFloat = resolveCoordinate(self.y2, dimension: boundsToPoints.height)
                 gradLayer.frame = boundsToPoints
                 gradLayer.anchorPoint = CGPoint.zero
 
-                var _startPoint = CGPoint(x: x1, y: y1)
-                var _endPoint = CGPoint(x: x2, y: y2)
+                // Work in the gradient's own coordinate system: the element's unit
+                // square for objectBoundingBox, absolute user units for userSpaceOnUse.
+                // `gradientTransform` is applied there — not to already-absolute points,
+                // which put an objectBoundingBox transform in the wrong space (B93).
+                var _startPoint: CGPoint
+                var _endPoint: CGPoint
+                switch gradientUnits {
+                case .objectBoundingBox:
+                    _startPoint = CGPoint(x: unitFraction(self.x1), y: unitFraction(self.y1))
+                    _endPoint = CGPoint(x: unitFraction(self.x2), y: unitFraction(self.y2))
+                case .userSpaceOnUse:
+                    _startPoint = CGPoint(
+                        x: resolveCoordinate(self.x1, dimension: boundsToPoints.width),
+                        y: resolveCoordinate(self.y1, dimension: boundsToPoints.height))
+                    _endPoint = CGPoint(
+                        x: resolveCoordinate(self.x2, dimension: boundsToPoints.width),
+                        y: resolveCoordinate(self.y2, dimension: boundsToPoints.height))
+                }
+
                 if let transform = transform {
                     // Apply the full affine `gradientTransform` (translation, rotation,
-                    // scale, and skew) to the gradient axis, not just rotation.
+                    // scale, and skew) to the gradient axis in its own space.
                     let affineTransform = CATransform3DGetAffineTransform(transform)
                     _startPoint = _startPoint.applying(affineTransform)
                     _endPoint = _endPoint.applying(affineTransform)
                 }
 
-                // User-space coordinates are absolute; the gradient layer's frame starts at the
-                // viewBox origin, so make them relative to it (a non-zero viewBox origin shifted
-                // the gradient before).
+                // User-space coordinates are absolute; the gradient layer's frame starts at
+                // the viewBox origin, so make them relative to it (a non-zero viewBox origin
+                // shifted the gradient before), then normalized for CAGradientLayer.
                 if gradientUnits == .userSpaceOnUse {
                     _startPoint.x -= boundsToPoints.origin.x
                     _startPoint.y -= boundsToPoints.origin.y
                     _endPoint.x -= boundsToPoints.origin.x
                     _endPoint.y -= boundsToPoints.origin.y
+                    _startPoint.x /= boundsToPoints.width
+                    _startPoint.y /= boundsToPoints.height
+                    _endPoint.x /= boundsToPoints.width
+                    _endPoint.y /= boundsToPoints.height
                 }
 
                 let points = LinearGradientFixer.fixPoints(
-                    start: CGPoint(x: _startPoint.x/boundsToPoints.width, y: _startPoint.y/boundsToPoints.height),
-                    end: CGPoint(x: _endPoint.x/boundsToPoints.width, y: _endPoint.y/boundsToPoints.height),
+                    start: _startPoint,
+                    end: _endPoint,
                     bounds: boundsToPoints.size)
                 let fStartPoint: CGPoint = points.0
                 let fEndPoint: CGPoint = points.1
