@@ -178,36 +178,43 @@ open class SVGSourceStyleElement {
         try set(attributeDict: paramsDict)
     }
 
+    /// Applies a set of properties. A malformed value is logged and ignored rather
+    /// than thrown, so a single bad property never fails the whole document (B85).
     func set(attributeDict: [String: String]) throws {
-        if let str = attributeDict["display"], !str.isEmpty { try setDisplay(str: str) }
+        if let str = attributeDict["display"], !str.isEmpty { ignoring("display") { try setDisplay(str: str) } }
         if let str = attributeDict["visibility"], !str.isEmpty { setVisibility(str: str) }
-        if let str = attributeDict["fill"], !str.isEmpty { try setFill(str: str) }
+        if let str = attributeDict["fill"], !str.isEmpty { ignoring("fill") { try setFill(str: str) } }
         if let str = attributeDict["color"], !str.isEmpty { setColor(str: str) }
-        if let str = attributeDict["opacity"], !str.isEmpty { try setOpacity(str: str) }
-        if let str = attributeDict["fill-opacity"], !str.isEmpty { try setFillOpacity(str: str) }
+        if let str = attributeDict["opacity"], !str.isEmpty { ignoring("opacity") { try setOpacity(str: str) } }
+        if let str = attributeDict["fill-opacity"], !str.isEmpty { ignoring("fill-opacity") { try setFillOpacity(str: str) } }
         if let str = attributeDict["fill-rule"], !str.isEmpty { setFillRule(str: str) }
 
-        if let str = attributeDict["stroke"], !str.isEmpty { try setStroke(str: str) }
-        if let str = attributeDict["stroke-opacity"], !str.isEmpty { try setStrokeOpacity(str: str) }
-        if let str = attributeDict["stroke-width"], !str.isEmpty { try setStrokeWidth(str: str) }
+        if let str = attributeDict["stroke"], !str.isEmpty { ignoring("stroke") { try setStroke(str: str) } }
+        if let str = attributeDict["stroke-opacity"], !str.isEmpty { ignoring("stroke-opacity") { try setStrokeOpacity(str: str) } }
+        if let str = attributeDict["stroke-width"], !str.isEmpty { ignoring("stroke-width") { try setStrokeWidth(str: str) } }
         if let str = attributeDict["stroke-linecap"], !str.isEmpty { try setStrokeLinecap(str: str) }
         if let str = attributeDict["stroke-linejoin"], !str.isEmpty { try setStrokeLinejoin(str: str) }
-        if let str = attributeDict["stroke-miterlimit"], !str.isEmpty { try setStrokeMiterlimit(str: str) }
-        if let str = attributeDict["stroke-dasharray"], !str.isEmpty { try setStrokeDasharray(str: str) }
-        if let str = attributeDict["stroke-dashoffset"], !str.isEmpty { try setStrokeDashoffset(str: str) }
+        if let str = attributeDict["stroke-miterlimit"], !str.isEmpty { ignoring("stroke-miterlimit") { try setStrokeMiterlimit(str: str) } }
+        if let str = attributeDict["stroke-dasharray"], !str.isEmpty { ignoring("stroke-dasharray") { try setStrokeDasharray(str: str) } }
+        if let str = attributeDict["stroke-dashoffset"], !str.isEmpty { ignoring("stroke-dashoffset") { try setStrokeDashoffset(str: str) } }
 
-        if let str = attributeDict["clip-path"], !str.isEmpty { try setClipPath(str: str) }
+        if let str = attributeDict["clip-path"], !str.isEmpty { ignoring("clip-path") { try setClipPath(str: str) } }
         if let str = attributeDict["clip-rule"], !str.isEmpty { setClipRule(str: str) }
-        if let str = attributeDict["mask"], !str.isEmpty { try setMask(str: str) }
-        if let str = attributeDict["marker-start"], !str.isEmpty { try setMarkerStart(str: str) }
-        if let str = attributeDict["marker-mid"], !str.isEmpty { try setMarkerMid(str: str) }
-        if let str = attributeDict["marker-end"], !str.isEmpty { try setMarkerEnd(str: str) }
-        if let str = attributeDict["filter"], !str.isEmpty { try setFilter(str: str) }
+        if let str = attributeDict["mask"], !str.isEmpty { ignoring("mask") { try setMask(str: str) } }
+        if let str = attributeDict["marker-start"], !str.isEmpty { ignoring("marker-start") { try setMarkerStart(str: str) } }
+        if let str = attributeDict["marker-mid"], !str.isEmpty { ignoring("marker-mid") { try setMarkerMid(str: str) } }
+        if let str = attributeDict["marker-end"], !str.isEmpty { ignoring("marker-end") { try setMarkerEnd(str: str) } }
+        if let str = attributeDict["filter"], !str.isEmpty { ignoring("filter") { try setFilter(str: str) } }
 
         if let str = attributeDict["font-family"], !str.isEmpty { setFontFamily(str: str) }
-        if let str = attributeDict["font-style"], !str.isEmpty { try setFontStyle(str: str) }
-        if let str = attributeDict["font-weight"], !str.isEmpty { try setFontWeight(str: str) }
+        if let str = attributeDict["font-style"], !str.isEmpty { ignoring("font-style") { try setFontStyle(str: str) } }
+        if let str = attributeDict["font-weight"], !str.isEmpty { ignoring("font-weight") { try setFontWeight(str: str) } }
         if let str = attributeDict["font-size"], !str.isEmpty { setFontSize(str: str) }
+    }
+
+    /// Runs one property parser, logging and swallowing its error (B85).
+    private func ignoring(_ property: String, _ body: () throws -> Void) {
+        do { try body() } catch { SVGLog.addSLog(errorStr: "ignored \(property): \(error)") }
     }
 
     func setDisplay(str: String) throws {
@@ -333,6 +340,9 @@ open class SVGSourceStyleElement {
     func setStrokeDashoffset(str: String) throws {
         if let f = Float(str) {
             strokeDashoffset = CGFloat(f)
+        } else if case .px(let value)? = try? SVGLength.get(string: str) {
+            // `stroke-dashoffset="5px"` — accept an absolute length unit.
+            strokeDashoffset = value
         } else {
             throw SVGError.content(text: "wrong stroke-dashoffset: \(str)")
         }
@@ -479,10 +489,10 @@ extension SVGSourceStyleElement {
                 } else if let pattern = group.getPattern(byKey: key, fromParents: true) {
                     applyPattern(pathLayer: pathLayer, pattern: pattern, group: group, path: path, opacity: fillOpacity)
                 } else {
-                    throw SVGError.content(text: "local iri not found by key: \(key)")
+                    SVGLog.addSLog(errorStr: "skipped fill: url(#\(key)) not found")
                 }
             case .web(let url):
-                throw SVGError.content(text: "web iri not supported: \(url)")
+                SVGLog.addSLog(errorStr: "skipped fill: external url \(url) not supported")
             }
         }
 
@@ -519,10 +529,10 @@ extension SVGSourceStyleElement {
                 } else if let pattern = group.getPattern(byKey: key, fromParents: true) {
                     applyStrokePattern(mainLayer: mainLayer, path: path, pattern: pattern, viewBox: strokeViewBox, opacity: strokeOpacity)
                 } else {
-                    throw SVGError.content(text: "local stroke iri not found by key: \(key)")
+                    SVGLog.addSLog(errorStr: "skipped stroke: url(#\(key)) not found")
                 }
             case .web(let url):
-                throw SVGError.content(text: "web stroke iri not supported: \(url)")
+                SVGLog.addSLog(errorStr: "skipped stroke: external url \(url) not supported")
             }
         }
 
@@ -574,10 +584,10 @@ extension SVGSourceStyleElement {
                     }
                     mainLayer.mask = rendering
                 } else {
-                    throw SVGError.content(text: "iri not found: \(key)")
+                    SVGLog.addSLog(errorStr: "skipped clip-path: url(#\(key)) not found")
                 }
             case .web(let url):
-                throw SVGError.content(text: "web iri not supported: \(url)")
+                SVGLog.addSLog(errorStr: "skipped clip-path: external url \(url) not supported")
             }
         }
 
@@ -589,10 +599,10 @@ extension SVGSourceStyleElement {
                     let rendering = try maskObj.maskLayer(bbox: path.bounds, viewBox: options.viewBox, overrideElements: overrideElements)
                     mainLayer.mask = rendering
                 } else {
-                    throw SVGError.content(text: "mask not found: \(key)")
+                    SVGLog.addSLog(errorStr: "skipped mask: url(#\(key)) not found")
                 }
             case .web(let url):
-                throw SVGError.content(text: "web mask not supported: \(url)")
+                SVGLog.addSLog(errorStr: "skipped mask: external url \(url) not supported")
             }
         }
 
@@ -632,10 +642,10 @@ extension SVGSourceStyleElement {
                 if let filter = group.getFilter(byKey: key, fromParents: true) {
                     filter.apply(to: mainLayer)
                 } else {
-                    throw SVGError.content(text: "filter not found: \(key)")
+                    SVGLog.addSLog(errorStr: "skipped filter: url(#\(key)) not found")
                 }
             case .web(let url):
-                throw SVGError.content(text: "web filter not supported: \(url)")
+                SVGLog.addSLog(errorStr: "skipped filter: external url \(url) not supported")
             }
         }
     }
@@ -657,7 +667,8 @@ extension SVGSourceStyleElement {
             switch clipPath {
             case .local(let key):
                 guard let clipPathObj = container.getClipPath(byKey: key, fromParents: true) else {
-                    throw SVGError.content(text: "iri not found: \(key)")
+                    SVGLog.addSLog(errorStr: "skipped clip-path: url(#\(key)) not found")
+                    break
                 }
                 let rendering = try clipPathObj.createLayer(overrideElements: overrideElements)
                 if clipPathObj.clipPathUnits == .objectBoundingBox {
@@ -676,7 +687,7 @@ extension SVGSourceStyleElement {
                 }
                 layer.mask = rendering
             case .web(let url):
-                throw SVGError.content(text: "web iri not supported: \(url)")
+                SVGLog.addSLog(errorStr: "skipped clip-path: external url \(url) not supported")
             }
         }
 
@@ -684,12 +695,13 @@ extension SVGSourceStyleElement {
             switch mask {
             case .local(let key):
                 guard let maskObj = container.getMask(byKey: key, fromParents: true) else {
-                    throw SVGError.content(text: "mask not found: \(key)")
+                    SVGLog.addSLog(errorStr: "skipped mask: url(#\(key)) not found")
+                    break
                 }
                 let options = container.getSvgOptions()
                 layer.mask = try maskObj.maskLayer(bbox: bbox(), viewBox: options.viewBox, overrideElements: overrideElements)
             case .web(let url):
-                throw SVGError.content(text: "web mask not supported: \(url)")
+                SVGLog.addSLog(errorStr: "skipped mask: external url \(url) not supported")
             }
         }
 
@@ -697,11 +709,12 @@ extension SVGSourceStyleElement {
             switch filter {
             case .local(let key):
                 guard let filterObj = container.getFilter(byKey: key, fromParents: true) else {
-                    throw SVGError.content(text: "filter not found: \(key)")
+                    SVGLog.addSLog(errorStr: "skipped filter: url(#\(key)) not found")
+                    break
                 }
                 filterObj.apply(to: layer)
             case .web(let url):
-                throw SVGError.content(text: "web filter not supported: \(url)")
+                SVGLog.addSLog(errorStr: "skipped filter: external url \(url) not supported")
             }
         }
     }
@@ -770,11 +783,12 @@ extension SVGSourceStyleElement {
         switch iri {
         case .local(let key):
             guard let marker = group.getMarker(byKey: key, fromParents: true) else {
-                throw SVGError.content(text: "marker not found: \(key)")
+                SVGLog.addSLog(errorStr: "skipped marker: url(#\(key)) not found")
+                return
             }
             try placeMarker(marker, at: info, mainLayer: mainLayer, strokeWidth: strokeWidth, overrideElements: overrideElements)
         case .web(let url):
-            throw SVGError.content(text: "web marker not supported: \(url)")
+            SVGLog.addSLog(errorStr: "skipped marker: external url \(url) not supported")
         }
     }
 

@@ -116,9 +116,15 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 
 - Unknown elements are skipped (not errors).
 - Unknown attributes and properties are ignored.
-- Malformed values on non-essential attributes are ignored; malformed
-  *geometry* fails loudly (it is a content bug).
-- The goal is to render as much of a real-world file as possible and never crash.
+- Malformed values on non-essential properties are logged and ignored; the
+  shape still renders with its remaining/default paint.
+- A malformed *geometry* value (a `<rect>` without `width`/`height`, a `<circle>`
+  without a radius, an unparsable `d`, an odd `points` list) skips only that
+  element — the rest of the document still renders.
+- A missing local reference (`url(#…)` for fill / stroke / `clip-path` / `mask` /
+  `filter` / `marker`) is logged and skipped.
+- Nothing above fails the whole document: the goal is to render as much of a
+  real-world file as possible and never crash.
 
 ## Relationship to the standards (reference)
 

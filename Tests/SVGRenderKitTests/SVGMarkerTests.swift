@@ -43,13 +43,15 @@ final class SVGMarkerTests: XCTestCase {
         XCTAssertNotNil(markerShape.path)
     }
 
-    func testMissingMarkerThrows() {
+    func testMissingMarkerIsSkipped() throws {
         let svg = """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <line x1="0" y1="0" x2="100" y2="0" stroke="#000000" marker-end="url(#missing)"/>
         </svg>
         """
-        XCTAssertThrowsError(try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil))
+        // A missing reference is logged and skipped, not failing the document (B85).
+        let layer = try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil)
+        XCTAssertEqual(layer.sublayers?.count ?? 0, 1)
     }
 
     func testMarkerUnitsStrokeWidthScalesMarker() throws {

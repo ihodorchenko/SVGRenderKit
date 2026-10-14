@@ -48,12 +48,14 @@ final class SVGPatternTests: XCTestCase {
         XCTAssertTrue(isPatternColor(shape.fillColor))
     }
 
-    func testMissingPatternThrows() {
+    func testMissingPatternIsSkipped() throws {
         let svg = """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <rect width="100" height="100" fill="url(#missing)"/>
         </svg>
         """
-        XCTAssertThrowsError(try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil))
+        // A missing reference is logged and skipped, not failing the document (B85).
+        let layer = try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil)
+        XCTAssertEqual(layer.sublayers?.count ?? 0, 1)
     }
 }

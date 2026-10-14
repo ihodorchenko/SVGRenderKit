@@ -115,12 +115,14 @@ final class SVGFilterTests: XCTestCase {
         XCTAssertEqual(b, 0.164706, accuracy: 0.001)
     }
 
-    func testMissingFilterThrows() {
+    func testMissingFilterIsSkipped() throws {
         let svg = """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <rect width="50" height="50" fill="#ff0000" filter="url(#missing)"/>
         </svg>
         """
-        XCTAssertThrowsError(try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil))
+        // A missing reference is logged and skipped, not failing the document (B85).
+        let layer = try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil)
+        XCTAssertEqual(layer.sublayers?.count ?? 0, 1)
     }
 }

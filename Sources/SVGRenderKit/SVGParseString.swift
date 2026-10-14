@@ -297,6 +297,16 @@ public class SVGParseString {
         return byte >= UInt8(ascii: "0") && byte <= UInt8(ascii: "9")
     }
 
+    /// Merges the completed subpaths with the one in progress, for a partial result
+    /// when parsing stops at an error (B85: render the path up to the error).
+    fileprivate class func partialPath(_ completed: UIBezierPath, _ inProgress: UIBezierPath) -> UIBezierPath? {
+        let result = completed
+        if !inProgress.isEmpty {
+            result.append(inProgress)
+        }
+        return result.isEmpty ? nil : result
+    }
+
     /// Parses an SVG path data string into a `UIBezierPath`.
     /// - parameter pathString: The SVG path data string, which must begin with a MoveTo (`M`/`m`) command.
     /// - parameter forPath: An optional existing path to append the parsed commands to.
@@ -358,7 +368,7 @@ public class SVGParseString {
             case .command(let command):
                 if let error = pushCoordinateAndExecuteIfPossible() {
                     if index > 0 {//игнорить для старта
-                        return (path: nil, error: error)
+                        return (path: partialPath(returnPath, currentPath), error: error)
                     }
                 }
                 currentPathCommand = command
@@ -399,12 +409,12 @@ public class SVGParseString {
                     }
                 }
             case .invalid:
-                returnPath.removeAllPoints()
-                return (path: nil, error: SVGError.parseError(text: "Invalid character \"\(invalidCharacter(in: workingString, utf8Offset: index))\" found"))
+                return (path: partialPath(returnPath, currentPath),
+                        error: SVGError.parseError(text: "Invalid character \"\(invalidCharacter(in: workingString, utf8Offset: index))\" found"))
             }
         }
         if thisEnd == false {
-            if let error = pushCoordinateAndExecuteIfPossible() { return (path: nil, error: error) }
+            if let error = pushCoordinateAndExecuteIfPossible() { return (path: partialPath(returnPath, currentPath), error: error) }
             returnPath.append(currentPath)
         } else if !(currentPathCommand is ClosePath) {
             // The path ends with a dangling command letter (e.g. a trailing 'L').

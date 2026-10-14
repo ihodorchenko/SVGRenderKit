@@ -37,7 +37,7 @@ open class SVGGroupObject: SVGChildObject, SVGGroupProtocol {
         self.animations = SVGAnimation.parse(children: xmlElement.xmlChildren)
         
         for children in xmlElement.xmlChildren {
-            try parse(children: children)
+            parse(children: children)
         }
     }
 
@@ -48,7 +48,17 @@ open class SVGGroupObject: SVGChildObject, SVGGroupProtocol {
 }
 
 extension SVGGroupObject {
-    internal func parse(children: XMLElement) throws {
+    /// Parses one child element. A child that cannot be built is logged and skipped
+    /// so a single bad element never fails the whole document (B85).
+    internal func parse(children: XMLElement) {
+        do {
+            try parseElement(children: children)
+        } catch {
+            SVGLog.addSLog(errorStr: "skipped <\(children.name)>: \(error)")
+        }
+    }
+
+    internal func parseElement(children: XMLElement) throws {
         switch children.name {
         case SVGLinearGradientTag.key:
             try addIfNeedLinearGradient(children: children)
@@ -110,7 +120,7 @@ extension SVGGroupObject {
                 if child.attribute(by: "requiredFeatures") == nil,
                    child.attribute(by: "requiredExtensions") == nil,
                    child.attribute(by: "systemLanguage") == nil {
-                    try parse(children: child)
+                    try parseElement(children: child)
                     break
                 }
             }

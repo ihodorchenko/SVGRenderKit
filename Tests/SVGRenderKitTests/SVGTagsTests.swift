@@ -16,13 +16,16 @@ final class SVGTagsTests: XCTestCase {
         XCTAssertEqual(items.count, 2)
     }
 
-    func testCircleWithNegativeRadiusThrows() {
+    func testCircleWithNegativeRadiusIsSkipped() throws {
+        // A malformed circle is logged and skipped; a valid sibling still renders (B85).
         let svg = """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="-10" fill="#ff0000"/>
+            <rect x="10" y="10" width="20" height="20" fill="#00ff00"/>
         </svg>
         """
-        XCTAssertThrowsError(try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil))
+        let layer = try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil)
+        XCTAssertEqual(layer.sublayers?.count ?? 0, 1)
     }
 
     func testSwitchRendersFirstFallbackChild() throws {

@@ -166,10 +166,16 @@ open class SVGPath: SVGShapeObject {
 
         if let str = attributeDict["d"] {
             let result = SVGParseString.parseSVGPath(pathString: str)
-            if let svgError = result.error {
-                throw svgError
-            } else if let bezierPath = result.path {
+            if let bezierPath = result.path {
+                // Render the part of the path that parsed; a trailing error is logged.
                 self.path = bezierPath
+            }
+            if let svgError = result.error {
+                SVGLog.addSLog(errorStr: "path 'd': \(svgError)")
+                if result.path == nil {
+                    // No usable geometry (e.g. an empty or non-MoveTo `d`): skip the element.
+                    throw svgError
+                }
             }
         }
     }
