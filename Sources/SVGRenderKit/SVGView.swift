@@ -266,11 +266,12 @@ open class SVGView: UIView {
                 SVGLog.addSLog(errorStr: "SVG load error: \(error.localizedDescription)")
                 // A failed load must not leave the previous document on screen: a reused
                 // cell would show a foreign icon and the reported name would not match
-                // what is drawn. Drop the stale content and report the failure (B96).
+                // what is drawn. Drop the stale content and report the failure, keeping the
+                // source so a reload after the error can retry it (B96).
                 let failure = UncheckedSendable(value: error)
                 DispatchQueue.main.async {
                     guard generation == self.loadGeneration else { return }
-                    self.resetContent()
+                    self.dropRenderedContent()
                     self.onLoadError?(failure.value)
                 }
             }
@@ -283,11 +284,22 @@ open class SVGView: UIView {
             DispatchQueue.main.async { [weak self] in self?.resetContent() }
             return
         }
-        loadGeneration += 1
         currentSource = nil
+        overrideElements = nil
+        dropRenderedContent()
+    }
+
+    /// Drops the rendered content and invalidates any in-flight load, but keeps the source and
+    /// its overrides: after a failed load nothing of the failed document stays on screen, yet
+    /// a later reload (the update notification, B114) still has a source to retry (B96).
+    private func dropRenderedContent() {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in self?.dropRenderedContent() }
+            return
+        }
+        loadGeneration += 1
         _SVGName = nil
         _svgString = nil
-        overrideElements = nil
         clear()
         shapeLayer = nil
         parser = nil
