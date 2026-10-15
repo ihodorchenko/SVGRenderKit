@@ -315,16 +315,37 @@ open class SVGRoot {
 
     private static func collect(_ group: SVGGroupObject, into map: inout [String: SVGObject]) {
         for object in group.all.array {
-            if let id = object.id, map[id] == nil {
-                map[id] = object
-            }
-            if let nested = object as? SVGGroupObject {
-                collect(nested, into: &map)
-            }
+            register(object, into: &map)
         }
         for defs in group.defsList {
             collect(defs, into: &map)
         }
+    }
+
+    /// Registers `object` and everything nested inside it: a group's children, and the
+    /// children of the containers that are not renderable children of their parent but still
+    /// belong to the document — `<mask>`, `<clipPath>`, `<pattern>` and `<marker>`. Without
+    /// them an `id` inside such a container could not be referenced (B88).
+    private static func register(_ object: SVGObject, into map: inout [String: SVGObject]) {
+        if let id = object.id, map[id] == nil {
+            map[id] = object
+        }
+        if let nested = object as? SVGGroupObject {
+            collect(nested, into: &map)
+            return
+        }
+        for child in nestedChildren(of: object) {
+            register(child, into: &map)
+        }
+    }
+
+    /// The children of a paint server or clip container, in document order.
+    private static func nestedChildren(of object: SVGObject) -> [SVGObject] {
+        if let container = object as? SVGMask { return container.all.array }
+        if let container = object as? SVGClipPath { return container.all.array }
+        if let container = object as? SVGPattern { return container.all.array }
+        if let container = object as? SVGMarker { return container.all.array }
+        return []
     }
 
     /// Builds and returns the root `CALayer` for the SVG document.

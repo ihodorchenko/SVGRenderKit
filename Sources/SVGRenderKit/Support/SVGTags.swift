@@ -9,7 +9,9 @@ class SVGTags<T: SVGObject> {
         for className in item.classNames {
             byClass[className, default: []].append(item)
         }
-        if let id = item.id {
+        // The first element with an `id` wins, as in browsers: a duplicate `id` further down
+        // the document must not shadow the earlier element (B88).
+        if let id = item.id, byId[id] == nil {
             byId[id] = item
         }
         array.append(item)
