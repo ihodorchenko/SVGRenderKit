@@ -227,6 +227,13 @@ extension SVGMask: SVGRendering {
         let width = Int(region.width.rounded(.up))
         let height = Int(region.height.rounded(.up))
         guard width > 0, height > 0 else { return nil }
+        // A document-controlled region must not allocate an unbounded bitmap (B102);
+        // skip the mask (the content then renders unmasked) past the cap.
+        guard SVGInputLimits.bitmapFits(width: CGFloat(width) * scale, height: CGFloat(height) * scale,
+                                        limit: SVGInputLimits.maxPaintBitmapDimension) else {
+            SVGLog.addSLog(errorStr: "skipped mask: \(width)×\(height)px region exceeds the \(Int(SVGInputLimits.maxPaintBitmapDimension))px limit")
+            return nil
+        }
 
         let format = UIGraphicsImageRendererFormat()
         format.scale = scale

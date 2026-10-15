@@ -121,6 +121,12 @@ public enum SVGRenderer {
             throw SVGError.content(text: "cannot render at size \(outputSize)")
         }
         guard scale > 0 else { throw SVGError.content(text: "scale must be positive") }
+        // An untrusted document's natural size (or a caller's size) must not allocate an
+        // unbounded bitmap (B102).
+        guard SVGInputLimits.bitmapFits(width: outputSize.width * scale, height: outputSize.height * scale,
+                                        limit: SVGInputLimits.maxRenderDimension) else {
+            throw SVGError.content(text: "cannot render at size \(outputSize) scale \(scale): exceeds the \(Int(SVGInputLimits.maxRenderDimension))px limit")
+        }
 
         let resolved = options.preserveAspectRatio.resolve(viewBox: viewBox, containerSize: outputSize)
         // Rasterize paint servers (patterns) at the final output resolution.

@@ -73,28 +73,30 @@ open class SVGUseTag: SVGObject, SVGRendering {
         return bounds.offsetBy(dx: x, dy: y)
     }
 
-    private static let activeKey = "SVGRenderKit.SVGUseTag.active"
-
     /// Resolves the referenced element and returns its layer, applying any `x`, `y`, and transform offsets.
     public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         if let href = href {
             switch href {
             case .local(let key):
                 if let rendering = parent.getRendering(byKey: key, fromParents: true) {
-                    // Guard against reference cycles (`<g id="a"><use href="#a"/></g>`).
-                    // Tracked per thread: a cached tree may render on several threads at once.
-                    let marker = ObjectIdentifier(self)
-                    let threadDict = Thread.current.threadDictionary
-                    var active = (threadDict[SVGUseTag.activeKey] as? Set<ObjectIdentifier>) ?? []
-                    guard !active.contains(marker) else {
+                    // Guard against reference cycles (`<g id="a"><use href="#a"/></g>`) and cap
+                    // the total expansions per render, so a fan-out chain
+                    // (`<g id="b"><use href="#a"/><use href="#a"/></g>` …) cannot blow up to
+                    // 2ⁿ layers (B102). Tracked per thread: a cached tree may render on
+                    // several threads at once.
+                    switch SVGInputLimits.enterUse(ObjectIdentifier(self)) {
+                    case .cycle:
                         throw SVGError.parseError(text: "circular reference in use '\(key)'")
+                    case .tooDeep:
+                        SVGLog.addSLog(errorStr: "skipped <use> '\(key)': nesting limit \(SVGInputLimits.maxUseDepth) reached")
+                        return CALayer()
+                    case .overBudget:
+                        SVGLog.addSLog(errorStr: "skipped <use> '\(key)': expansion limit \(SVGInputLimits.maxUseExpansions) reached")
+                        return CALayer()
+                    case .ok:
+                        break
                     }
-                    active.insert(marker)
-                    threadDict[SVGUseTag.activeKey] = active
-                    defer {
-                        active.remove(marker)
-                        threadDict[SVGUseTag.activeKey] = active
-                    }
+                    defer { SVGInputLimits.exitUse(ObjectIdentifier(self)) }
                     var childStyle = addStyle ?? SVGSourceStyleElement()
                     if let sourceStyle = sourceStyle {
                         childStyle = childStyle.combine(child: sourceStyle)

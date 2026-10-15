@@ -231,6 +231,8 @@ open class SVGSVGTag: SVGGroupObject {
 extension SVGSVGTag: SVGRendering {
     /// Builds the root `CALayer` containing the layers of all child elements.
     public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
+        // A document render starts here; reset the per-render `<use>` budget (B102).
+        SVGInputLimits.beginRender()
         let mainLayer: CAShapeLayer = CAShapeLayer()
 
         let ownStyle = self.ownStyle()

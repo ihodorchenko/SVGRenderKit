@@ -41,9 +41,16 @@ open class SVGGroupObject: SVGChildObject, SVGGroupProtocol {
             transform = try SVGTransform.get(string: str)
         }
         self.animations = SVGAnimation.parse(children: xmlElement.xmlChildren)
-        
-        for children in xmlElement.xmlChildren {
-            parse(children: children)
+
+        // Stop descending past the depth cap so a deeply nested document cannot
+        // overflow the stack while parsing (B102).
+        if SVGInputLimits.enterContainer() {
+            defer { SVGInputLimits.exitContainer() }
+            for children in xmlElement.xmlChildren {
+                parse(children: children)
+            }
+        } else {
+            SVGLog.addSLog(errorStr: "skipped children of <\(xmlElement.name)>: nesting limit \(SVGInputLimits.maxNestingDepth) reached")
         }
     }
 
@@ -562,6 +569,11 @@ extension SVGGroupObject {
     /// group's user space). Used to resolve `objectBoundingBox` clip paths and masks
     /// on a group.
     var contentBounds: CGRect {
+        // A `<use>` chain that closes on itself would recurse forever here (the reference
+        // cycle guard lives in `createLayer`, which this walk does not go through). Track
+        // the groups being measured and contribute nothing on re-entry (B102).
+        guard SVGInputLimits.enterBounds(ObjectIdentifier(self)) else { return .null }
+        defer { SVGInputLimits.exitBounds(ObjectIdentifier(self)) }
         var result = CGRect.null
         for element in layerElements.array {
             result = result.union(bounds(of: element))
