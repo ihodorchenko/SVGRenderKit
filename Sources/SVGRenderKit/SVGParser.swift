@@ -43,12 +43,17 @@ open class SVGParser {
         }
     }
 
-    /// Cache key for in-memory sources: the name *and* a digest of the content, so reusing a
+    /// Cache key for in-memory sources: the name *and* a digest of the full content, so reusing a
     /// name with different markup never returns a stale tree.
-    /// `Hasher` is per-process seeded, which is fine for an in-memory cache and far cheaper than MD5
-    /// over the whole document on every cache hit.
-    private class func cacheKey<T: Hashable>(name: String, content: T) -> String {
-        return SVGUtils.md5(name) + ":" + String(content.hashValue)
+    ///
+    /// A full MD5 of the content is used rather than `content.hashValue`: the latter is only a
+    /// fixed-width hash, so a collision would return a foreign parsed tree (B113).
+    private class func cacheKey(name: String, content: String) -> String {
+        return SVGUtils.md5(name) + ":" + SVGUtils.md5(content)
+    }
+
+    private class func cacheKey(name: String, content: Data) -> String {
+        return SVGUtils.md5(name) + ":" + SVGUtils.md5(content)
     }
 
     class func getParser(svgData: Data, name: String? = nil) throws -> SVGParser {

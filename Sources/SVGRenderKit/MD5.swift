@@ -23,6 +23,13 @@ public func MD5(_ input: String) -> String {
     return hex_md5(input)
 }
 
+/// Computes the MD5 hash of the given bytes and returns it as a hexadecimal string.
+/// - Parameter bytes: The raw bytes to hash.
+/// - Returns: The 32-character hexadecimal MD5 digest.
+public func MD5(_ bytes: [UInt8]) -> String {
+    return rstr2hex(rstr_md5(bytes))
+}
+
 // MARK: - Functions
 fileprivate func hex_md5(_ input: String) -> String {
     return rstr2hex(rstr_md5(str2rstr_utf8(input)))
