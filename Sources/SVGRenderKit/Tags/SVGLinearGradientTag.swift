@@ -88,12 +88,43 @@ open class SVGLinearGradientTag: SVGBaseGradient {
                         y: resolveCoordinate(self.y2, dimension: boundsToPoints.height))
                 }
 
+                // A gradient carries its normal along with its vector (SVG 1.1 §13.2.1):
+                // the gradient transform maps the gradient's level lines, and the colour at
+                // `p` is the colour the untransformed gradient has at `T⁻¹p`. A
+                // `CAGradientLayer` projects onto its axis perpendicularly, so the axis has
+                // to run along those mapped level lines — the inverse transpose of `T`
+                // applied to the gradient vector — instead of along the mapped endpoints:
+                // under a skew or a non-uniform scale the mapped endpoints keep the
+                // pre-transform direction and would paint differently sloped stripes
+                // (B119-11).
+                let gradientVector = CGPoint(x: _endPoint.x - _startPoint.x, y: _endPoint.y - _startPoint.y)
+
                 if let transform = transform {
                     // Apply the full affine `gradientTransform` (translation, rotation,
                     // scale, and skew) to the gradient axis in its own space.
                     let affineTransform = CATransform3DGetAffineTransform(transform)
                     _startPoint = _startPoint.applying(affineTransform)
                     _endPoint = _endPoint.applying(affineTransform)
+
+                    let vectorLengthSquared = gradientVector.x * gradientVector.x + gradientVector.y * gradientVector.y
+                    let determinant = affineTransform.a * affineTransform.d - affineTransform.b * affineTransform.c
+                    if vectorLengthSquared > 0, abs(determinant) > 1e-12 {
+                        let inverse = affineTransform.inverted()
+                        // The field's direction is the inverse *transpose* of `T` applied
+                        // to the gradient vector: `∇t' = (T⁻¹)ᵀ d` for `t' = t(T⁻¹p)`.
+                        var direction = CGPoint(
+                            x: (inverse.a * gradientVector.x + inverse.b * gradientVector.y) / vectorLengthSquared,
+                            y: (inverse.c * gradientVector.x + inverse.d * gradientVector.y) / vectorLengthSquared)
+                        let directionLengthSquared = direction.x * direction.x + direction.y * direction.y
+                        // Scaling the direction by `1/|h|²` puts the value 1 back on the
+                        // mapped end point, as `CAGradientLayer` interpolates
+                        // `(p − A)·(B − A)/|B − A|²`.
+                        if directionLengthSquared > 0 {
+                            direction.x /= directionLengthSquared
+                            direction.y /= directionLengthSquared
+                            _endPoint = CGPoint(x: _startPoint.x + direction.x, y: _startPoint.y + direction.y)
+                        }
+                    }
                 }
 
                 // User-space coordinates are absolute; the gradient layer's frame starts at

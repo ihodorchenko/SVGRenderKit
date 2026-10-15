@@ -624,7 +624,8 @@ enum ParityTriage {
         "svg_0.0/edit_30px.svg": "ref-limit: 8-digit hex #RRGGBBAA mis-rendered by CoreSVG (as opaque black)",
 
         // ── Gradients ──
-        "svg_0.0/7560-gradient-blue-svg.svg": "gradient: tight stop interpolation (0.49/0.50/0.52) + gradientTransform",
+        // (svg_0.0/7560-gradient-blue-svg.svg matched the reference once the gradient axis
+        // followed the transformed level lines, B119-11.)
 
         // ── Figma/Sketch drop-shadow: feMorphology erode not applied (shadow not inset) ──
         "svg_3.0/Illustration/cards_black/black_mc_stack.svg": "filter: Figma drop-shadow without feMorphology erode",
