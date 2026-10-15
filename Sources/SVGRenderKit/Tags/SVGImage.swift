@@ -21,6 +21,9 @@ open class SVGImage: SVGObject, SVGRendering {
     var height: SVGLength = SVGLength.px(value: 0)
     /// The raw `href` value (a `data:` URI, or an unsupported external URL).
     var imageHref: String?
+    /// A short digest of `imageHref`, so the decoded-image cache never stores the full
+    /// (potentially multi-MB) data URI as a key.
+    private var imageHrefDigest: String?
 
     /// Decoded raster shared by every `createLayer` of this node (per `<use>`, pattern tile and mask render).
     private let decodedImageCache = SVGBoundedCache<String, UIImage>(limit: 1)
@@ -49,10 +52,9 @@ open class SVGImage: SVGObject, SVGRendering {
         if let str = attributeDict["height"] {
             height = try SVGLength.get(string: str)
         }
-        if let str = attributeDict["xlink:href"] {
+        if let str = attributeDict["xlink:href"] ?? attributeDict["href"] {
             imageHref = str
-        } else if let str = attributeDict["href"] {
-            imageHref = str
+            imageHrefDigest = MD5(str)
         }
         if let str = attributeDict["transform"] {
             transform = try SVGTransform.get(string: str)
@@ -89,7 +91,8 @@ open class SVGImage: SVGObject, SVGRendering {
         let layer = CALayer()
         layer.frame = CGRect(x: resolvedX, y: resolvedY, width: resolvedWidth, height: resolvedHeight)
 
-        if let href = imageHref, let image = decodedImageCache.value(for: href, make: { SVGImage.decode(dataURI: href) }) {
+        if let href = imageHref, let digest = imageHrefDigest,
+           let image = decodedImageCache.value(for: digest, make: { SVGImage.decode(dataURI: href) }) {
             let imageSize = image.size
             if preserveAspectRatio.align == .none || imageSize.width <= 0 || imageSize.height <= 0 {
                 layer.contents = image.cgImage
@@ -133,7 +136,9 @@ open class SVGImage: SVGObject, SVGRendering {
         let payload = dataURI[dataURI.index(after: comma)...]
 
         if meta.contains(";base64") {
-            guard let data = Data(base64Encoded: String(payload)) else { return nil }
+            // A data URI may wrap its base64 payload across lines; ignore the line breaks
+            // (and any other stray characters) instead of failing to decode (B99).
+            guard let data = Data(base64Encoded: String(payload), options: .ignoreUnknownCharacters) else { return nil }
             return UIImage(data: data)
         }
         guard let decoded = String(payload).removingPercentEncoding,

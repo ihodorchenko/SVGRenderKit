@@ -30,6 +30,35 @@ final class SVGImageTests: XCTestCase {
         XCTAssertNil(SVGImage.decode(dataURI: "https://example.com/image.png"))
     }
 
+    private func wrappedBase64(_ base64: String, width: Int = 16) -> String {
+        var lines: [String] = []
+        var index = base64.startIndex
+        while index < base64.endIndex {
+            let end = base64.index(index, offsetBy: width, limitedBy: base64.endIndex) ?? base64.endIndex
+            lines.append(String(base64[index..<end]))
+            index = end
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    func testDecodeBase64DataURIWithLineBreaks() {
+        // Some generators wrap the base64 payload across lines; the decoder must ignore them (B99).
+        let wrapped = wrappedBase64(makeBase64PNG())
+        XCTAssertTrue(wrapped.contains("\n"))
+        XCTAssertNotNil(SVGImage.decode(dataURI: "data:image/png;base64,\(wrapped)"))
+    }
+
+    func testImageRendersContentsWithWrappedBase64() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <image x="10" y="10" width="40" height="40" href="data:image/png;base64,\(wrappedBase64(makeBase64PNG()))"/>
+        </svg>
+        """
+        let layer = try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil)
+        let imageLayer = try XCTUnwrap(findContentLayer(in: layer))
+        XCTAssertNotNil(imageLayer.contents)
+    }
+
     func testImageRendersContentsAtResolvedFrame() throws {
         let svg = """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
