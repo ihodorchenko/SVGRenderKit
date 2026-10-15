@@ -12,9 +12,12 @@
 2. **Measure by golden images, not by a conformance percentage.** "~40 % of
    SVG 1.1" is not a useful number here: most of the remaining 60 % never
    appears in icons. Correctness = N icon sets render pixel-accurately.
-3. **Degrade gracefully.** Unknown elements, attributes, and CSS are skipped;
-   they never fail parsing or rendering. Not breaking on real-world files is
-   more valuable than strict conformance.
+3. **Degrade gracefully.** Unknown elements, attributes, and CSS are skipped; they
+   never fail parsing or rendering. An element with unusable geometry (a `<rect>`
+   without a size, an unparsable `d`, …) is skipped with a log and the rest of the
+   document still renders. Only a document that is not SVG at all — no `<svg>`
+   element — fails to parse, so the caller gets an error. Not breaking on real-world
+   files is more valuable than strict conformance.
 
 ## The Icon Profile (contract)
 

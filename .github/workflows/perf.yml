@@ -20,26 +20,29 @@ on:
 jobs:
   perf:
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'perf')
-    runs-on: macos-latest
+    runs-on: macos-27
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
+      - name: Pick a simulator
+        id: simulator
+        run: echo "udid=$(Scripts/pick-simulator.sh)" >> "$GITHUB_OUTPUT"
+
       - name: Run performance tests (Release)
         run: |
-          UDID=$(xcrun simctl list devices available | grep -m1 "iPhone" | grep -oE '[0-9A-F-]{36}' | head -1)
-          echo "Using simulator: $UDID"
+          echo "Using simulator: ${{ steps.simulator.outputs.udid }}"
           set -o pipefail
           xcodebuild -scheme SVGRenderKit-Package \
             -configuration Release ENABLE_TESTABILITY=YES \
-            -destination "platform=iOS Simulator,id=$UDID" \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}" \
             -only-testing:SVGRenderKitTests/SVGPerformanceTests \
             test > perf.log 2>&1 || { tail -n 60 perf.log; exit 1; }
 
       - name: Report and compare with baseline
         run: |
           {
-            echo '## Performance (Release, macos-latest)'
+            echo '## Performance (Release, macos-27)'
             python3 -I Scripts/perf_report.py perf.log --json perf.json \
               --baseline .github/perf-baseline.json
           } | tee -a "$GITHUB_STEP_SUMMARY"

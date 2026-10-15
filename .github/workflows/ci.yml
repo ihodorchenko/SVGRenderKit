@@ -5,9 +5,15 @@ on:
     branches: [main]
   pull_request:
 
+# A newer push to the same branch supersedes an in-flight run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
-    runs-on: macos-latest
+    runs-on: macos-27
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -16,14 +22,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Pick a simulator
+        id: simulator
+        run: echo "udid=$(Scripts/pick-simulator.sh ${{ matrix.device }})" >> "$GITHUB_OUTPUT"
+
       - name: Run package tests
         run: |
-          UDID=$(xcrun simctl list devices available | grep -m1 "${{ matrix.device }}" | grep -oE '[0-9A-F-]{36}' | head -1)
-          echo "Using simulator: $UDID"
+          echo "Using simulator: ${{ steps.simulator.outputs.udid }}"
           set -o pipefail
           xcodebuild -scheme SVGRenderKit-Package \
             SWIFT_VERSION=${{ matrix.swift }} \
-            -destination "platform=iOS Simulator,id=$UDID" \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}" \
             -skip-testing:SVGRenderKitTests/SVGPerformanceTests \
             test 2>&1 | tee xcodebuild.log
 
@@ -37,3 +46,9 @@ jobs:
               || echo '(no corpus summary found — the test may have been skipped)'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # The parity test already fails on an untriaged divergence; this also fails when the
+      # number of triaged failures grows, so a regression cannot be triaged silently.
+      - name: Gate corpus parity against the baseline
+        if: always() && matrix.device == 'iPhone' && matrix.swift == 6
+        run: Scripts/check-parity.sh xcodebuild.log .github/parity-baseline.txt

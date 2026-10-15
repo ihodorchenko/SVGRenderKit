@@ -4,7 +4,7 @@ name: Docs
 # Enable Pages once: Settings ▸ Pages ▸ Source: GitHub Actions.
 #
 # Documentation is deployed only for version tags (and manual runs), not on
-# every push to main.
+# every push to main. A tag must pass the package tests before publishing.
 on:
   push:
     tags:
@@ -21,8 +21,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test:
+    runs-on: macos-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick a simulator
+        id: simulator
+        run: echo "udid=$(Scripts/pick-simulator.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Run package tests
+        run: |
+          echo "Using simulator: ${{ steps.simulator.outputs.udid }}"
+          set -o pipefail
+          xcodebuild -scheme SVGRenderKit-Package \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}" \
+            -skip-testing:SVGRenderKitTests/SVGPerformanceTests \
+            test 2>&1 | tee xcodebuild.log
+
+      - name: Gate corpus parity against the baseline
+        if: always()
+        run: Scripts/check-parity.sh xcodebuild.log .github/parity-baseline.txt
+
   build:
-    runs-on: macos-latest
+    needs: [test]
+    runs-on: macos-27
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +84,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

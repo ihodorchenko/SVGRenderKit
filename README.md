@@ -315,6 +315,5 @@ for Instruments.
 
 MIT. See [LICENSE](LICENSE).
 
-Based on [SwiftSVG](https://github.com/mchoe/SwiftSVG) by Michael Choe, and
-bundles [SWXMLHash](https://github.com/drmohundro/SWXMLHash) and
-[SwiftHash](https://github.com/onmyway133/SwiftHash) (MD5), both MIT-licensed.
+Based on [SwiftSVG](https://github.com/mchoe/SwiftSVG) by Michael Choe. Bundles
+[SWXMLHash](https://github.com/drmohundro/SWXMLHash) (MIT). MD5 digests use Apple's CryptoKit.

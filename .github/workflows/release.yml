@@ -1,6 +1,7 @@
 name: Release
 
 # Creates a GitHub Release for a version tag; notes are taken from CHANGELOG.md.
+# A tag must pass the package tests before a Release is created.
 on:
   push:
     tags:
@@ -15,8 +16,35 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    runs-on: macos-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Pick a simulator
+        id: simulator
+        run: echo "udid=$(Scripts/pick-simulator.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Run package tests
+        run: |
+          echo "Using simulator: ${{ steps.simulator.outputs.udid }}"
+          set -o pipefail
+          xcodebuild -scheme SVGRenderKit-Package \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}" \
+            -skip-testing:SVGRenderKitTests/SVGPerformanceTests \
+            test 2>&1 | tee xcodebuild.log
+
+      - name: Gate corpus parity against the baseline
+        if: always()
+        run: Scripts/check-parity.sh xcodebuild.log .github/parity-baseline.txt
+
   release:
+    needs: [test]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ github.event.inputs.tag || github.ref_name }}

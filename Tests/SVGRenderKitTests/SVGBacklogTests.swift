@@ -1,7 +1,7 @@
 import XCTest
 @testable import SVGRenderKit
 
-/// Regression tests for the former Task.md backlog (B41…B72), including the items that were
+/// Regression tests for the B41…B72 backlog items, including the ones that were
 /// verified and closed as "won't fix" (the tests pin the verified behaviour).
 @MainActor
 final class SVGBacklogTests: XCTestCase {
