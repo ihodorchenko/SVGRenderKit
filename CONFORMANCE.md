@@ -67,7 +67,8 @@ All path commands are supported, including elliptical arcs:
 | `mask` | ✅ local `url(#…)` |
 | `filter` | ✅ local `url(#…)` |
 | `transform` | ✅ `matrix`, `translate`, `rotate`, `scale`, `skewX`, `skewY` |
-| `gradientTransform`, `gradientUnits`, `spreadMethod` | ✅ |
+| `gradientTransform`, `gradientUnits` | ✅ |
+| `spreadMethod` | ⚠️ `pad` only — `reflect`/`repeat` render as `pad`, matching CoreSVG |
 | `xlink:href` / `href` inheritance | ✅ |
 | `display` | ✅ `inline` / `block` / `none` |
 | `visibility` | ✅ `visible` / `hidden` / `collapse` |

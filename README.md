@@ -206,7 +206,7 @@ SVGLog.logger = MyLogger()
 - `stroke-width` (`px`/`%`), `stroke-linecap`/`linejoin`/`miterlimit`, `stroke-dasharray`/`dashoffset`
 - `clip-path`, `mask`, `filter` (local `url(#…)`)
 - `transform` (`matrix`, `translate`, `rotate`, `scale`, `skewX`, `skewY`) and `gradientTransform`
-- `gradientUnits`, `spreadMethod`, `xlink:href` inheritance
+- `gradientUnits`, `spreadMethod` (`pad`; `reflect`/`repeat` render as `pad`, like CoreSVG), `xlink:href` inheritance
 - `display`, `visibility`, `currentColor` (resolved via `color`)
 
 ### Colors
