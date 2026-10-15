@@ -102,9 +102,9 @@ open class SVGUseTag: SVGObject, SVGRendering {
               let rendering = parent.getRendering(byKey: key, fromParents: true) else { return nil }
         var bounds: CGRect
         if let shape = rendering as? SVGShapeObject {
-            bounds = shape.path.bounds.applying(svgTransform: shape.transform)
+            bounds = shape.path.svgBounds(transformedBy: shape.transform)
         } else if let group = rendering as? SVGGroupObject {
-            bounds = group.contentBounds.applying(svgTransform: group.transform)
+            bounds = group.contentBounds(transformedBy: group.transform)
         } else if let image = rendering as? SVGImage {
             bounds = image.frame(viewBox: parent.getSvgOptions().viewBox).applying(svgTransform: image.transform)
         } else {

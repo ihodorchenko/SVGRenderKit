@@ -572,6 +572,15 @@ extension SVGGroupObject {
     /// group's user space). Used to resolve `objectBoundingBox` clip paths and masks
     /// on a group.
     var contentBounds: CGRect {
+        return contentBounds(transformedBy: nil)
+    }
+
+    /// The same box with `accumulated` — the `transform` chain of the groups between this
+    /// one and the caller — folded into the geometry of every descendant. Composing the
+    /// chain into each shape and measuring the mapped path keeps the box tight under
+    /// rotation and skew, where mapping the bounding rectangle level by level inflates it
+    /// (AABB of an AABB, B119-8).
+    func contentBounds(transformedBy accumulated: CATransform3D?) -> CGRect {
         // A `<use>` chain that closes on itself would recurse forever here (the reference
         // cycle guard lives in `createLayer`, which this walk does not go through). Track
         // the groups being measured and contribute nothing on re-entry (B102).
@@ -579,7 +588,7 @@ extension SVGGroupObject {
         defer { SVGInputLimits.exitBounds(ObjectIdentifier(self)) }
         var result = CGRect.null
         for element in layerElements.array {
-            result = result.union(bounds(of: element))
+            result = result.union(bounds(of: element, transformedBy: accumulated))
         }
         return result.isNull ? .zero : result
     }
@@ -593,32 +602,57 @@ extension SVGGroupObject {
     }
 
     /// The bounds one child contributes to `contentBounds`, in this group's local
-    /// coordinate space (its own bounds with its `transform` applied).
-    private func bounds(of element: SVGObject) -> CGRect {
+    /// coordinate space: its own geometry with its `transform` applied and then the
+    /// accumulated chain of the groups below this one.
+    private func bounds(of element: SVGObject, transformedBy accumulated: CATransform3D?) -> CGRect {
         if let shape = element as? SVGShapeObject {
-            return shape.path.bounds.applying(svgTransform: shape.transform)
+            return shape.path.svgBounds(transformedBy: .svgComposed(inner: shape.transform, outer: accumulated))
         }
         if let group = element as? SVGGroupObject {
-            return group.contentBounds.applying(svgTransform: group.transform)
+            return group.contentBounds(transformedBy: .svgComposed(inner: group.transform, outer: accumulated))
         }
         if let image = element as? SVGImage {
-            return image.frame(viewBox: getSvgOptions().viewBox).applying(svgTransform: image.transform)
+            let frame = image.frame(viewBox: getSvgOptions().viewBox)
+            return frame.applying(svgTransform: .svgComposed(inner: image.transform, outer: accumulated))
         }
         if let use = element as? SVGUseTag, let useBounds = use.contentBounds {
             // `contentBounds` is already in this group's space: it includes the `<use>`'s
             // x/y translate and its own transform.
-            return useBounds
+            return useBounds.applying(svgTransform: accumulated)
         }
         return .null
     }
 }
 
 extension CATransform3D {
+    /// `inner` composed with `outer` so that `inner` is applied to a point first and
+    /// `outer` afterwards (`CATransform3DConcat` applies its first argument first).
+    /// Either side may be `nil`; a `nil` side composes away.
+    static func svgComposed(inner: CATransform3D?, outer: CATransform3D?) -> CATransform3D? {
+        switch (inner, outer) {
+        case (nil, nil): return nil
+        case (let transform?, nil): return transform
+        case (nil, let transform?): return transform
+        case (let inner?, let outer?): return CATransform3DConcat(inner, outer)
+        }
+    }
+
     /// The largest linear scale this transform applies to a unit vector — how much a bitmap
     /// rasterized in that space is stretched when it is drawn. Used to rasterize masks at
     /// the resolution they end up being shown at (B119-6).
     var svgScaleFactor: CGFloat {
         return max(hypot(m11, m12), hypot(m21, m22))
+    }
+}
+
+extension UIBezierPath {
+    /// The path's bounds with an SVG `transform` applied to its geometry. Mapping the path
+    /// and measuring the result stays tight for rotated and skewed shapes, where mapping
+    /// the bounding *rectangle* would inflate the box (AABB of an AABB, B119-8).
+    func svgBounds(transformedBy transform: CATransform3D?) -> CGRect {
+        guard let transform = transform else { return bounds }
+        let affine = CATransform3DGetAffineTransform(transform)
+        return cgPath.copy(using: [affine])?.boundingBoxOfPath ?? bounds.applying(affine)
     }
 }
 
