@@ -167,6 +167,9 @@ open class RadialGradientLayer: CALayer {
     public var center: CGPoint = CGPoint(x: 0, y: 0)
     /// The focal point the gradient starts from; `nil` means it coincides with `center`.
     public var focalPoint: CGPoint?
+    /// The radius of the focal circle (`fr`, SVG 2). Zero means the gradient starts at a
+    /// single point, which is what a document without `fr` asks for.
+    public var focalRadius: CGFloat = 0
     /// The distance over which the gradient is drawn.
     public var radius: CGFloat = 1
     /// An optional affine transform applied to the whole gradient (used for elliptical gradients
@@ -190,14 +193,32 @@ open class RadialGradientLayer: CALayer {
         // extend the first/last stops so the default `pad` spread method fills
         // the area outside the radius with the endpoint colors.
         if !gradientTransform.isIdentity { ctx.concatenate(gradientTransform) }
-        let startCenter = focalPoint ?? center
+        let startCenter = clampedFocal(focalPoint ?? center)
         ctx.drawRadialGradient(
             gradient,
             startCenter: startCenter,
-            startRadius: 0.0,
+            startRadius: focalRadius,
             endCenter: center,
             endRadius: radius,
             options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+    }
+
+    /// The focal point moved onto the end circle when it lies outside it (SVG 1.1 §13.2.3 —
+    /// browsers clamp the same way). The projection is pulled a hair inside the edge:
+    /// exactly on the edge every interpolated circle passes through the focus, so the two
+    /// circles no longer enclose an area and the whole plane is left untouched.
+    ///
+    /// A focal *radius* means the document is following SVG 2, which changed the rule and
+    /// keeps the start circle where it is, painting a cone — which CoreGraphics draws
+    /// natively — so the point is only clamped for a point-like focus.
+    private func clampedFocal(_ focal: CGPoint) -> CGPoint {
+        guard radius > 0, focalRadius <= 0 else { return focal }
+        let dx = focal.x - center.x
+        let dy = focal.y - center.y
+        let distance = hypot(dx, dy)
+        guard distance >= radius else { return focal }
+        let clamped = radius * (1 - 0.0001) / distance
+        return CGPoint(x: center.x + dx * clamped, y: center.y + dy * clamped)
     }
 }
 

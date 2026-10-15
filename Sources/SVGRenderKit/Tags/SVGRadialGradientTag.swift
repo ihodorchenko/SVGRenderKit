@@ -14,6 +14,8 @@ open class SVGRadialGradientTag: SVGBaseGradient {
     var fx: SVGLength?
     /// Focal y; defaults to `cy` when unspecified.
     var fy: SVGLength?
+    /// Focal radius (`fr`, SVG 2). Unspecified means the gradient starts at a point.
+    var fr: SVGLength?
 
     /// Returns whether the gradient has at least one color stop and can be rendered.
     public override func isEnable() -> Bool {
@@ -73,6 +75,7 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         // The focal point defaults to the center when fx/fy are not specified.
         let focal = CGPoint(x: unitFraction(fx ?? cx), y: unitFraction(fy ?? cy))
         let radius = unitFraction(r)
+        let focalRadius = max(0, unitFraction(fr ?? .percent(value: 0)))
         // A negative radius disables the gradient (SVG 1.1).
         guard radius >= 0 else { return nil }
 
@@ -81,7 +84,7 @@ open class SVGRadialGradientTag: SVGBaseGradient {
             gradientToLocal = CATransform3DGetAffineTransform(transform).concatenating(gradientToLocal)
         }
         return makeRadialLayer(frame: bbox, maskLayer: maskLayer, center: center, focal: focal,
-                               radius: radius, gradientTransform: gradientToLocal,
+                               radius: radius, focalRadius: focalRadius, gradientTransform: gradientToLocal,
                                colors: colors, locations: locations)
     }
 
@@ -99,11 +102,14 @@ open class SVGRadialGradientTag: SVGBaseGradient {
 
         // SVG normalizes a percentage radial radius against the viewport diagonal.
         let diagonal = hypot(viewBox.width, viewBox.height) / sqrt(2)
-        let radius: CGFloat
-        switch r {
-        case .px(let value): radius = value
-        case .percent(let value): radius = value * diagonal
+        func resolveRadius(_ length: SVGLength) -> CGFloat {
+            switch length {
+            case .px(let value): return value
+            case .percent(let value): return value * diagonal
+            }
         }
+        let radius = resolveRadius(r)
+        let focalRadius = max(0, resolveRadius(fr ?? .percent(value: 0)))
         // A negative radius disables the gradient (SVG 1.1).
         guard radius >= 0 else { return nil }
 
@@ -113,6 +119,7 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         var finalCenter = center
         var finalFocal = focal
         var finalRadius = radius
+        var finalFocalRadius = focalRadius
         var ellipticalTransform: CGAffineTransform?
         if let transform = transform {
             let affine = CATransform3DGetAffineTransform(transform)
@@ -124,7 +131,9 @@ open class SVGRadialGradientTag: SVGBaseGradient {
             if isSimilarity {
                 finalCenter = center.applying(affine)
                 finalFocal = focal.applying(affine)
-                finalRadius = radius * sqrt(abs(affine.a * affine.d - affine.b * affine.c))
+                let scale = sqrt(abs(affine.a * affine.d - affine.b * affine.c))
+                finalRadius = radius * scale
+                finalFocalRadius = focalRadius * scale
             } else {
                 ellipticalTransform = affine.concatenating(toLocal)
             }
@@ -138,13 +147,14 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         }
 
         return makeRadialLayer(frame: viewBox, maskLayer: maskLayer, center: finalCenter, focal: finalFocal,
-                               radius: finalRadius, gradientTransform: ellipticalTransform ?? .identity,
+                               radius: finalRadius, focalRadius: finalFocalRadius,
+                               gradientTransform: ellipticalTransform ?? .identity,
                                colors: colors, locations: locations)
     }
 
     /// Assembles the layer that draws a resolved radial gradient.
     private func makeRadialLayer(frame: CGRect, maskLayer: CALayer, center: CGPoint, focal: CGPoint,
-                                 radius: CGFloat, gradientTransform: CGAffineTransform,
+                                 radius: CGFloat, focalRadius: CGFloat, gradientTransform: CGAffineTransform,
                                  colors: [CGColor], locations: [CGFloat]) -> CALayer {
         let newLayer: CALayer = CALayer()
         let gradLayer = RadialGradientLayer()
@@ -155,6 +165,7 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         gradLayer.position = CGPoint(x: 0, y: 0)
         gradLayer.center = center
         gradLayer.focalPoint = focal
+        gradLayer.focalRadius = focalRadius
         gradLayer.radius = radius
         gradLayer.gradientTransform = gradientTransform
         gradLayer.colors = colors
@@ -182,6 +193,9 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         if let str = attributeDict["fy"] {
             fy = try SVGLength.get(string: str)
         }
+        if let str = attributeDict["fr"] {
+            fr = try SVGLength.get(string: str)
+        }
 
         try parseStops(childs: xmlElement.xmlChildren)
     }
@@ -194,5 +208,6 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         if attributeDict["r"] == nil { r = source.r }
         if attributeDict["fx"] == nil { fx = source.fx }
         if attributeDict["fy"] == nil { fy = source.fy }
+        if attributeDict["fr"] == nil { fr = source.fr }
     }
 }
