@@ -146,56 +146,56 @@ open class SVGOptions {
             height = try SVGLength.get(string: str)
         }
 
-        if let viewBox = viewBox {
+        // A length in the viewport: a percentage refers to the viewBox dimension.
+        func resolved(_ length: SVGLength?, viewBoxDimension: CGFloat) -> CGFloat? {
+            switch length {
+            case .px(let value)?: return value
+            case .percent(let value)?: return viewBoxDimension * value
+            case nil: return nil
+            }
+        }
+
+        if let viewBox = viewBox, viewBox.width > 0, viewBox.height > 0 {
             self.viewBox = viewBox
-            if let width = width, let height = height {
-                self.width = width
-                self.height = height
-
-                self.size = CGSize.zero
-
-                switch width {
-                case .px(let value):
-                    self.size.width = value
-                case .percent(let value):
-                    self.size.width = viewBox.width * value
-                }
-                switch height {
-                case .px(let value):
-                    self.size.height = value
-                case .percent(let value):
-                    self.size.height = viewBox.height * value
-                }
-            } else {
+            // Resolve the viewport from width/height. A single dimension follows the
+            // viewBox aspect ratio (as browsers do for a lone width or height) and a
+            // percentage is relative to the viewBox (SVG 1.1 §7.9).
+            let w = resolved(width, viewBoxDimension: viewBox.width)
+            let h = resolved(height, viewBoxDimension: viewBox.height)
+            switch (w, h) {
+            case (let w?, let h?):
+                self.size = CGSize(width: w, height: h)
+                self.width = width ?? SVGLength.px(value: w)
+                self.height = height ?? SVGLength.px(value: h)
+            case (let w?, nil):
+                let derivedHeight = w * viewBox.height / viewBox.width
+                self.size = CGSize(width: w, height: derivedHeight)
+                self.width = width ?? SVGLength.px(value: w)
+                self.height = SVGLength.px(value: derivedHeight)
+            case (nil, let h?):
+                let derivedWidth = h * viewBox.width / viewBox.height
+                self.size = CGSize(width: derivedWidth, height: h)
+                self.width = SVGLength.px(value: derivedWidth)
+                self.height = height ?? SVGLength.px(value: h)
+            case (nil, nil):
+                self.size = CGSize(width: viewBox.width, height: viewBox.height)
                 self.width = SVGLength.px(value: viewBox.width)
                 self.height = SVGLength.px(value: viewBox.height)
-                self.size = CGSize(width: viewBox.width, height: viewBox.height)
             }
         } else {
-            if let width = width, let height = height {
-                var viewBox = CGRect.zero
-                self.size = CGSize.zero
-
-                switch width {
-                case .px(let value):
-                    viewBox.size.width = value
-                    self.size.width = value
-                case .percent(let value):
-                   throw SVGError.parseError(text: "percent 'width' '\(value)' not supported")
-                }
-                switch height {
-                case .px(let value):
-                    viewBox.size.height = value
-                    self.size.height = value
-                case .percent(let value):
-                    throw SVGError.parseError(text: "percent 'height' '\(value)' not supported")
-                }
-                self.width = width
-                self.height = height
-                self.viewBox = viewBox
-            } else {
-                throw SVGError.parseError(text: "invalid 'viewBox'")
+            // No viewBox: the viewport is `width` × `height`. A lone dimension (or an
+            // unresolvable percentage) degrades to a square rather than failing the
+            // whole document (B101).
+            func pixels(_ length: SVGLength?) -> CGFloat? {
+                if case .px(let value)? = length { return value }
+                return nil
             }
+            let w = pixels(width) ?? pixels(height) ?? 100
+            let h = pixels(height) ?? pixels(width) ?? 100
+            self.viewBox = CGRect(x: 0, y: 0, width: w, height: h)
+            self.width = width ?? SVGLength.px(value: w)
+            self.height = height ?? SVGLength.px(value: h)
+            self.size = CGSize(width: w, height: h)
         }
     }
 }
