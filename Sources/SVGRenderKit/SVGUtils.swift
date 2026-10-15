@@ -65,11 +65,13 @@ open class SVGUtils {
     /// closing point), in drawing order. Control points are omitted.
     open class func pathVertices(path: UIBezierPath) -> [CGPoint] {
         var vertices: [CGPoint] = []
+        var subpathStart: CGPoint?
         path.cgPath.applyWithBlock { element in
             let pts = element.pointee.points
             switch element.pointee.type {
             case .moveToPoint:
                 vertices.append(pts[0])
+                subpathStart = pts[0]
             case .addLineToPoint:
                 vertices.append(pts[0])
             case .addQuadCurveToPoint:
@@ -77,13 +79,30 @@ open class SVGUtils {
             case .addCurveToPoint:
                 vertices.append(pts[2])
             case .closeSubpath:
-                if let first = vertices.first {
-                    vertices.append(first)
+                // Close on the *current* subpath's start, not the path's very first
+                // vertex (a second subpath would otherwise close to the wrong point) (B107).
+                if let start = subpathStart {
+                    vertices.append(start)
                 }
             default:
                 break
             }
         }
         return vertices
+    }
+
+    /// The direction bisecting `incoming` and `outgoing` (both non-normalised). Falls
+    /// back to `outgoing` when they cancel (a 180° turn). Used for `marker-mid` (B107).
+    open class func bisector(_ incoming: CGPoint, _ outgoing: CGPoint) -> CGPoint {
+        let a = normalized(incoming)
+        let b = normalized(outgoing)
+        let sum = CGPoint(x: a.x + b.x, y: a.y + b.y)
+        if sum.x == 0, sum.y == 0 { return outgoing }
+        return sum
+    }
+
+    private static func normalized(_ v: CGPoint) -> CGPoint {
+        let length = (v.x * v.x + v.y * v.y).squareRoot()
+        return length > 0 ? CGPoint(x: v.x / length, y: v.y / length) : .zero
     }
 }

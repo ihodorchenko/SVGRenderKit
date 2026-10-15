@@ -1,7 +1,20 @@
 import XCTest
+import UIKit
 @testable import SVGRenderKit
 
 final class SVGUtilsTests: XCTestCase {
+
+    // MARK: B107 — bisector
+
+    func testBisectorAveragesDirections() {
+        let bisector = SVGUtils.bisector(CGPoint(x: 1, y: 0), CGPoint(x: 0, y: 1))
+        XCTAssertEqual(bisector.x, bisector.y, accuracy: 1e-6)
+        XCTAssertGreaterThan(bisector.x, 0)
+        // Directions that cancel (a 180° turn) fall back to the outgoing one.
+        let reversed = SVGUtils.bisector(CGPoint(x: -1, y: 0), CGPoint(x: 1, y: 0))
+        XCTAssertEqual(reversed.x, 1, accuracy: 1e-6)
+        XCTAssertEqual(reversed.y, 0, accuracy: 1e-6)
+    }
 
     func testTrimmed() {
         XCTAssertEqual(SVGUtils.trimmed(string: "  hello \n"), "hello")

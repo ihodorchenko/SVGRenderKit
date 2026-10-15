@@ -105,7 +105,7 @@ open class SVGSourceStyleElement {
         if let fill = child.fill { newElem.fill = fill }
         if let color = child.color { newElem.color = color }
         if let fillOpacity = child.fillOpacity { newElem.fillOpacity = fillOpacity }
-        if let fillRule = child.fillRule { newElem.fillRule = fillRule }
+        if let fillRule = child.fillRule, fillRule != .inherit { newElem.fillRule = fillRule }
         if let opacity = child.opacity { newElem.opacity = opacity }
         if let stroke = child.stroke { newElem.stroke = stroke }
         if let strokeOpacity = child.strokeOpacity { newElem.strokeOpacity = strokeOpacity }
@@ -634,7 +634,11 @@ extension SVGSourceStyleElement {
         // marker-mid (all vertices except the start and end)
         if let markerMid = self.markerMid, vertices.count >= 3 {
             for i in 1..<(vertices.count - 1) {
-                let tangent = CGPoint(x: vertices[i + 1].x - vertices[i].x, y: vertices[i + 1].y - vertices[i].y)
+                // `orient="auto"` bisects the incoming and outgoing directions at the
+                // vertex, not just the outgoing one (B107).
+                let incoming = CGPoint(x: vertices[i].x - vertices[i - 1].x, y: vertices[i].y - vertices[i - 1].y)
+                let outgoing = CGPoint(x: vertices[i + 1].x - vertices[i].x, y: vertices[i + 1].y - vertices[i].y)
+                let tangent = SVGUtils.bisector(incoming, outgoing)
                 try applyMarker(iri: markerMid, at: (vertices[i], tangent), mainLayer: mainLayer, group: group, strokeWidth: resolvedStrokeWidth, overrideElements: overrideElements)
             }
         }
@@ -663,10 +667,9 @@ extension SVGSourceStyleElement {
     /// `mask`, `filter`) to a group's composite layer. Unlike fill/stroke, these
     /// are not inherited to child shapes; they composite the whole group.
     func applyGroupComposite(to layer: CALayer, bbox: @autoclosure () -> CGRect, container: SVGShapesContainer, overrideElements: [String: SVGSourceStyleElement]?) throws {
-        if let visibility = self.visibility, visibility != .visible {
-            layer.isHidden = true
-            return
-        }
+        // `visibility` is inherited and applied per element, not on the container layer:
+        // hiding the group layer would also hide a descendant that overrides it back to
+        // `visible` (B107). Shapes, images and text each apply their own visibility.
 
         if let opacity = self.opacity {
             layer.opacity = (opacity >= 0 && opacity <= 1) ? opacity : 1
@@ -776,7 +779,12 @@ extension SVGSourceStyleElement {
         case .round: lineJoin = .round
         case .bevel: lineJoin = .bevel
         }
-        return path.cgPath.copy(
+        var cgPath = path.cgPath
+        // A dashed gradient stroke must be dashed too (B107).
+        if let dash = self.strokeDasharray, !dash.isEmpty {
+            cgPath = cgPath.copy(dashingWithPhase: self.strokeDashoffset ?? 0, lengths: dash)
+        }
+        return cgPath.copy(
             strokingWithWidth: strokeWidthPixels(viewBox: viewBox),
             lineCap: lineCap,
             lineJoin: lineJoin,
