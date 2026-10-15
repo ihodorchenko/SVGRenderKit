@@ -134,6 +134,71 @@ final class SVGAnimationTests: XCTestCase {
         XCTAssertGreaterThan(anim.beginTime, 2)
     }
 
+    // MARK: B103 — rotate centre, comma-separated values, full turns
+
+    private func transformValue(_ value: Any?) -> CATransform3D? {
+        (value as? NSValue)?.caTransform3DValue
+    }
+
+    private func transformAnimation(in layer: CALayer) throws -> CAAnimation {
+        let animated = try XCTUnwrap(findLayerWithAnimation(in: layer, key: "transform"))
+        return try XCTUnwrap(animated.animation(forKey: "transform"))
+    }
+
+    func testRotateAboutCenterHonorsCenter() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <rect width="50" height="50" fill="#ff0000">
+                <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="180 12 12" dur="2s"/>
+            </rect>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let basic = try XCTUnwrap(try transformAnimation(in: layer) as? CABasicAnimation)
+        let to = try XCTUnwrap(transformValue(basic.toValue))
+        // 180° about (12, 12): the origin maps to (24, 24).
+        let point = CGPoint(x: 0, y: 0).applying(CATransform3DGetAffineTransform(to))
+        XCTAssertEqual(point.x, 24, accuracy: 1e-4)
+        XCTAssertEqual(point.y, 24, accuracy: 1e-4)
+    }
+
+    func testCommaSeparatedTransformValues() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <rect width="50" height="50" fill="#ff0000">
+                <animateTransform attributeName="transform" type="translate" from="0,0" to="10,0" dur="2s"/>
+            </rect>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let basic = try XCTUnwrap(try transformAnimation(in: layer) as? CABasicAnimation)
+        let to = try XCTUnwrap(transformValue(basic.toValue))
+        let point = CGPoint(x: 0, y: 0).applying(CATransform3DGetAffineTransform(to))
+        XCTAssertEqual(point.x, 10, accuracy: 1e-4)
+        XCTAssertEqual(point.y, 0, accuracy: 1e-4)
+    }
+
+    func testFullTurnRotateUsesKeyframes() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <rect width="50" height="50" fill="#ff0000">
+                <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="2s"/>
+            </rect>
+        </svg>
+        """
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        let layer = try parser.getLayer(overrideElements: nil)
+        let keyframe = try XCTUnwrap(try transformAnimation(in: layer) as? CAKeyframeAnimation)
+        let values = try XCTUnwrap(keyframe.values)
+        XCTAssertGreaterThanOrEqual(values.count, 3)
+        // A whole turn must not be the identity throughout.
+        let first = try XCTUnwrap(transformValue(values.first))
+        let middle = try XCTUnwrap(transformValue(values[1]))
+        XCTAssertFalse(CATransform3DEqualToTransform(first, middle))
+    }
+
     private func findFilledShapeLayer(in layer: CALayer) -> CAShapeLayer? {
         if let shape = layer as? CAShapeLayer, shape.path != nil, shape.fillColor != nil {
             return shape

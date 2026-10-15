@@ -105,7 +105,20 @@ struct SVGAnimation {
         }
 
         let animation: CAAnimation
-        if values.count == 2 {
+        if values.count == 2, case .transform(let type) = kind, type == "rotate",
+           let a = Self.rotateParameters(values[0]), let b = Self.rotateParameters(values[1]),
+           abs(b.angle - a.angle) > 180 {
+            // A rotation is interpolated as a matrix, so a sweep past half a turn takes
+            // the short way round, and a whole turn (0 → 360) maps to the same matrix at
+            // both ends and would not move at all. Subdivide it into keyframes (B103).
+            let steps = max(2, Int((abs(b.angle - a.angle) / 120).rounded(.up)))
+            let keyframe = CAKeyframeAnimation(keyPath: keyPath)
+            keyframe.values = (0...steps).map { step -> NSValue in
+                let angle = a.angle + (b.angle - a.angle) * CGFloat(step) / CGFloat(steps)
+                return NSValue(caTransform3D: Self.rotateTransform(angle: angle, center: a.center))
+            }
+            animation = keyframe
+        } else if values.count == 2 {
             let basic = CABasicAnimation(keyPath: keyPath)
             basic.fromValue = anyValue(from: values[0])
             basic.toValue = anyValue(from: values[1])
@@ -148,19 +161,54 @@ struct SVGAnimation {
         }
     }
 
+    /// Numbers in an SMIL value list, separated by whitespace and/or commas (`0 12 12`
+    /// and `0,12,12` are both valid) (B103).
+    private static func parseNumbers(_ string: String) -> [CGFloat] {
+        string
+            .components(separatedBy: CharacterSet(charactersIn: ", \t\n\r"))
+            .compactMap { Double($0) }
+            .map { CGFloat($0) }
+    }
+
+    /// A `rotate` value: the angle in degrees plus the optional centre (`angle cx cy`).
+    private static func rotateParameters(_ string: String) -> (angle: CGFloat, center: CGPoint)? {
+        let numbers = parseNumbers(string)
+        guard let angle = numbers.first else { return nil }
+        let cx = numbers.count > 1 ? numbers[1] : 0
+        let cy = numbers.count > 2 ? numbers[2] : 0
+        return (angle, CGPoint(x: cx, y: cy))
+    }
+
+    /// The matrix for a `rotate` of `angle` degrees about `center` (its own space).
+    private static func rotateTransform(angle: CGFloat, center: CGPoint) -> CATransform3D {
+        // The `CATransform3D*` helpers post-multiply, so the last call is applied to the
+        // point first — building translate(center) · rotate · translate(-center).
+        var transform = CATransform3DIdentity
+        let hasCenter = center.x != 0 || center.y != 0
+        if hasCenter {
+            transform = CATransform3DTranslate(transform, center.x, center.y, 0)
+        }
+        transform = CATransform3DRotate(transform, angle * .pi / 180, 0, 0, 1)
+        if hasCenter {
+            transform = CATransform3DTranslate(transform, -center.x, -center.y, 0)
+        }
+        return transform
+    }
+
     private static func transform(from string: String, type: String) -> CATransform3D? {
-        let values = string.split(separator: " ").compactMap { Double($0) }
+        let values = parseNumbers(string)
         switch type {
         case "rotate":
             guard let angle = values.first else { return nil }
-            return CATransform3DMakeRotation(CGFloat(angle * .pi / 180), 0, 0, 1)
+            return rotateTransform(angle: angle, center: CGPoint(x: values.count > 1 ? values[1] : 0,
+                                                                y: values.count > 2 ? values[2] : 0))
         case "translate":
-            let tx = values.count > 0 ? CGFloat(values[0]) : 0
-            let ty = values.count > 1 ? CGFloat(values[1]) : 0
+            let tx = values.count > 0 ? values[0] : 0
+            let ty = values.count > 1 ? values[1] : 0
             return CATransform3DMakeTranslation(tx, ty, 0)
         case "scale":
-            let sx = values.count > 0 ? CGFloat(values[0]) : 1
-            let sy = values.count > 1 ? CGFloat(values[1]) : sx
+            let sx = values.count > 0 ? values[0] : 1
+            let sy = values.count > 1 ? values[1] : sx
             return CATransform3DMakeScale(sx, sy, 1)
         default:
             return nil
