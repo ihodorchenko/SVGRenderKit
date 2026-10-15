@@ -57,15 +57,15 @@ All path commands are supported, including elliptical arcs:
 | `viewBox`, `width`, `height` | ✅ (`px`, `%`) |
 | `preserveAspectRatio` | ✅ `meet`/`slice`, all aligns, `none` |
 | `version`, `baseProfile` | ✅ parsed (stored) |
-| `fill` | ✅ color, `none`, `url(#gradient/#pattern)` |
+| `fill` | ✅ color (named, `transparent`, hex, `rgb`/`hsl`), `none`, `url(#gradient/#pattern)` with an optional fallback |
 | `fill-rule` | ✅ `nonzero` / `evenodd` |
-| `fill-opacity` | ✅ |
-| `stroke` | ✅ color, `none`, `url(#gradient/#pattern)` |
+| `fill-opacity` | ✅ (number or `%`, clamped to [0, 1]) |
+| `stroke` | ✅ same paints as `fill` |
 | `stroke-width` | ✅ (`px`, `%`) |
-| `stroke-opacity` | ✅ |
+| `stroke-opacity` | ✅ (number or `%`, clamped to [0, 1]) |
 | `stroke-linecap`, `stroke-linejoin`, `stroke-miterlimit` | ✅ |
 | `stroke-dasharray`, `stroke-dashoffset` | ✅ |
-| `opacity` | ✅ |
+| `opacity` | ✅ (number or `%`, clamped to [0, 1]) |
 | `clip-path` / `clip-rule` | ✅ local `url(#…)` |
 | `mask` | ✅ local `url(#…)` |
 | `filter` | ✅ local `url(#…)` |
@@ -122,12 +122,18 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 - Unknown elements are skipped (not errors).
 - Unknown attributes and properties are ignored.
 - Malformed values on non-essential properties are logged and ignored; the
-  shape still renders with its remaining/default paint.
+  shape still renders with its remaining/default paint. `opacity` / `fill-opacity` /
+  `stroke-opacity` accept a percentage (`50%`) and are clamped to [0, 1] like CSS.
 - A malformed *geometry* value (a `<rect>` without `width`/`height`, a `<circle>`
-  without a radius, an unparsable `d`, an odd `points` list) skips only that
-  element — the rest of the document still renders.
+  without a radius, an unparsable `d`) skips only that element — the rest of the
+  document still renders. An odd trailing coordinate in `points` is dropped (SVG 2);
+  fewer than two complete pairs is unusable geometry and skips the element.
 - A missing local reference (`url(#…)` for fill / stroke / `clip-path` / `mask` /
-  `filter` / `marker`) is logged and skipped.
+  `filter` / `marker`) is logged and skipped: paint becomes `none`, or the paint's
+  own fallback (`fill="url(#grad) #fff"`). A gradient without stops paints nothing
+  (SVG 1.1 §13.2).
+- A `<use>` whose target is missing, external, or part of a reference cycle is
+  dropped with a log; the rest of the document still renders.
 - Nothing above fails the whole document: the goal is to render as much of a
   real-world file as possible and never crash.
 

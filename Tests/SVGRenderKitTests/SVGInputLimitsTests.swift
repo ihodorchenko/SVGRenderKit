@@ -97,14 +97,21 @@ final class SVGInputLimitsTests: XCTestCase {
         XCTAssertEqual(countLayers(layer), 10)
     }
 
-    func testUseCycleStillThrows() throws {
+    func testUseCycleIsDetectedAndSkipped() throws {
+        // B102 detects the cycle; B119-5 made it degrade instead of failing the whole
+        // document — the cyclic `<use>` is logged and dropped, the rest still renders.
         let svg = """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <g id="a"><use href="#a"/></g>
+            <rect width="1" height="1" fill="#000000"/>
         </svg>
         """
+        let log = captureLog()
         let parser = try SVGParser(svgString: svg, parsedRoot: nil)
-        XCTAssertThrowsError(try parser.getLayer(overrideElements: nil))
+        let layer = try parser.getLayer(overrideElements: nil)
+        XCTAssertTrue(log.messages.contains { $0.contains("circular reference") },
+                      "the cycle must still be reported: \(log.messages)")
+        XCTAssertGreaterThan(countLayers(layer), 1, "the rest of the document must render")
     }
 
     // MARK: - contentBounds recursion

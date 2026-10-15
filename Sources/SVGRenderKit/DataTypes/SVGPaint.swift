@@ -10,6 +10,10 @@ public enum SVGPaint {
     case color(color: UIColor)
     /// A reference to a gradient or pattern via a functional IRI.
     case funcIRI(iri: SVGFuncIRI)
+    /// A reference with a fallback paint, `fill="url(#grad) #fff"`: the reference wins,
+    /// the fallback paints when it cannot be resolved (SVG 1.1 §11.2, B119-5). `indirect`
+    /// because the fallback is itself an `SVGPaint`.
+    indirect case funcIRIWithFallback(iri: SVGFuncIRI, fallback: SVGPaint)
 
     /// Parses a paint string (`none`, hex, `rgb`, `url(...)`, or a named color) into an `SVGPaint`.
     /// - parameter string: The paint string to parse.
@@ -26,12 +30,22 @@ public enum SVGPaint {
         } else if lowered.hasPrefix("argb") || lowered.hasPrefix("rgb") || lowered.hasPrefix("hsl") {
             return SVGPaint.color(color: SVGColors.getColor(string: string))
         } else if string.hasPrefix("url") {
-            let iri = try SVGFuncIRI.get(fullStr: string)
-            return SVGPaint.funcIRI(iri: iri)
+            return try reference(in: string)
         } else if let hexCod = HTMLColors.colors[lowered] {
             return SVGPaint.color(color: SVGColors.getColor(string: hexCod))
         } else {
             throw SVGError.parseError(text: "SVGPaint not found prefixes in: \(string)")
         }
+    }
+
+    /// Parses `url(#ref)` and, when present, its fallback paint (`url(#ref) #fff`).
+    private static func reference(in string: String) throws -> SVGPaint {
+        guard let close = string.firstIndex(of: ")") else {
+            throw SVGError.parseError(text: "SVGPaint not found prefixes in: \(string)")
+        }
+        let iri = try SVGFuncIRI.get(fullStr: String(string[...close]))
+        let rest = SVGUtils.trimmed(string: String(string[string.index(after: close)...]))
+        guard !rest.isEmpty else { return .funcIRI(iri: iri) }
+        return .funcIRIWithFallback(iri: iri, fallback: try SVGPaint.get(string: rest))
     }
 }

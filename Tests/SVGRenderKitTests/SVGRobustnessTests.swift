@@ -22,8 +22,10 @@ final class SVGRobustnessTests: XCTestCase {
     }
 
     func testCircularUseDoesNotOverflowStack() {
-        XCTAssertThrowsError(try render("<g id=\"a\"><use xlink:href=\"#a\"/></g><use xlink:href=\"#a\"/>"))
-        XCTAssertThrowsError(try render("<symbol id=\"s\"><use xlink:href=\"#s\"/></symbol><use xlink:href=\"#s\"/>"))
+        // B102 terminates the cycle; B119-5 drops the cyclic `<use>` with a log instead of
+        // failing the document, so both shapes of the cycle render as much as they can.
+        XCTAssertNoThrow(try render("<g id=\"a\"><use xlink:href=\"#a\"/></g><use xlink:href=\"#a\"/>"))
+        XCTAssertNoThrow(try render("<symbol id=\"s\"><use xlink:href=\"#s\"/></symbol><use xlink:href=\"#s\"/>"))
     }
 
     func testRepeatedUseOfSameElementIsNotACycle() throws {

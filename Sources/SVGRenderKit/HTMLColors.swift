@@ -5,6 +5,7 @@ public struct HTMLColors {
     /// The named colors, keyed by lowercase color name and valued by their hexadecimal representation.
     public static let colors: [String : String] = [
         "none" : "#00000000",
+        "transparent" : "#00000000",
         "aliceblue" : "#f0f8ff",
         "antiquewhite" : "#faebd7",
         "aqua" : "#00ffff",

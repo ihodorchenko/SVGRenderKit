@@ -148,7 +148,10 @@ open class SVGUseTag: SVGObject, SVGRendering {
                     // several threads at once.
                     switch SVGInputLimits.enterUse(ObjectIdentifier(self)) {
                     case .cycle:
-                        throw SVGError.parseError(text: "circular reference in use '\(key)'")
+                        // A `<use>` that references one of its own ancestors is dropped and
+                        // logged; the rest of the document still renders (B119-5).
+                        SVGLog.addSLog(errorStr: "skipped <use> '\(key)': circular reference")
+                        return CALayer()
                     case .tooDeep:
                         SVGLog.addSLog(errorStr: "skipped <use> '\(key)': nesting limit \(SVGInputLimits.maxUseDepth) reached")
                         return CALayer()
@@ -206,10 +209,12 @@ open class SVGUseTag: SVGObject, SVGRendering {
                     try own.applyGroupComposite(to: wrapper, bbox: contentBounds ?? .zero, container: parent, overrideElements: overrideElements)
                     return wrapper
                 } else {
-                    throw SVGError.parseError(text: "object 'href' in use not found")
+                    SVGLog.addSLog(errorStr: "skipped <use> '\(key)': referenced element not found")
+                    return CALayer()
                 }
             case .web:
-                throw SVGError.parseError(text: "web 'href' in use not supported")
+                SVGLog.addSLog(errorStr: "skipped <use> '\(key)': external url not supported")
+                return CALayer()
             }
         } else {
             SVGLog.addSLog(errorStr: "skipped <use>: missing 'href'")

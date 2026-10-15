@@ -275,20 +275,32 @@ open class SVGSourceStyleElement {
         color = SVGColors.getColor(string: trimmed)
     }
 
-    func setFillOpacity(str: String) throws {
-        if let f: Float = Float(str) {
-            fillOpacity = CGFloat(f)
-        } else {
-            throw SVGError.content(text: "wrong fillOpacity: \(str)")
-        }
+    /// An alpha value: a plain number or a percentage (`"50%"` means 0.5), clamped
+    /// to [0, 1] the way CSS does. `nil` means the value is not a number at all — the
+    /// caller logs and ignores it (B85, B119-5).
+    private static func alphaValue(_ str: String) -> CGFloat? {
+        let trimmed = SVGUtils.trimmed(string: str)
+        let isPercent = trimmed.hasSuffix("%")
+        let raw = isPercent ? String(trimmed.dropLast()) : trimmed
+        guard let number = Float(raw), number.isFinite else { return nil }
+        let value = CGFloat(isPercent ? number / 100 : number)
+        return min(max(value, 0), 1)
     }
 
+    func setFillOpacity(str: String) throws {
+        guard let value = SVGSourceStyleElement.alphaValue(str) else {
+            throw SVGError.content(text: "wrong fillOpacity: \(str)")
+        }
+        fillOpacity = value
+    }
+
+    /// `opacity` accepts a percentage and is clamped to [0, 1] the way CSS does, so an
+    /// out-of-range value paints at the nearest end instead of being dropped (B119-5).
     func setOpacity(str: String) throws {
-        if let f: Float = Float(str), f >= 0, f <= 1 {
-            opacity = f
-        } else {
+        guard let value = SVGSourceStyleElement.alphaValue(str) else {
             throw SVGError.content(text: "wrong opacity: \(str)")
         }
+        opacity = Float(value)
     }
 
     func setFillRule(str: String) {
@@ -302,11 +314,10 @@ open class SVGSourceStyleElement {
     }
 
     func setStrokeOpacity(str: String) throws {
-        if let f: Float = Float(str), f >= 0, f <= 1 {
-            strokeOpacity = CGFloat(f)
-        } else {
+        guard let value = SVGSourceStyleElement.alphaValue(str) else {
             throw SVGError.content(text: "wrong strokeOpacity: \(str)")
         }
+        strokeOpacity = value
     }
 
     func setStrokeWidth(str: String) throws {
@@ -501,31 +512,13 @@ extension SVGSourceStyleElement {
         case .none:
             pathLayer.fillColor = nil
         case .currentColor:
-            let resolvedColor = self.color ?? .black
-            if let fillOpacity = fillOpacity {
-                pathLayer.fillColor = resolvedColor.withAlphaComponent(resolvedColor.cgColor.alpha * fillOpacity).cgColor
-            } else {
-                pathLayer.fillColor = resolvedColor.cgColor
-            }
+            applyFillColor(self.color ?? .black, to: pathLayer, opacity: fillOpacity)
         case .color(let color):
-            if let fillOpacity = fillOpacity {
-                pathLayer.fillColor = color.withAlphaComponent(color.cgColor.alpha * fillOpacity).cgColor
-            } else {
-                pathLayer.fillColor = color.cgColor
-            }
+            applyFillColor(color, to: pathLayer, opacity: fillOpacity)
         case .funcIRI(let iri):
-            switch iri {
-            case .local(let key):
-                if let gradient = group.getGradient(byKey: key, fromParents: true) {
-                    try applyGradient(mainLayer: mainLayer, pathLayer: pathLayer, path: path, gradient: gradient, group: group, opacity: Float(fillOpacity ?? 1.0))
-                } else if let pattern = group.getPattern(byKey: key, fromParents: true) {
-                    applyPattern(pathLayer: pathLayer, pattern: pattern, group: group, path: path, opacity: fillOpacity)
-                } else {
-                    SVGLog.addSLog(errorStr: "skipped fill: url(#\(key)) not found")
-                }
-            case .web(let url):
-                SVGLog.addSLog(errorStr: "skipped fill: external url \(url) not supported")
-            }
+            try applyFillReference(iri, fallback: nil, mainLayer: mainLayer, pathLayer: pathLayer, path: path, group: group, opacity: fillOpacity)
+        case .funcIRIWithFallback(let iri, let fallback):
+            try applyFillReference(iri, fallback: fallback, mainLayer: mainLayer, pathLayer: pathLayer, path: path, group: group, opacity: fillOpacity)
         }
 
         switch fillRule {
@@ -547,25 +540,13 @@ extension SVGSourceStyleElement {
         case .none:
             break
         case .currentColor:
-            let resolvedColor = self.color ?? .black
-            pathLayer.lineWidth = resolvedStrokeWidth
-            pathLayer.strokeColor = resolvedColor.withAlphaComponent(resolvedColor.cgColor.alpha * strokeOpacity).cgColor
+            applyStrokeColor(self.color ?? .black, to: pathLayer, width: resolvedStrokeWidth, opacity: strokeOpacity)
         case .color(let color):
-            pathLayer.lineWidth = resolvedStrokeWidth
-            pathLayer.strokeColor = color.withAlphaComponent(color.cgColor.alpha * strokeOpacity).cgColor
+            applyStrokeColor(color, to: pathLayer, width: resolvedStrokeWidth, opacity: strokeOpacity)
         case .funcIRI(let iri):
-            switch iri {
-            case .local(let key):
-                if let gradient = group.getGradient(byKey: key, fromParents: true) {
-                    try applyStrokeGradient(mainLayer: mainLayer, path: path, gradient: gradient, group: group, opacity: strokeOpacity)
-                } else if let pattern = group.getPattern(byKey: key, fromParents: true) {
-                    applyStrokePattern(mainLayer: mainLayer, path: path, pattern: pattern, viewBox: strokeViewBox, opacity: strokeOpacity)
-                } else {
-                    SVGLog.addSLog(errorStr: "skipped stroke: url(#\(key)) not found")
-                }
-            case .web(let url):
-                SVGLog.addSLog(errorStr: "skipped stroke: external url \(url) not supported")
-            }
+            try applyStrokeReference(iri, fallback: nil, mainLayer: mainLayer, path: path, pathLayer: pathLayer, viewBox: strokeViewBox, group: group, width: resolvedStrokeWidth, opacity: strokeOpacity)
+        case .funcIRIWithFallback(let iri, let fallback):
+            try applyStrokeReference(iri, fallback: fallback, mainLayer: mainLayer, path: path, pathLayer: pathLayer, viewBox: strokeViewBox, group: group, width: resolvedStrokeWidth, opacity: strokeOpacity)
         }
 
         if let strokeLinecap = self.strokeLinecap {
@@ -686,6 +667,88 @@ extension SVGSourceStyleElement {
             case .web(let url):
                 SVGLog.addSLog(errorStr: "skipped filter: external url \(url) not supported")
             }
+        }
+    }
+
+    /// Resolves a `fill="url(#…)"` reference: the gradient or pattern when it exists, the
+    /// paint's fallback when the reference cannot be resolved, and nothing at all for
+    /// `none` (SVG 2, B119-5).
+    private func applyFillReference(_ iri: SVGFuncIRI, fallback: SVGPaint?, mainLayer: CAShapeLayer, pathLayer: CAShapeLayer, path: UIBezierPath, group: SVGShapesContainer, opacity: CGFloat?) throws {
+        switch iri {
+        case .local(let key):
+            if let gradient = group.getGradient(byKey: key, fromParents: true) {
+                try applyGradient(mainLayer: mainLayer, pathLayer: pathLayer, path: path, gradient: gradient, group: group, opacity: Float(opacity ?? 1.0))
+            } else if let pattern = group.getPattern(byKey: key, fromParents: true) {
+                applyPattern(pathLayer: pathLayer, pattern: pattern, group: group, path: path, opacity: opacity)
+            } else {
+                SVGLog.addSLog(errorStr: "skipped fill: url(#\(key)) not found")
+                applyFillFallback(fallback, to: pathLayer, opacity: opacity)
+            }
+        case .web(let url):
+            SVGLog.addSLog(errorStr: "skipped fill: external url \(url) not supported")
+            applyFillFallback(fallback, to: pathLayer, opacity: opacity)
+        }
+    }
+
+    /// The `stroke="url(#…)"` counterpart of `applyFillReference`.
+    private func applyStrokeReference(_ iri: SVGFuncIRI, fallback: SVGPaint?, mainLayer: CAShapeLayer, path: UIBezierPath, pathLayer: CAShapeLayer, viewBox: CGRect, group: SVGShapesContainer, width: CGFloat, opacity: CGFloat) throws {
+        switch iri {
+        case .local(let key):
+            if let gradient = group.getGradient(byKey: key, fromParents: true) {
+                try applyStrokeGradient(mainLayer: mainLayer, path: path, gradient: gradient, group: group, opacity: opacity)
+            } else if let pattern = group.getPattern(byKey: key, fromParents: true) {
+                applyStrokePattern(mainLayer: mainLayer, path: path, pattern: pattern, viewBox: viewBox, opacity: opacity)
+            } else {
+                SVGLog.addSLog(errorStr: "skipped stroke: url(#\(key)) not found")
+                applyStrokeFallback(fallback, to: pathLayer, width: width, opacity: opacity)
+            }
+        case .web(let url):
+            SVGLog.addSLog(errorStr: "skipped stroke: external url \(url) not supported")
+            applyStrokeFallback(fallback, to: pathLayer, width: width, opacity: opacity)
+        }
+    }
+
+    /// Paints the path with a solid color, honouring `fill-opacity`.
+    private func applyFillColor(_ color: UIColor, to pathLayer: CAShapeLayer, opacity: CGFloat?) {
+        if let opacity = opacity {
+            pathLayer.fillColor = color.withAlphaComponent(color.cgColor.alpha * opacity).cgColor
+        } else {
+            pathLayer.fillColor = color.cgColor
+        }
+    }
+
+    /// Paints the stroke with a solid color, honouring `stroke-opacity`.
+    private func applyStrokeColor(_ color: UIColor, to pathLayer: CAShapeLayer, width: CGFloat, opacity: CGFloat) {
+        pathLayer.lineWidth = width
+        pathLayer.strokeColor = color.withAlphaComponent(color.cgColor.alpha * opacity).cgColor
+    }
+
+    /// The solid color a paint degrades to when its `url(#…)` reference cannot be resolved:
+    /// the paint's own fallback (`fill="url(#x) #fff"`), or `nil` for no paint at all —
+    /// SVG 2 paints `none` there, and leaving a `CAShapeLayer` untouched would keep its
+    /// default black fill (B119-5).
+    private func fallbackColor(_ paint: SVGPaint?) -> UIColor? {
+        guard let paint = paint else { return nil }
+        switch paint {
+        case .color(let color): return color
+        case .currentColor: return self.color ?? .black
+        case .none, .funcIRI, .funcIRIWithFallback: return nil
+        }
+    }
+
+    private func applyFillFallback(_ paint: SVGPaint?, to pathLayer: CAShapeLayer, opacity: CGFloat?) {
+        if let color = fallbackColor(paint) {
+            applyFillColor(color, to: pathLayer, opacity: opacity)
+        } else {
+            pathLayer.fillColor = nil
+        }
+    }
+
+    private func applyStrokeFallback(_ paint: SVGPaint?, to pathLayer: CAShapeLayer, width: CGFloat, opacity: CGFloat) {
+        if let color = fallbackColor(paint) {
+            applyStrokeColor(color, to: pathLayer, width: width, opacity: opacity)
+        } else {
+            pathLayer.strokeColor = nil
         }
     }
 
@@ -818,7 +881,12 @@ extension SVGSourceStyleElement {
     }
 
     private func applyStrokeGradient(mainLayer: CAShapeLayer, path: UIBezierPath, gradient: SVGBaseGradient, group: SVGShapesContainer, opacity: CGFloat) throws {
-        guard gradient.isEnable() else { throw SVGError.content(text: "wrong content in gradient") }
+        // A gradient without stops paints nothing (SVG 1.1 §13.2), so the stroke is
+        // simply not painted — the document keeps rendering (B119-5).
+        guard gradient.isEnable() else {
+            SVGLog.addSLog(errorStr: "skipped stroke: gradient without stops")
+            return
+        }
         let options = group.getSvgOptions()
         let stroked = strokedPath(from: path, viewBox: options.viewBox)
         let maskLayer = CAShapeLayer()
@@ -905,7 +973,10 @@ extension SVGSourceStyleElement {
                 mainLayer.insertSublayer(gradLayer, at: 0)
             }
         } else {
-            throw SVGError.content(text: "wrong content in gradient")
+            // Same for a fill: no stops means `none` (SVG 1.1 §13.2) — and clearing the
+            // fill is required, CoreAnimation would otherwise paint the default black.
+            pathLayer.fillColor = nil
+            SVGLog.addSLog(errorStr: "skipped fill: gradient without stops")
         }
     }
 }

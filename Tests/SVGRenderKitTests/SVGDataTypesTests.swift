@@ -127,6 +127,25 @@ final class SVGPaintTests: XCTestCase {
         XCTAssertEqual(key, "#grad")
     }
 
+    func testFuncIRIParsesFallbackPaint() throws {
+        // `fill="url(#nope) #00ff00"` — SVG 1.1 §11.2 allows a fallback paint (B119-5).
+        let paint = try SVGPaint.get(string: "url(#nope) #00ff00")
+        guard case .funcIRIWithFallback(let iri, let fallback) = paint else {
+            return XCTFail("expected .funcIRIWithFallback, got \(paint)")
+        }
+        guard case .local(let key) = iri else {
+            return XCTFail("expected .local, got \(iri)")
+        }
+        XCTAssertEqual(key, "#nope")
+        guard case .color(let color) = fallback else {
+            return XCTFail("expected a color fallback, got \(fallback)")
+        }
+        var red: CGFloat = 0, green: CGFloat = 0
+        color.getRed(&red, green: &green, blue: nil, alpha: nil)
+        XCTAssertEqual(green, 1, accuracy: 0.001)
+        XCTAssertEqual(red, 0, accuracy: 0.001)
+    }
+
     func testUnknownThrows() {
         XCTAssertThrowsError(try SVGPaint.get(string: "totally-unknown"))
     }

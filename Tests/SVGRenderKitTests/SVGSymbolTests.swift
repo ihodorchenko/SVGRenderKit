@@ -65,13 +65,17 @@ final class SVGSymbolTests: XCTestCase {
         XCTAssertEqual(transformed.transform.m22, 2, accuracy: 0.0001)
     }
 
-    func testUseMissingSymbolThrows() {
+    func testUseMissingTargetIsSkipped() throws {
+        // A broken reference must not fail the document (B119-5): the `<use>` is logged
+        // and dropped, everything else still renders.
         let svg = """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
             <use href="#missing"/>
+            <rect width="10" height="10" fill="#ff0000"/>
         </svg>
         """
-        XCTAssertThrowsError(try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil))
+        let layer = try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil)
+        XCTAssertNotNil(findFilledShapeLayer(in: layer))
     }
 
     func testUseXYIsScaledByUseTransform() throws {
