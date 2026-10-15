@@ -150,7 +150,10 @@ extension SVGFilter {
         if let shadow = dropShadow {
             layer.shadowColor = shadow.color.cgColor
             layer.shadowOpacity = Float(shadow.opacity)
-            layer.shadowRadius = shadow.stdDeviation
+            // `CALayer.shadowRadius` is the CoreGraphics blur radius, which is about
+            // twice the Gaussian sigma — so a `stdDeviation` of `s` needs a radius of
+            // `2s`, otherwise the shadow is twice as sharp as the SVG asks for (B110).
+            layer.shadowRadius = shadow.stdDeviation * 2
             layer.shadowOffset = CGSize(width: shadow.dx, height: shadow.dy)
             // The blur is folded into the shadow; only an explicit, separate blur applies too.
             if let blur = layerBlur { bakeBlur(into: layer, bbox: bbox, stdDeviation: blur, scale: scale) }

@@ -216,6 +216,18 @@ final class SVGBacklogTests: XCTestCase {
         XCTAssertTrue(all(CALayer.self, in: filtered).contains { $0.contents != nil })
     }
 
+    // MARK: B110 — drop-shadow blur radius
+
+    func testB110ShadowRadiusIsTwiceTheStdDeviation() throws {
+        let l = try layer("""
+        <defs><filter id="f"><feDropShadow dx="1" dy="1" stdDeviation="3"/></filter></defs>
+        <rect x="0" y="25" width="50" height="50" fill="#000000" filter="url(#f)"/>
+        """)
+        let filtered = try XCTUnwrap(all(CALayer.self, in: l).first { $0.shadowOpacity > 0 })
+        // `CALayer.shadowRadius` is a CoreGraphics blur radius (~2σ), not σ itself.
+        XCTAssertEqual(filtered.shadowRadius, 6, accuracy: 0.001)
+    }
+
     // MARK: B57 — <image> preserveAspectRatio
 
     private func pngDataURI(width: Int, height: Int) -> String {

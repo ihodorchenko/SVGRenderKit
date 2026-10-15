@@ -65,7 +65,9 @@ final class SVGFilterTests: XCTestCase {
         let shadowLayer = try XCTUnwrap(findLayerWithShadow(in: layer))
         XCTAssertEqual(shadowLayer.shadowOffset.width, 2, accuracy: 0.001)
         XCTAssertEqual(shadowLayer.shadowOffset.height, -1, accuracy: 0.001)
-        XCTAssertEqual(shadowLayer.shadowRadius, 3, accuracy: 0.001)
+        // `CALayer.shadowRadius` is the CoreGraphics blur radius (~2σ), so a stdDeviation
+        // of 3 becomes a radius of 6 (B110).
+        XCTAssertEqual(shadowLayer.shadowRadius, 6, accuracy: 0.001)
         XCTAssertEqual(shadowLayer.shadowOpacity, 0.5, accuracy: 0.001)
     }
 
@@ -110,7 +112,8 @@ final class SVGFilterTests: XCTestCase {
         let layer = try parser.getLayer(overrideElements: nil)
         let shadowLayer = try XCTUnwrap(findLayerWithShadow(in: layer))
         XCTAssertEqual(shadowLayer.shadowOffset.height, -1.5, accuracy: 0.001)
-        XCTAssertEqual(shadowLayer.shadowRadius, 0.375, accuracy: 0.001)
+        // stdDeviation 0.375 → CoreGraphics blur radius 0.75 (B110).
+        XCTAssertEqual(shadowLayer.shadowRadius, 0.75, accuracy: 0.001)
         XCTAssertEqual(shadowLayer.shadowOpacity, 0.56, accuracy: 0.001)
         // The shadow tint is #1B1B2A (0.105882/0.105882/0.164706) from the color matrix.
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
