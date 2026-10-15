@@ -4,7 +4,8 @@ import UIKit
 
 /// B87 — `<image>` and `<g>` must reach the containers and `<use>` lookups:
 /// `getRendering` returns `<image>`, `<symbol>` renders it, and a `<g>` inside a
-/// `<clipPath>` / `<mask>` / `<pattern>` / `<marker>` is not dropped.
+/// `<mask>` / `<pattern>` / `<marker>` is not dropped. A `<g>` inside a `<clipPath>` is
+/// out of spec and contributes nothing (B119-5b).
 final class SVGContainerChildrenTests: XCTestCase {
 
     private func render(_ body: String) throws -> CALayer {
@@ -55,13 +56,17 @@ final class SVGContainerChildrenTests: XCTestCase {
         XCTAssertTrue(hasImageContents(in: layer))
     }
 
-    func testGroupInsideClipPathClips() throws {
+    func testGroupInsideClipPathContributesNothing() throws {
+        // SVG 1.1 §14.3.5: a `<clipPath>` may contain shapes, text and `<use>`, not `<g>` —
+        // it is ignored, so the clip is empty and nothing shows (B119-5b). The `<mask>`,
+        // `<pattern>` and `<marker>` cases below keep their `<g>` support, which the spec
+        // does allow there.
         let layer = try render("""
         <defs><clipPath id="c"><g><rect width="50" height="100"/></g></clipPath></defs>
         <rect width="100" height="100" fill="#000000" clip-path="url(#c)"/>
         """)
-        XCTAssertGreaterThan(alpha(layer, at: CGPoint(x: 25, y: 50)), 200) // inside the clip
-        XCTAssertEqual(alpha(layer, at: CGPoint(x: 75, y: 50)), 0)         // outside
+        XCTAssertEqual(alpha(layer, at: CGPoint(x: 25, y: 50)), 0)
+        XCTAssertEqual(alpha(layer, at: CGPoint(x: 75, y: 50)), 0)
     }
 
     func testGroupInsideMaskMasks() throws {

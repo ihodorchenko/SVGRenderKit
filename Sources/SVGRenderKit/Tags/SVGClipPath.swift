@@ -17,7 +17,6 @@ open class SVGClipPath: SVGChildObject {
     private(set) var all: SVGTags<SVGObject> = SVGTags<SVGObject>()
     private(set) var uses: SVGTags<SVGUseTag> = SVGTags<SVGUseTag>()
     private(set) var shapes: SVGTags<SVGShapeObject> = SVGTags<SVGShapeObject>()
-    private(set) var groups: SVGTags<SVGGTag> = SVGTags<SVGGTag>()
 
     var clipPathUnits: ClipPathUnits = ClipPathUnits.userSpaceOnUse
 
@@ -54,9 +53,9 @@ open class SVGClipPath: SVGChildObject {
             try self.add(uses: [use])
             break
         case SVGGTag.key:
-            let group: SVGGTag = try SVGGTag(xmlElement: children, parent: self)
-            self.groups.add(item: group)
-            self.all.add(item: group)
+            // SVG 1.1 §14.3.5 allows shapes, text and `<use>` in a `<clipPath>`, not `<g>`
+            // (browsers ignore it, so it contributes nothing) — B119-5b.
+            SVGLog.addSLog(errorStr: "skipped <g>: not allowed inside <clipPath>")
             break
         default:
             if let shapeTag = try SVGShapeObject.create(xml: children, parent: self) {
@@ -91,29 +90,29 @@ extension SVGClipPath {
 extension SVGClipPath: SVGGroupHosting {}
 
 extension SVGClipPath: SVGRendering {
-    /// Builds and returns a layer containing the clip path's shapes and `<use>` references.
+    /// Builds and returns a layer containing the clip path's geometry.
     public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CAShapeLayer = CAShapeLayer()
 
-        for group in groups.array {
-            let layer = try group.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-            SVGClipPath.forceClipMask(layer, fillRule: .nonZero)
-            mainLayer.addSublayer(layer)
-        }
-
-        for use in uses.array {
-            let layer = try use.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-            SVGClipPath.forceClipMask(layer, fillRule: nil)
-            mainLayer.addSublayer(layer)
-        }
-
-        for path in shapes.array {
-            // Inside a clipPath the winding rule comes from `clip-rule` (own or inherited from
-            // the clipPath element), not from `fill-rule`.
-            let clipRule = path.resolvedStyle(overrideElements: overrideElements).clipRule ?? .nonzero
-            let layer = try path.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-            SVGClipPath.forceClipMask(layer, fillRule: clipRule == .evenodd ? .evenOdd : .nonZero)
-            mainLayer.addSublayer(layer)
+        // The raw geometry paints in document order. A child with `display:none` takes no
+        // part at all — and must not be revived by `forceClipMask`, which is why it is
+        // skipped here rather than rendered transparent (B119-5b).
+        for element in all.array {
+            if let use = element as? SVGUseTag {
+                let layer = try use.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+                SVGClipPath.forceClipMask(layer, fillRule: nil)
+                mainLayer.addSublayer(layer)
+            } else if let path = element as? SVGShapeObject {
+                // Inside a clipPath the winding rule comes from `clip-rule` (own or inherited from
+                // the clipPath element), not from `fill-rule`.
+                let style = path.resolvedStyle(overrideElements: overrideElements)
+                // `SVGDisplaytype.none`, not `Optional.none`: compare the unwrapped value.
+                if let display = style.display, display == .none { continue }
+                let clipRule = style.clipRule ?? .nonzero
+                let layer = try path.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+                SVGClipPath.forceClipMask(layer, fillRule: clipRule == .evenodd ? .evenOdd : .nonZero)
+                mainLayer.addSublayer(layer)
+            }
         }
 
         if let transform = transform {

@@ -327,29 +327,27 @@ extension SVGPattern {
 extension SVGPattern: SVGGroupHosting {}
 
 extension SVGPattern: SVGRendering {
-    /// Builds a layer containing the pattern's shapes and `<use>` references.
+    /// Builds a layer containing the pattern's children.
     public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CAShapeLayer = CAShapeLayer()
         let source = contentSource
 
-        for group in source.groups.array {
-            let layer = try group.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-            mainLayer.addSublayer(layer)
-        }
-
-        for use in source.uses.array {
-            let layer = try use.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-            mainLayer.addSublayer(layer)
-        }
-
-        for path in source.shapes.array {
-            let layer = try path.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-            mainLayer.addSublayer(layer)
-        }
-
-        for image in source.images.array {
-            let layer = try image.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-            mainLayer.addSublayer(layer)
+        // Children paint in document order, so a later child covers an earlier one whatever
+        // their types are (B119-5b).
+        for element in source.all.array {
+            if let group = element as? SVGGTag {
+                let layer = try group.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+                mainLayer.addSublayer(layer)
+            } else if let use = element as? SVGUseTag {
+                let layer = try use.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+                mainLayer.addSublayer(layer)
+            } else if let path = element as? SVGShapeObject {
+                let layer = try path.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+                mainLayer.addSublayer(layer)
+            } else if let image = element as? SVGImage {
+                let layer = try image.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+                mainLayer.addSublayer(layer)
+            }
         }
 
         return mainLayer

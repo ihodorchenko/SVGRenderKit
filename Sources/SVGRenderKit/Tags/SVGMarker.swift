@@ -109,28 +109,26 @@ extension SVGMarker {
 extension SVGMarker: SVGGroupHosting {}
 
 extension SVGMarker: SVGRendering {
-    /// Builds a layer containing the marker's shapes and `<use>` references.
+    /// Builds a layer containing the marker's children.
     public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CALayer = CALayer()
 
-        for group in groups.array {
-            let layer = try group.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-            mainLayer.addSublayer(layer)
-        }
-
-        for use in uses.array {
-            let layer = try use.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-            mainLayer.addSublayer(layer)
-        }
-
-        for path in shapes.array {
-            let layer = try path.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-            mainLayer.addSublayer(layer)
-        }
-
-        for image in images.array {
-            let layer = try image.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-            mainLayer.addSublayer(layer)
+        // Children paint in document order, so a later child covers an earlier one whatever
+        // their types are (B119-5b).
+        for element in all.array {
+            if let group = element as? SVGGTag {
+                let layer = try group.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+                mainLayer.addSublayer(layer)
+            } else if let use = element as? SVGUseTag {
+                let layer = try use.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+                mainLayer.addSublayer(layer)
+            } else if let path = element as? SVGShapeObject {
+                let layer = try path.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+                mainLayer.addSublayer(layer)
+            } else if let image = element as? SVGImage {
+                let layer = try image.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+                mainLayer.addSublayer(layer)
+            }
         }
 
         return mainLayer
