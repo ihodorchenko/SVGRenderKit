@@ -1,12 +1,42 @@
 import UIKit
 
-/// Parses an SVG `<style>` block into selectors grouped by id, class, and tag name.
+/// Parses an SVG `<style>` block into ordered rules, resolved against an element's tag,
+/// classes and id.
 open class SVGStyleTag: SVGChildObject {
     class override var key: String { get { return "style" }}
 
-    private(set) var byIdDict: [String: SVGSourceStyleElement] = [:]
-    private(set) var byClassDict: [String: SVGSourceStyleElement] = [:]
-    private(set) var byTagDict: [String: SVGSourceStyleElement] = [:]
+    /// One parsed rule: the simple selector it matches (`.a`, `#u`, `rect` — the same form
+    /// `SVGObject.classNames` and `SVGObject.id` use) and the declarations it sets.
+    struct Rule {
+        let key: String
+        let declarations: SVGSourceStyleElement
+    }
+
+    /// The rules in document order, one list per selector kind: within a kind a later rule
+    /// wins, and the kinds keep their coarse specificity order — tag, then class, then id
+    /// (full CSS specificity is out of scope). Three dictionaries lost the order (B90); a
+    /// flat list lost the specificity buckets, so it is both (B119-7).
+    private(set) var tagRules: [Rule] = []
+    private(set) var classRules: [Rule] = []
+    private(set) var idRules: [Rule] = []
+
+    /// The declarations of every rule that matches `object`, in cascade order: a later rule
+    /// wins whatever order the element lists its classes in (B119-7).
+    func style(for object: SVGObject) -> SVGSourceStyleElement {
+        var style = SVGSourceStyleElement()
+        for rule in tagRules where rule.key == object.key {
+            style = style.combine(child: rule.declarations)
+        }
+        for rule in classRules where object.classNames.contains(rule.key) {
+            style = style.combine(child: rule.declarations)
+        }
+        if let id = object.id {
+            for rule in idRules where rule.key == id {
+                style = style.combine(child: rule.declarations)
+            }
+        }
+        return style
+    }
 
     /// Initializes a style tag by parsing the text content of the `<style>` element.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
@@ -24,9 +54,9 @@ open class SVGStyleTag: SVGChildObject {
     private enum SelectorKind { case classSelector, idSelector, tagSelector }
     private struct SelectorTarget { let kind: SelectorKind; let key: String }
 
-    /// Applies one rule to every simple selector it lists. Declarations for a repeated
-    /// selector accumulate (later properties win) and rules are processed in document
-    /// order; a `[String: String]` used before lost both (B90).
+    /// Applies one rule to every simple selector it lists, keeping the rules in document
+    /// order: a later rule wins, whether a repeated selector only adds properties or the
+    /// element lists several classes (B90, B119-7).
     private func applyRule(selectors: String, declarations: String) throws {
         guard !declarations.isEmpty else { return }
         for raw in selectors.split(separator: ",") {
@@ -35,30 +65,20 @@ open class SVGStyleTag: SVGChildObject {
                 // Combinators, compound selectors, `*` and at-rules are out of scope.
                 continue
             }
-            let element = existingElement(for: target) ?? SVGSourceStyleElement()
+            let element = SVGSourceStyleElement()
             try element.set(styleStr: declarations, force: true)
-            store(element, for: target)
+            let rule = Rule(key: target.key, declarations: element)
+            switch target.kind {
+            case .tagSelector: tagRules.append(rule)
+            case .classSelector: classRules.append(rule)
+            case .idSelector: idRules.append(rule)
+            }
         }
     }
 
-    private func existingElement(for target: SelectorTarget) -> SVGSourceStyleElement? {
-        switch target.kind {
-        case .classSelector: return byClassDict[target.key]
-        case .idSelector: return byIdDict[target.key]
-        case .tagSelector: return byTagDict[target.key]
-        }
-    }
-
-    private func store(_ element: SVGSourceStyleElement, for target: SelectorTarget) {
-        switch target.kind {
-        case .classSelector: byClassDict[target.key] = element
-        case .idSelector: byIdDict[target.key] = element
-        case .tagSelector: byTagDict[target.key] = element
-        }
-    }
-
-    /// Maps a selector to a dictionary key, or `nil` when it is not a simple
-    /// class / id / tag selector.
+    /// Maps a selector to its kind and key — the selector itself, so it can be matched
+    /// against the dotted class names and prefixed ids of `SVGObject` — or `nil` when it is
+    /// not a simple class / id / tag selector.
     private static func selectorTarget(_ selector: String) -> SelectorTarget? {
         if selector.hasPrefix(".") {
             let name = String(selector.dropFirst())
@@ -96,8 +116,10 @@ open class SVGStyleTag: SVGChildObject {
         return result
     }
 
-    /// Splits a stylesheet into `(selectors, declarations)` rules in document order,
-    /// skipping at-rules such as `@media` together with their nested blocks.
+    /// Splits a stylesheet into `(selectors, declarations)` rules in document order.
+    /// At-rules are skipped: a block at-rule (`@media`) with its whole body, and a statement
+    /// at-rule (`@import …;`, `@charset …;`) without eating the rule that follows it — its
+    /// prelude shares the upcoming `{` with the next selector (B119-7).
     private static func cssRules(in text: String) -> [(selectors: String, declarations: String)] {
         var rules: [(selectors: String, declarations: String)] = []
         let chars = Array(text)
@@ -110,7 +132,13 @@ open class SVGStyleTag: SVGChildObject {
             }
             guard i < chars.count else { break }
             i += 1 // consume '{'
-            if SVGUtils.trimmed(string: selector).hasPrefix("@") {
+            var prelude = SVGUtils.trimmed(string: selector)
+            // A statement at-rule ends at its last ';': the rest of the prelude is this
+            // block's selector, not part of the at-rule.
+            if prelude.hasPrefix("@"), let semicolon = prelude.lastIndex(of: ";") {
+                prelude = SVGUtils.trimmed(string: String(prelude[prelude.index(after: semicolon)...]))
+            }
+            if prelude.isEmpty || prelude.hasPrefix("@") {
                 var depth = 1
                 while i < chars.count, depth > 0 {
                     if chars[i] == "{" { depth += 1 }
@@ -125,7 +153,7 @@ open class SVGStyleTag: SVGChildObject {
                 i += 1
             }
             if i < chars.count { i += 1 } // consume '}'
-            rules.append((SVGUtils.trimmed(string: selector), body))
+            rules.append((prelude, body))
         }
         return rules
     }

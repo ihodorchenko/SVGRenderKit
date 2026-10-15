@@ -394,21 +394,12 @@ extension SVGGroupObject {
 
     /// Resolves the `<style>`-block rules (tag/class/id) matching any object, so a
     /// selector can target a container such as `<g class="st0">`, not only a shape (B91),
-    /// or an element that is not a shape at all, like `<use>` (B119-12).
+    /// or an element that is not a shape at all, like `<use>` (B119-12). Each block applies
+    /// its own rules in document order (B119-7).
     func selectorStyle(for object: SVGObject) -> SVGSourceStyleElement {
         var style = SVGSourceStyleElement()
         for styleTag in styleTags() {
-            if let tagStyle = styleTag.byTagDict[object.key] {
-                style = style.combine(child: tagStyle)
-            }
-            for className in object.classNames {
-                if let classStyle = styleTag.byClassDict[className] {
-                    style = style.combine(child: classStyle)
-                }
-            }
-            if let idStr = object.id, let idStyle = styleTag.byIdDict[idStr] {
-                style = style.combine(child: idStyle)
-            }
+            style = style.combine(child: styleTag.style(for: object))
         }
         return style
     }
