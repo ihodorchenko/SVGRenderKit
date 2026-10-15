@@ -81,4 +81,32 @@ final class SVGUseStyleTests: XCTestCase {
         """)
         XCTAssertTrue(containsLayer(withOpacity: 0.5, in: layer))
     }
+
+    // MARK: B108 — inline style wins, unit/percent offsets
+
+    func testInlineStyleFillWinsOverUseAttribute() throws {
+        let layer = try render("""
+        <defs><rect id="r" width="10" height="10"/></defs>
+        <use href="#r" fill="#ff0000" style="fill:#00ff00"/>
+        """)
+        let c = rgba(try XCTUnwrap(filledShape(in: layer)).fillColor)
+        XCTAssertEqual(c.g, 1, accuracy: 0.01)
+        XCTAssertEqual(c.r, 0, accuracy: 0.01)
+    }
+
+    func testUseWithPxOffsetRenders() throws {
+        let layer = try render("""
+        <defs><rect id="r" width="2" height="2"/></defs>
+        <use href="#r" x="10px" y="10px"/>
+        """)
+        XCTAssertNotNil(filledShape(in: layer))
+    }
+
+    func testUseWithPercentOffsetRenders() throws {
+        let layer = try render("""
+        <defs><rect id="r" width="2" height="2"/></defs>
+        <use href="#r" x="50%" y="50%"/>
+        """)
+        XCTAssertNotNil(filledShape(in: layer))
+    }
 }

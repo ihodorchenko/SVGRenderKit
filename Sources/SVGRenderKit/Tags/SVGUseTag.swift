@@ -21,22 +21,20 @@ open class SVGUseTag: SVGObject, SVGRendering {
         try super.init(xmlElement: xmlElement, addDict: addDict)
 
         let tsStyle: SVGSourceStyleElement = SVGSourceStyleElement()
+        // Presentation attributes first, then the inline `style`: an inline style normally
+        // outranks a presentation attribute, so `style="fill:…"` must win over a `fill`
+        // attribute here too (B108).
+        try tsStyle.set(attributeDict: attributeDict)
         if let str = attributeDict["style"] {
             try tsStyle.set(styleStr: str, force: false)
         }
-        try tsStyle.set(attributeDict: attributeDict)
         sourceStyle = tsStyle
 
-        if let str = attributeDict["x"] {
-            if let f: Float = Float(str.trimmed) { x = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'x' to float '\(str)'")
-            }
-        }
-        if let str = attributeDict["y"] {
-            if let f: Float = Float(str.trimmed) { y = CGFloat(f) } else {
-                throw SVGError.parseError(text: "invalid convert 'y' to float '\(str)'")
-            }
-        }
+        // `x`/`y` are lengths in the current user space; a unit suffix or a percentage
+        // must not fail the document (B108). A percentage has no resolvable viewport
+        // here, so it degrades to 0.
+        if let str = attributeDict["x"] { x = SVGUseTag.offset(str) }
+        if let str = attributeDict["y"] { y = SVGUseTag.offset(str) }
         if let str = attributeDict["width"], let f = Float(str.trimmed) {
             width = CGFloat(f)
         }
@@ -47,9 +45,14 @@ open class SVGUseTag: SVGObject, SVGRendering {
         if let str = attributeDict["transform"] {
             transform = try SVGTransform.get(string: str)
         }
+    }
 
-        if href == nil {
-            throw SVGError.parseError(text: "invalid 'href' in use")
+    /// An `x`/`y` offset in user units, degrading a percentage or a malformed value to 0.
+    private static func offset(_ string: String) -> CGFloat {
+        guard let length = try? SVGLength.get(string: string) else { return 0 }
+        switch length {
+        case .px(let value): return value
+        case .percent: return 0
         }
     }
 
@@ -142,7 +145,8 @@ open class SVGUseTag: SVGObject, SVGRendering {
                 throw SVGError.parseError(text: "web 'href' in use not supported")
             }
         } else {
-            throw SVGError.parseError(text: "not found 'href' in use")
+            SVGLog.addSLog(errorStr: "skipped <use>: missing 'href'")
+            return CALayer()
         }
     }
 }
