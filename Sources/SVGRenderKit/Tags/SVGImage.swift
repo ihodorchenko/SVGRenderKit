@@ -118,6 +118,13 @@ open class SVGImage: SVGObject, SVGRendering {
             layer.isHidden = true
         }
 
+        // `clip-path` / `mask` / `filter` composite the image like any other element (B111).
+        // The `objectBoundingBox` base is the image's own box.
+        if let sourceStyle = sourceStyle {
+            let box = CGRect(x: resolvedX, y: resolvedY, width: resolvedWidth, height: resolvedHeight)
+            try sourceStyle.applyGroupComposite(to: layer, bbox: box, container: parent, overrideElements: overrideElements)
+        }
+
         if let transform = transform {
             layer.transform = transform
         }

@@ -198,6 +198,9 @@ extension SVGFilter {
         guard let cgImage = image.cgImage, let blurred = Self.blur(cgImage, radius: stdDeviation * scale) else { return }
 
         layer.sublayers?.forEach { $0.removeFromSuperlayer() }
+        // The layer's own `contents` (an `<image>`) is replaced by the baked bitmap too,
+        // otherwise the sharp original would show through the blur (B111).
+        layer.contents = nil
         let imageLayer = CALayer()
         imageLayer.frame = region
         imageLayer.contents = blurred
