@@ -855,6 +855,9 @@ extension SVGSourceStyleElement {
             pathLayer.fillColor = UIColor.clear.cgColor
             let maskLayer = CAShapeLayer()
             maskLayer.path = path.cgPath
+            // The gradient is painted through the path's silhouette, so the element's
+            // fill-rule must be honored — otherwise an even-odd path fills its holes (B100).
+            maskLayer.fillRule = (fillRule ?? .nonzero) == .evenodd ? .evenOdd : .nonZero
             if let gradLayer = gradient.getGradientLayer(maskLayer: maskLayer, path: path, viewBox: options.viewBox, currentColor: self.color ?? .black) {
                 if let opacity = opacity {
                     gradLayer.opacity = opacity
