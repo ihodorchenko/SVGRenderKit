@@ -589,13 +589,15 @@ extension SVGSourceStyleElement {
                     if clipPathObj.clipPathUnits == .objectBoundingBox {
                         // The clip path's coordinates are in [0,1] object-bounding-box
                         // units; map them onto the element's bbox via
-                        // translate(origin) · scale(size). CATransform3D helpers
-                        // post-multiply, so emit translate first, then scale.
+                        // translate(origin) · scale(size). The clip path's own transform
+                        // applies in those units — before the mapping — so it goes on the
+                        // left of `CATransform3DConcat`, whose first argument is applied
+                        // first (B119-12).
                         let bbox = path.bounds
                         var t = CATransform3DIdentity
                         t = CATransform3DTranslate(t, bbox.origin.x, bbox.origin.y, 0)
                         t = CATransform3DScale(t, bbox.width, bbox.height, 1)
-                        rendering.transform = CATransform3DConcat(t, rendering.transform)
+                        rendering.transform = CATransform3DConcat(rendering.transform, t)
                     }
                     clipMaskLayer = rendering
                 } else {
@@ -778,13 +780,14 @@ extension SVGSourceStyleElement {
                 }
                 let rendering = try clipPathObj.createLayer(overrideElements: overrideElements)
                 if clipPathObj.clipPathUnits == .objectBoundingBox {
-                    // Map [0,1] object-bounding-box units onto the group's bbox.
-                    // CATransform3D helpers post-multiply, so translate then scale.
+                    // Map [0,1] object-bounding-box units onto the group's bbox:
+                    // translate(origin) · scale(size). The clip path's own transform applies
+                    // in those units, before the mapping, hence the argument order (B119-12).
                     let bbox = bbox()
                     var t = CATransform3DIdentity
                     t = CATransform3DTranslate(t, bbox.origin.x, bbox.origin.y, 0)
                     t = CATransform3DScale(t, bbox.width, bbox.height, 1)
-                    rendering.transform = CATransform3DConcat(t, rendering.transform)
+                    rendering.transform = CATransform3DConcat(rendering.transform, t)
                 }
                 // userSpaceOnUse: the clip is in the element's own user space, so the
                 // group's transform moves it together with the content — exactly as for
