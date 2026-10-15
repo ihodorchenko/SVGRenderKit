@@ -165,3 +165,17 @@ against Apple's CoreSVG over a corpus of real icons, not by the W3C SVG test sui
 - New icons that fail are triaged as either bugs or new profile features.
 
 The live corpus summary is reported by CI in the GitHub step summary; see [README.md](README.md#tests) for how the suite is run.
+
+## Deliberate divergences from the reference renderers
+
+A few behaviours are intentionally not copied from the reference renderers (CoreSVG on iOS,
+WebKit). Each one follows an SVG 1.1 rule, and the difference was verified against a browser
+(WKWebView) while it was added:
+
+| Behaviour | This kit | CoreSVG / WebKit |
+|---|---|---|
+| A radial gradient's focal point outside its end circle | moved onto the circle (SVG 1.1 §13.2.3), so a `pad` gradient paints its whole area | left where it is: a cone is painted and the area outside it stays transparent (SVG 2 / Canvas semantics) |
+| Stop interpolation within a linear gradient | mixed in the renderer's own space, like CoreSVG | mixed in sRGB, which is what CSS/SVG `color-interpolation` defaults to — tracked as B121 in `Task.md` |
+
+`fr` (the focal circle radius, SVG 2) is supported; CoreSVG ignores it, while WebKit and this
+kit agree on it.
