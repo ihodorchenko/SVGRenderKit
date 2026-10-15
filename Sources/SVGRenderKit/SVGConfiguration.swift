@@ -40,30 +40,35 @@ public final class SVGConfiguration: @unchecked Sendable {
 
     /// Adds name-to-color-string overrides that take precedence when resolving colors.
     func addColorOverrides(_ colors: [String: String]) {
-        accessQueue.async(flags: .barrier) {
+        accessQueue.sync(flags: .barrier) {
             for (key, value) in colors { self.colorOverrides[SVGConfiguration.normalized(key)] = value }
         }
+        // Colors are resolved while parsing, so cached trees must be dropped (B114).
+        SVGCache.s.resetCache()
     }
 
     /// Replaces all name-to-color-string overrides.
     func setColorOverrides(_ colors: [String: String]) {
-        accessQueue.async(flags: .barrier) {
+        accessQueue.sync(flags: .barrier) {
             self.colorOverrides = colors.reduce(into: [:]) { $0[SVGConfiguration.normalized($1.key)] = $1.value }
         }
+        SVGCache.s.resetCache()
     }
 
     /// Adds name-to-`UIColor` overrides that take precedence when resolving colors.
     func addUIColorOverrides(_ colors: [String: UIColor]) {
-        accessQueue.async(flags: .barrier) {
+        accessQueue.sync(flags: .barrier) {
             for (key, value) in colors { self.uiColorOverrides[SVGConfiguration.normalized(key)] = value }
         }
+        SVGCache.s.resetCache()
     }
 
     /// Replaces all name-to-`UIColor` overrides.
     func setUIColorOverrides(_ colors: [String: UIColor]) {
-        accessQueue.async(flags: .barrier) {
+        accessQueue.sync(flags: .barrier) {
             self.uiColorOverrides = colors.reduce(into: [:]) { $0[SVGConfiguration.normalized($1.key)] = $1.value }
         }
+        SVGCache.s.resetCache()
     }
 
     /// Color keywords are case-insensitive, so an override key is matched the same way

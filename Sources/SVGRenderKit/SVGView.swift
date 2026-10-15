@@ -333,11 +333,19 @@ open class SVGView: UIView {
     }
 
     private func initView() {
-        if let name = SVGView.updateNotificationName {
-            NotificationCenter.default.addObserver(self, selector: #selector(updateSvg), name: name, object: nil)
-        }
+        // Observe the fixed reload notification rather than snapshotting
+        // `SVGView.updateNotificationName` now: a view created before the app configures the
+        // notification must still reload later (B114).
+        NotificationCenter.default.addObserver(self, selector: #selector(handleReloadNotification),
+                                               name: SVGConfiguration.shared.updateSvgImagesNotification, object: nil)
         contentView.clipsToBounds = true
         self.addSubview(contentView)
+    }
+
+    /// Reload-notification handler: acts only while a notification name is configured.
+    @objc private func handleReloadNotification() {
+        guard SVGView.updateNotificationName != nil else { return }
+        updateSvg()
     }
 
     @objc internal func updateSvg() {

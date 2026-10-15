@@ -1,7 +1,7 @@
 import XCTest
 import SwiftUI
 @testable import SVGRenderKit
-import SVGRenderKitSwiftUI
+@testable import SVGRenderKitSwiftUI
 
 /// Hosts `SVGImageView` in a real window and inspects the `SVGView` SwiftUI creates for it.
 @MainActor
@@ -86,5 +86,25 @@ final class SVGImageViewTests: XCTestCase {
         update(SVGImageView(svgString: markup, fillColors: ["box": .blue]))
 
         waitUntil { view.shapeLayer != nil && view.shapeLayer !== layer }
+    }
+
+    // B114: the docs promise a re-parse when a file at the same URL changes.
+    func testCoordinatorDetectsChangedFile() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".svg")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try markup.write(to: url, atomically: true, encoding: .utf8)
+
+        let source = SVGImageView.Source.url(url)
+        let coordinator = SVGImageView.Coordinator()
+        XCTAssertTrue(coordinator.needsLoad(source: source, fillColors: nil, overrides: nil))
+        coordinator.record(source: source, fillColors: nil, overrides: nil)
+        // An unchanged URL with an unchanged file must not reload.
+        XCTAssertFalse(coordinator.needsLoad(source: source, fillColors: nil, overrides: nil))
+
+        // Rewrite the file in place; its size changes, so the recorded stamp differs.
+        try markup.replacingOccurrences(of: "</svg>", with: "<rect width=\"5\" height=\"5\"/></svg>")
+            .write(to: url, atomically: true, encoding: .utf8)
+        XCTAssertTrue(coordinator.needsLoad(source: source, fillColors: nil, overrides: nil),
+                      "a changed file at the same URL must reload")
     }
 }

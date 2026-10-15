@@ -44,6 +44,22 @@ final class SVGViewLifecycleTests: XCTestCase {
         XCTAssertNotNil(view.shapeLayer)
     }
 
+    // B114: a view created before the reload notification is configured must still reload.
+    func testViewCreatedBeforeNotificationConfigReloads() {
+        let view = makeView()
+        view.svgString = markup
+        waitUntil { view.parser != nil }
+        view.parser = nil
+        view.shapeLayer = nil
+
+        let name = NSNotification.Name("b114-\(UUID().uuidString)")
+        SVGCache.s.updateNotificationName = name
+        defer { SVGCache.s.updateNotificationName = nil }
+
+        NotificationCenter.default.post(name: name, object: nil)
+        waitUntil(3) { view.parser != nil }
+    }
+
     // B78: assigning nil clears the rendered content and invalidates an in-flight load.
     func testNilSvgStringClearsView() {
         let view = makeView()

@@ -17,7 +17,8 @@ import SVGRenderKit
 public struct SVGImageView: UIViewRepresentable {
 
     /// Where the document comes from; the equality drives reloading in `updateUIView`.
-    fileprivate enum Source: Equatable {
+    /// The source an `SVGImageView` renders (internal so tests can drive the coordinator).
+    enum Source: Equatable {
         case resource(name: String, bundle: URL?)
         case string(String, name: String?)
         case data(Data, name: String?)
@@ -121,16 +122,34 @@ public struct SVGImageView: UIViewRepresentable {
     /// Remembers what the view was last loaded with, so redraws that change nothing do not reload it.
     public final class Coordinator {
         private var loaded: (source: Source, fillColors: [String: UIColor]?, overrides: [String: SVGSourceStyleElement]?)?
+        /// The file's size/mtime at load time, so a changed file at the same URL reloads (B114).
+        private var loadedFileStamp: String?
 
-        fileprivate func needsLoad(source: Source, fillColors: [String: UIColor]?, overrides: [String: SVGSourceStyleElement]?) -> Bool {
+        func needsLoad(source: Source, fillColors: [String: UIColor]?, overrides: [String: SVGSourceStyleElement]?) -> Bool {
             guard let loaded else { return true }
-            return loaded.source != source
-                || loaded.fillColors != fillColors
-                || !Self.sameInstances(loaded.overrides, overrides)
+            guard loaded.source == source,
+                  loaded.fillColors == fillColors,
+                  Self.sameInstances(loaded.overrides, overrides) else { return true }
+            // The docs promise a re-parse when the file changes.
+            if case .url(let url) = source { return Self.fileStamp(url) != loadedFileStamp }
+            return false
         }
 
-        fileprivate func record(source: Source, fillColors: [String: UIColor]?, overrides: [String: SVGSourceStyleElement]?) {
+        func record(source: Source, fillColors: [String: UIColor]?, overrides: [String: SVGSourceStyleElement]?) {
             loaded = (source, fillColors, overrides)
+            if case .url(let url) = source {
+                loadedFileStamp = Self.fileStamp(url)
+            } else {
+                loadedFileStamp = nil
+            }
+        }
+
+        /// A stamp of the file's size and modification date, or `nil` when it cannot be read.
+        private static func fileStamp(_ url: URL) -> String? {
+            guard url.isFileURL, let attrs = try? FileManager.default.attributesOfItem(atPath: url.path) else { return nil }
+            let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
+            let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+            return "\(size):\(mtime)"
         }
 
         private static func sameInstances(_ lhs: [String: SVGSourceStyleElement]?, _ rhs: [String: SVGSourceStyleElement]?) -> Bool {
