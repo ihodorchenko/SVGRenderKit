@@ -152,13 +152,16 @@ extension SVGMask: SVGRendering {
     /// Renders the mask into a region-sized bitmap and returns it as a layer ready
     /// to be assigned to an element's `mask`. Handles `maskUnits`, `maskContentUnits`
     /// and `mask-type` (luminance vs alpha), which `CALayer.mask` alone does not.
-    public func maskLayer(bbox: CGRect, viewBox: CGRect, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
+    /// - parameter elementScale: the accumulated scale of the element's own and its
+    ///   ancestors' transforms, which stretch the bitmap on screen (B119-6).
+    public func maskLayer(bbox: CGRect, viewBox: CGRect, overrideElements: [String: SVGSourceStyleElement]?, elementScale: CGFloat = 1) throws -> CALayer {
         let region = maskRegion(bbox: bbox, viewBox: viewBox)
 
         // Rasterize at the output scale (`renderScale`), like patterns: the region-sized
         // bitmap is stretched by the view transform, so at 1 px per unit it blurs by that
-        // same factor (B92).
-        let scale = max(1, getSvgOptions().renderScale)
+        // same factor (B92) — and by the element's own transform chain on top of it (B119-6).
+        let scale = max(1, getSvgOptions().renderScale * elementScale)
+        getSvgOptions().usesMasks = true
 
         // A cached bitmap skips building the content layer tree as well. Per-element style overrides change
         // the content, so they bypass the cache.

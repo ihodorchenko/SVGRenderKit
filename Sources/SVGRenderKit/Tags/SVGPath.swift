@@ -82,7 +82,10 @@ open class SVGShapeObject: SVGObject, SVGRendering {
             }
         }
 
-        try sourceStyle.styling(mainLayer: mainLayer, pathLayer: pathLayer, path: path, group: parent, overrideElements: overrideElements)
+        // A mask bitmap is stretched by the shape's own transform and by its ancestors', so
+        // it has to be rasterized that much larger to stay sharp (B119-6).
+        let maskScale = (transform?.svgScaleFactor ?? 1) * ((parent as? SVGGroupObject)?.accumulatedScale() ?? 1)
+        try sourceStyle.styling(mainLayer: mainLayer, pathLayer: pathLayer, path: path, group: parent, overrideElements: overrideElements, maskScale: maskScale)
 
         if let transform = transform {
             mainLayer.transform = transform

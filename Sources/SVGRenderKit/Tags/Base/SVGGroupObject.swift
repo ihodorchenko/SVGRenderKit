@@ -593,6 +593,14 @@ extension SVGGroupObject {
         return result.isNull ? .zero : result
     }
 
+    /// The scale this element's own `transform` and its ancestors' apply, so a mask
+    /// rasterized against it is as sharp as the element is finally drawn (B119-6).
+    func accumulatedScale() -> CGFloat {
+        let own = transform?.svgScaleFactor ?? 1
+        guard let groupParent = parent as? SVGGroupObject else { return own }
+        return own * groupParent.accumulatedScale()
+    }
+
     /// The bounds one child contributes to `contentBounds`, in this group's local
     /// coordinate space (its own bounds with its `transform` applied).
     private func bounds(of element: SVGObject) -> CGRect {
@@ -611,6 +619,15 @@ extension SVGGroupObject {
             return useBounds
         }
         return .null
+    }
+}
+
+extension CATransform3D {
+    /// The largest linear scale this transform applies to a unit vector — how much a bitmap
+    /// rasterized in that space is stretched when it is drawn. Used to rasterize masks at
+    /// the resolution they end up being shown at (B119-6).
+    var svgScaleFactor: CGFloat {
+        return max(hypot(m11, m12), hypot(m21, m22))
     }
 }
 

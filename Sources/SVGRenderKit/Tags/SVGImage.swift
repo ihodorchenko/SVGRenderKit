@@ -122,7 +122,8 @@ open class SVGImage: SVGObject, SVGRendering {
         // The `objectBoundingBox` base is the image's own box.
         if let sourceStyle = sourceStyle {
             let box = CGRect(x: resolvedX, y: resolvedY, width: resolvedWidth, height: resolvedHeight)
-            try sourceStyle.applyGroupComposite(to: layer, bbox: box, container: parent, overrideElements: overrideElements)
+            let maskScale = (transform?.svgScaleFactor ?? 1) * ((parent as? SVGGroupObject)?.accumulatedScale() ?? 1)
+            try sourceStyle.applyGroupComposite(to: layer, bbox: box, container: parent, overrideElements: overrideElements, maskScale: maskScale)
         }
 
         if let transform = transform {

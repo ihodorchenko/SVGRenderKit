@@ -50,7 +50,7 @@ extension SVGGTag: SVGRendering {
             mainLayer.transform = transform
         }
 
-        try ownStyle.applyGroupComposite(to: mainLayer, bbox: contentBounds, container: self, overrideElements: overrideElements)
+        try ownStyle.applyGroupComposite(to: mainLayer, bbox: contentBounds, container: self, overrideElements: overrideElements, maskScale: accumulatedScale())
 
         for anim in animations {
             anim.apply(to: mainLayer, pathLayer: nil)

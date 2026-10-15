@@ -21,7 +21,7 @@ final class SVGViewPatternScaleTests: XCTestCase {
         let view = SVGView(frame: .zero)
         view.svgString = patternSVG
         waitUntil { view.shapeLayer != nil }
-        XCTAssertTrue(view.rendersPatterns)
+        XCTAssertTrue(view.rendersScaledPaint)
         XCTAssertNil(view.renderedScale)
 
         view.frame = CGRect(x: 0, y: 0, width: 200, height: 200)
@@ -48,7 +48,7 @@ final class SVGViewPatternScaleTests: XCTestCase {
         view.frame = CGRect(x: 0, y: 0, width: 200, height: 200)
         view.layoutIfNeeded()
         RunLoop.current.run(until: Date().addingTimeInterval(0.5))
-        XCTAssertFalse(view.rendersPatterns)
+        XCTAssertFalse(view.rendersScaledPaint)
         XCTAssertTrue(view.shapeLayer === layer)
     }
 

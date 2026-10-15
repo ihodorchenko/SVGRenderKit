@@ -102,14 +102,19 @@ open class SVGOptions {
     /// How the `viewBox` is fitted and aligned within the viewport.
     var preserveAspectRatio: SVGPreserveAspectRatio = SVGPreserveAspectRatio()
 
-    /// The scale factor mapping `viewBox` units to the rendering container's points.
-    /// Set by `SVGView` after parsing so paint servers (e.g. patterns) rasterize at
-    /// the final output resolution instead of the device screen scale. Defaults to `1`.
+    /// The scale factor mapping `viewBox` units to the rendering container's *pixels*.
+    /// Set by `SVGView` (its size in points times the screen scale) and `SVGRenderer`
+    /// (its output scale) so paint servers — patterns and masks — rasterize at the
+    /// resolution they are finally drawn at instead of 1 px per unit. Defaults to `1`.
     var renderScale: CGFloat = 1
 
     /// Set once a pattern tile has been rasterized from this document, so `SVGView` knows
     /// the result depends on `renderScale` and must be re-rendered when its size changes.
     var usesPatterns = false
+
+    /// Set once a mask has been rasterized from this document, for the same reason as
+    /// `usesPatterns`: a mask bitmap is stretched by the view transform too (B119-6).
+    var usesMasks = false
 
     /// The `version` attribute of the root `<svg>` element (e.g. `"1.1"`).
     var version: String?
@@ -270,7 +275,7 @@ extension SVGSVGTag: SVGRendering {
             mainLayer.transform = transform
         }
 
-        try ownStyle.applyGroupComposite(to: mainLayer, bbox: contentBounds, container: self, overrideElements: overrideElements)
+        try ownStyle.applyGroupComposite(to: mainLayer, bbox: contentBounds, container: self, overrideElements: overrideElements, maskScale: accumulatedScale())
 
         return mainLayer
     }

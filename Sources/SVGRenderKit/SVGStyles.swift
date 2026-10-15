@@ -483,7 +483,8 @@ extension SVGSourceStyleElement {
         pathLayer: CAShapeLayer,
         path: UIBezierPath,
         group: SVGShapesContainer,
-        overrideElements: [String: SVGSourceStyleElement]?
+        overrideElements: [String: SVGSourceStyleElement]?,
+        maskScale: CGFloat = 1
     ) throws {
         let display = self.display ?? .inline
         let fill = self.fill ?? .color(color: .black)
@@ -611,7 +612,7 @@ extension SVGSourceStyleElement {
             case .local(let key):
                 if let maskObj = group.getMask(byKey: key, fromParents: true) {
                     let options = group.getSvgOptions()
-                    appliedMaskLayer = try maskObj.maskLayer(bbox: path.bounds, viewBox: options.viewBox, overrideElements: overrideElements)
+                    appliedMaskLayer = try maskObj.maskLayer(bbox: path.bounds, viewBox: options.viewBox, overrideElements: overrideElements, elementScale: maskScale)
                 } else {
                     SVGLog.addSLog(errorStr: "skipped mask: url(#\(key)) not found")
                 }
@@ -755,7 +756,10 @@ extension SVGSourceStyleElement {
     /// Applies group-compositing properties (`visibility`, `opacity`, `clip-path`,
     /// `mask`, `filter`) to a group's composite layer. Unlike fill/stroke, these
     /// are not inherited to child shapes; they composite the whole group.
-    func applyGroupComposite(to layer: CALayer, bbox: @autoclosure () -> CGRect, container: SVGShapesContainer, overrideElements: [String: SVGSourceStyleElement]?) throws {
+    ///
+    /// - parameter maskScale: the accumulated scale of the element's own and its ancestors'
+    ///   transforms, so the mask is rasterized as sharply as the element is drawn (B119-6).
+    func applyGroupComposite(to layer: CALayer, bbox: @autoclosure () -> CGRect, container: SVGShapesContainer, overrideElements: [String: SVGSourceStyleElement]?, maskScale: CGFloat = 1) throws {
         // `visibility` is inherited and applied per element, not on the container layer:
         // hiding the group layer would also hide a descendant that overrides it back to
         // `visible` (B107). Shapes, images and text each apply their own visibility.
@@ -800,7 +804,7 @@ extension SVGSourceStyleElement {
                     break
                 }
                 let options = container.getSvgOptions()
-                appliedMaskLayer = try maskObj.maskLayer(bbox: bbox(), viewBox: options.viewBox, overrideElements: overrideElements)
+                appliedMaskLayer = try maskObj.maskLayer(bbox: bbox(), viewBox: options.viewBox, overrideElements: overrideElements, elementScale: maskScale)
             case .web(let url):
                 SVGLog.addSLog(errorStr: "skipped mask: external url \(url) not supported")
             }

@@ -364,6 +364,10 @@ enum KitRenderer {
     /// CI runners. A too-tight timeout would misreport them as crashes.
     static func render(_ svg: String, size: CGSize, timeout: TimeInterval = 300) throws -> UIImage {
         let view = SVGView(frame: CGRect(origin: .zero, size: size))
+        // This harness rasterizes the layer tree at 1× (`format.scale = 1` below), so declare
+        // that as the destination scale: the kit builds resolution-dependent rasters
+        // (patterns, masks) for it (B119-6) and both sides of the comparison stay 1×.
+        view.outputScale = 1
         view.svgString = svg
 
         // `SVGView` parses on a background queue and installs the layer on main.

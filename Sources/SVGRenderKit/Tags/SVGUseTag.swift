@@ -206,7 +206,10 @@ open class SVGUseTag: SVGObject, SVGRendering {
                     }
                     let wrapper = CAShapeLayer()
                     wrapper.addSublayer(cloneLayer)
-                    try own.applyGroupComposite(to: wrapper, bbox: contentBounds ?? .zero, container: parent, overrideElements: overrideElements)
+                    // The wrapper carries the placement transforms on the clone inside it, so
+                    // its own space is only scaled by the ancestors (B119-6).
+                    let maskScale = (parent as? SVGGroupObject)?.accumulatedScale() ?? 1
+                    try own.applyGroupComposite(to: wrapper, bbox: contentBounds ?? .zero, container: parent, overrideElements: overrideElements, maskScale: maskScale)
                     return wrapper
                 } else {
                     SVGLog.addSLog(errorStr: "skipped <use> '\(key)': referenced element not found")

@@ -28,8 +28,15 @@ open class SVGView: UIView {
 
     /// The `renderScale` the current layer was rasterized with; `nil` if the view had no size yet.
     internal private(set) var renderedScale: CGFloat?
-    /// Whether the current document contains patterns (whose tiles depend on `renderScale`).
-    internal private(set) var rendersPatterns = false
+    /// Whether the current document rasterized something whose resolution follows
+    /// `renderScale` — a pattern tile or a mask (B119-6); such a layer must be rebuilt when
+    /// the view's size changes.
+    internal private(set) var rendersScaledPaint = false
+    /// The pixel scale the layer tree's rasters (patterns, masks) are built for. `nil`
+    /// follows the screen, which is what an on-screen view wants; a caller that rasterizes
+    /// the view itself (at 1×, say — the parity harness does) sets its own output scale here
+    /// so the rasters match the destination instead of the device (B119-6).
+    internal var outputScale: CGFloat?
 
     /// Tracks the latest requested load so stale async results are discarded.
     private var loadGeneration: Int = 0 {
@@ -205,7 +212,10 @@ open class SVGView: UIView {
         loadGeneration += 1
         let generation = loadGeneration
         let containerSize = bounds.size
-        // `UIScreen` is main-thread API; capture the scale here for the background render.
+        // Rasters (patterns, masks) are built for this destination scale: the screen's, unless
+        // the caller declared its own because it rasterizes the view itself (B119-6).
+        let outputScale = self.outputScale ?? window?.screen.scale ?? UIScreen.main.scale
+        // `UIScreen` is main-thread API; capture the text scale here for the background render.
         SVGTextTag.screenScale = window?.screen.scale ?? UIScreen.main.scale
 
         let overrides = UncheckedSendable(value: overrideElements)
@@ -225,28 +235,29 @@ open class SVGView: UIView {
                     parser = try SVGParser.getParser(svgData: data, name: name)
                 }
 
-                // Rasterize paint servers (patterns) at the final output resolution
-                // rather than the device screen scale, so their anti-aliasing matches
-                // the on-screen result independently of the render destination.
+                // Rasterize paint servers (patterns, masks) at the final output resolution
+                // rather than 1 px per unit, so their anti-aliasing matches what the screen
+                // shows: points per unit times the destination scale (B92, B119-6).
                 let options = parser.root.getSvgOptions()
                 let viewBox = options.viewBox
                 var scale: CGFloat?
                 if containerSize.width > 0, containerSize.height > 0,
                    viewBox.width > 0, viewBox.height > 0 {
                     let resolved = options.preserveAspectRatio.resolve(viewBox: viewBox, containerSize: containerSize)
-                    scale = max(resolved.scaleX, resolved.scaleY)
-                    options.renderScale = scale!
+                    let pointsPerUnit = max(resolved.scaleX, resolved.scaleY)
+                    scale = pointsPerUnit
+                    options.renderScale = pointsPerUnit * outputScale
                 }
 
                 let layer = try parser.getLayer(overrideElements: overrides.value)
-                let usesPatterns = options.usesPatterns
+                let usesScaledPaint = options.usesPatterns || options.usesMasks
 
                 // The layer tree is built on the load queue and only touched on main afterwards.
                 let result = LoadResult(parser: parser, layer: layer)
                 DispatchQueue.main.async {
                     guard generation == self.loadGeneration else { return }
                     self.renderedScale = scale
-                    self.rendersPatterns = usesPatterns
+                    self.rendersScaledPaint = usesScaledPaint
                     self.parser = result.parser
                     self.shapeLayer = result.layer
                     self.set(layer: result.layer)
@@ -281,7 +292,7 @@ open class SVGView: UIView {
         shapeLayer = nil
         parser = nil
         renderedScale = nil
-        rendersPatterns = false
+        rendersScaledPaint = false
     }
 
     private func set(layer: CALayer) {
@@ -379,9 +390,10 @@ open class SVGView: UIView {
 
         contentView.frame = self.bounds
 
-        // Pattern tiles are rasterized at the scale known at load time. If the view had no size
-        // then (or has grown noticeably since), re-render so tiles are not blurry.
-        if rendersPatterns, let source = currentSource, containingSize.width > 0, containingSize.height > 0,
+        // Pattern tiles and mask bitmaps are rasterized at the scale known at load time. If
+        // the view had no size then (or has grown noticeably since), re-render so they are
+        // not blurry (B119-6).
+        if rendersScaledPaint, let source = currentSource, containingSize.width > 0, containingSize.height > 0,
            viewBox.width > 0, viewBox.height > 0 {
             let needed = max(resolved.scaleX, resolved.scaleY)
             if renderedScale == nil || needed > (renderedScale ?? 0) * 1.5 {
