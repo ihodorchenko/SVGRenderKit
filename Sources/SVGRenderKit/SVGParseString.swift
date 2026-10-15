@@ -9,62 +9,6 @@ internal enum PathType {
     case absolute, relative
 }
 
-internal struct NumberStack {
-    var characterStack: String = ""
-    var asCGFloat: CGFloat? {
-        get {
-            if !self.characterStack.isEmpty {
-                // `Double(String)` avoids the C-string bridging that `strtod` does on
-                // every number, which is hot for glyph-dense path data.
-                // Malformed numbers (`1e-`, `.`, `-`) and non-finite ones (`1e999`) are rejected
-                // instead of silently becoming 0.
-                if let value = Double(self.characterStack), value.isFinite { return CGFloat(value) }
-                return nil
-            }
-            return nil
-        }
-    }
-    var isEmpty: Bool {
-        get {
-            return self.characterStack.isEmpty
-        }
-    }
-
-    var isHaveDelim: Bool {
-        get {
-            return characterStack.contains(".")
-        }
-    }
-
-    var isLastE: Bool {
-        get {
-            return self.characterStack.last == "e" || self.characterStack.last == "E"
-        }
-    }
-
-    init() { }
-    
-    init(startCharacter: Character) {
-        self.characterStack = String(startCharacter)
-    }
-    
-    mutating func push(_ character: Character) {
-        // Append the character directly; `String += String(character)` allocates a
-        // fresh single-character String per call, which dominates path-data parsing
-        // for glyph-dense documents (thousands of coordinates).
-        self.characterStack.append(character)
-    }
-    
-    mutating func clear() {
-        self.characterStack = String()
-    }
-}
-
-internal struct PreviousCommand {
-    var commandLetter: String?
-    var parameters: [CGFloat]?
-}
-
 /////////////////////////////////////////////////////
 //
 // MARK: Protocols
@@ -86,11 +30,6 @@ internal class PathCharacter {
         self.character = character
     }
 }
-
-internal class NumberCharacter: PathCharacter {}
-internal class NumberDelimiterCharacter: NumberCharacter {}
-internal class SeparatorCharacter: PathCharacter {}
-internal class SignCharacter: NumberCharacter {}
 
 internal class PathCommand: PathCharacter, Commandable {
     
@@ -162,19 +101,6 @@ internal class PathCommand: PathCharacter, Commandable {
         return
     }
     
-    func pushCoordinateAndExecuteIfPossible(_ coordinate: CGFloat, previousCommand: PathCommand? = nil) -> (previousCommand: PreviousCommand?, svgError: SVGError?) {
-        self.parameters.append(coordinate)
-        if self.canExecute() {
-            if let error = self.execute(forPath: self.path, previousCommand: previousCommand) {
-                return (nil, error)
-            } else {
-                let returnParameters = self.parameters
-                return (PreviousCommand(commandLetter: String(self.character!), parameters: returnParameters), nil)
-            }
-        }
-        return (nil, nil)
-    }
-
     func executeIfPossible(previousCommand: PathCommand? = nil) -> SVGError? {
         if self.canExecute() {
             if let error = self.execute(forPath: self.path, previousCommand: previousCommand) {
@@ -258,7 +184,7 @@ public class SVGParseString {
     }
 
     /// The number being scanned, kept as raw bytes with O(1) emptiness / decimal-point / exponent checks.
-    fileprivate struct ByteNumber {
+    internal struct ByteNumber {
         var bytes: [UInt8] = []
         var hasDelimiter = false
 
@@ -277,8 +203,8 @@ public class SVGParseString {
             hasDelimiter = false
         }
 
-        /// Same acceptance rules as `NumberStack.asCGFloat`: malformed (`1e-`, `.`, `-`) and
-        /// non-finite (`1e999`) numbers are rejected. Short numbers fit a small string, so no heap allocation.
+        /// Malformed numbers (`1e-`, `.`, `-`) and
+        /// non-finite (`1e999`) are rejected. Short numbers fit a small string, so no heap allocation.
         var asCGFloat: CGFloat? {
             guard !bytes.isEmpty else { return nil }
             if let value = Double(String(decoding: bytes, as: UTF8.self)), value.isFinite { return CGFloat(value) }

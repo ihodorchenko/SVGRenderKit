@@ -4,13 +4,10 @@ import UIKit
 open class SVGParser {
 
     fileprivate(set) var root: SVGRoot!
-    /// When `true`, parsing is limited to a single path rather than a full document.
-    open var shouldParseSinglePathOnly = false
 
-    fileprivate var xmlParser: XMLIndexer?
+    private var xmlParser: XMLIndexer?
     
-    init(svgURL: URL, containerLayer: CALayer? = nil, parsedRoot: SVGRoot?) throws {
-        _init()
+    init(svgURL: URL, parsedRoot: SVGRoot?) throws {
         // A cache hit already holds the parsed tree: skip reading and XML-parsing the source.
         if let parsedRoot = parsedRoot {
             self.root = parsedRoot
@@ -21,8 +18,7 @@ open class SVGParser {
         }
     }
 
-    init(svgString: String, containerLayer: CALayer? = nil, parsedRoot: SVGRoot?) throws {
-        _init()
+    init(svgString: String, parsedRoot: SVGRoot?) throws {
         // A cache hit already holds the parsed tree: skip reading and XML-parsing the source.
         if let parsedRoot = parsedRoot {
             self.root = parsedRoot
@@ -32,8 +28,7 @@ open class SVGParser {
         }
     }
 
-    init(svgData: Data, name: String? = nil, containerLayer: CALayer? = nil, parsedRoot: SVGRoot?) throws {
-        _init()
+    init(svgData: Data, name: String? = nil, parsedRoot: SVGRoot?) throws {
         // A cache hit already holds the parsed tree: skip reading and XML-parsing the source.
         if let parsedRoot = parsedRoot {
             self.root = parsedRoot
@@ -108,9 +103,6 @@ open class SVGParser {
         return parser
     }
 
-    private func _init() {
-    }
-
     internal func parse() throws {
         try SVGSignpost.interval("SVGParser.parse") {
             try parseDocument()
@@ -137,9 +129,6 @@ open class SVGParser {
 
     func makeParseError(error: SVGError) {
         SVGLog.addLog(svgError: error)
-    }
-    func makeError(error: Error) {
-        SVGLog.addSLog(errorStr: error.localizedDescription)
     }
 
     /// Builds and returns the root `CALayer` for the parsed SVG.

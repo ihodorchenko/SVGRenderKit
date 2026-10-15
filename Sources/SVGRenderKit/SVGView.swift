@@ -297,7 +297,7 @@ open class SVGView: UIView {
 
     /// Removes the currently rendered SVG layers from the view.
     open func clear() {
-        if let sublayers = self.contentView.nonOptionalLayer.sublayers {
+        if let sublayers = self.contentView.layer.sublayers {
             for sublayer in sublayers {
                 sublayer.removeFromSuperlayer()
             }

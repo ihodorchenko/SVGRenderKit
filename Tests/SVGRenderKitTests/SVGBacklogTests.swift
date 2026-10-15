@@ -297,9 +297,9 @@ final class SVGBacklogTests: XCTestCase {
     // MARK: B62 — malformed numbers are not silently zero
 
     private func number(_ text: String) -> CGFloat? {
-        var stack = NumberStack()
-        stack.characterStack = text
-        return stack.asCGFloat
+        var number = SVGParseString.ByteNumber()
+        for byte in text.utf8 { number.push(byte) }
+        return number.asCGFloat
     }
 
     func testB62MalformedPathNumbers() {

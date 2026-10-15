@@ -15,8 +15,6 @@ open class SVGShapeObject: SVGObject, SVGRendering {
     
     var path: UIBezierPath = UIBezierPath()
 
-    weak var lastLayer: CALayer?
-
     var animations: [SVGAnimation] = []
 
     /// Initializes a shape object from an XML element and its parent shapes container.
@@ -94,7 +92,6 @@ open class SVGShapeObject: SVGObject, SVGRendering {
             anim.apply(to: mainLayer, pathLayer: pathLayer)
         }
 
-        self.lastLayer = mainLayer
         return mainLayer
     }
 
@@ -152,16 +149,6 @@ open class SVGShapeObject: SVGObject, SVGRendering {
 /// A drawable shape that renders an SVG `<path>` element's `d` attribute.
 open class SVGPath: SVGShapeObject {
     class override var key: String { get { return "path" }}
-    
-    enum SVGClipRule: String {
-        case nonzero = "nonzero"
-        case evenodd = "evenodd"
-    }
-
-    enum DisplayType: String {
-        case inline = "inline"
-        case none = "none"
-    }
 
     /// Initializes a path by parsing its `d` attribute into a `UIBezierPath`.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {

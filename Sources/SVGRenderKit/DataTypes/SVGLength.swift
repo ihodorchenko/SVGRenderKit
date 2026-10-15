@@ -41,11 +41,6 @@ public enum SVGLength {
             }
         }
 
-        // A bare number is interpreted in SVG user units (pixels).
-        if let f = Double(string), f.isFinite {
-            return .px(value: CGFloat(f))
-        }
-
         // Unsupported (relative) or malformed length — degrade gracefully instead
         // of failing the whole document.
         return .px(value: 0)

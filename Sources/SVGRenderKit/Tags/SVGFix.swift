@@ -66,26 +66,6 @@ public enum LinearGradientFixer {
         }
         return (start, end)
     }
-
-    private static func unitTest() {
-        let w = 320.0
-        let h = 60.0
-        let bounds = CGSize(width: w, height: h)
-        let a = CGPoint(x: 138.5, y: 11.5)
-        let b = CGPoint(x: 151.5, y: 53.5)
-        let ab = LineSegment(a, b)
-        let startEnd = ab.divided(divisors: (x: bounds.width, y: bounds.height))
-        let start = startEnd.p1
-        let end = startEnd.p2
-
-        let points = fixPoints(start: start, end: end, bounds: bounds)
-
-        let pointsSegment = LineSegment(points.0, points.1)
-        let result = pointsSegment.multiplied(multipliers: (x: bounds.width, y: bounds.height))
-
-        print(result.p1) // expected: (90.6119039567129, 26.3225059181603)
-        print(result.p2) // expected: (199.388096043287, 38.6774940818397)
-    }
 }
 
 private func calculateMultipliers(bounds: CGSize) -> (x: CGFloat, y: CGFloat) {
