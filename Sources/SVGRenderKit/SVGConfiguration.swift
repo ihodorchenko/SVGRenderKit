@@ -41,33 +41,43 @@ public final class SVGConfiguration: @unchecked Sendable {
     /// Adds name-to-color-string overrides that take precedence when resolving colors.
     func addColorOverrides(_ colors: [String: String]) {
         accessQueue.async(flags: .barrier) {
-            for (key, value) in colors { self.colorOverrides[key] = value }
+            for (key, value) in colors { self.colorOverrides[SVGConfiguration.normalized(key)] = value }
         }
     }
 
     /// Replaces all name-to-color-string overrides.
     func setColorOverrides(_ colors: [String: String]) {
-        accessQueue.async(flags: .barrier) { self.colorOverrides = colors }
+        accessQueue.async(flags: .barrier) {
+            self.colorOverrides = colors.reduce(into: [:]) { $0[SVGConfiguration.normalized($1.key)] = $1.value }
+        }
     }
 
     /// Adds name-to-`UIColor` overrides that take precedence when resolving colors.
     func addUIColorOverrides(_ colors: [String: UIColor]) {
         accessQueue.async(flags: .barrier) {
-            for (key, value) in colors { self.uiColorOverrides[key] = value }
+            for (key, value) in colors { self.uiColorOverrides[SVGConfiguration.normalized(key)] = value }
         }
     }
 
     /// Replaces all name-to-`UIColor` overrides.
     func setUIColorOverrides(_ colors: [String: UIColor]) {
-        accessQueue.async(flags: .barrier) { self.uiColorOverrides = colors }
+        accessQueue.async(flags: .barrier) {
+            self.uiColorOverrides = colors.reduce(into: [:]) { $0[SVGConfiguration.normalized($1.key)] = $1.value }
+        }
+    }
+
+    /// Color keywords are case-insensitive, so an override key is matched the same way
+    /// the color string is (B109).
+    private static func normalized(_ key: String) -> String {
+        key.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     func colorOverride(byString key: String) -> String? {
-        accessQueue.sync { colorOverrides[key] }
+        accessQueue.sync { colorOverrides[SVGConfiguration.normalized(key)] }
     }
 
     func uiColorOverride(byString key: String) -> UIColor? {
-        accessQueue.sync { uiColorOverrides[key] }
+        accessQueue.sync { uiColorOverrides[SVGConfiguration.normalized(key)] }
     }
 
     @objc private func handleUpdateNotification() {

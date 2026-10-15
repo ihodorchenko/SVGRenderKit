@@ -167,20 +167,26 @@ open class SVGSourceStyleElement {
     }
 
     func set(styleStr: String, force: Bool = false) throws {
-        let params: [String] = SVGUtils.split(string: styleStr, separator: ";")
+        try set(attributeDict: SVGSourceStyleElement.declarations(from: styleStr))
+    }
 
-        var paramsDict: [String : String] = [:]
-        for param in params {
-            let arr = SVGUtils.split(string: param, separator: ":")
-            if arr.count == 2 {
-                let key = SVGUtils.trimmed(string: arr[0]).lowercased()
-                let value = SVGUtils.trimmed(string: arr[1])
-                if paramsDict[key] == nil || force {
-                    paramsDict[key] = value
-                }
+    /// Parses an inline `style` or a CSS declaration block into a property dictionary.
+    /// Per CSS: a value may itself contain `:`, a trailing `!important` is not part of the
+    /// value, and the last declaration of a property wins (B109).
+    static func declarations(from styleStr: String) -> [String: String] {
+        var result: [String: String] = [:]
+        for declaration in SVGUtils.split(string: styleStr, separator: ";") {
+            let parts = declaration.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+            guard parts.count == 2 else { continue }
+            let key = SVGUtils.trimmed(string: String(parts[0])).lowercased()
+            guard !key.isEmpty else { continue }
+            var value = SVGUtils.trimmed(string: String(parts[1]))
+            if value.lowercased().hasSuffix("!important") {
+                value = SVGUtils.trimmed(string: String(value.dropLast("!important".count)))
             }
+            result[key] = value
         }
-        try set(attributeDict: paramsDict)
+        return result
     }
 
     /// Applies a set of properties. A malformed value is logged and ignored rather

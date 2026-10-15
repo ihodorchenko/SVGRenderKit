@@ -233,20 +233,7 @@ open class SVGGradientStop: SVGObject {
     }
 
     func set(styleStr: String, force: Bool = false) throws {
-        let params: [String] = SVGUtils.split(string: styleStr, separator: ";")
-
-        var paramsDict: [String : String] = [:]
-        for param in params {
-            let arr = SVGUtils.split(string: param, separator: ":")
-            if arr.count == 2 {
-                let key = SVGUtils.trimmed(string: arr[0]).lowercased()
-                let value = SVGUtils.trimmed(string: arr[1])
-                if paramsDict[key] == nil || force {
-                    paramsDict[key] = value
-                }
-            }
-        }
-        try set(attributeDict: paramsDict)
+        try set(attributeDict: SVGSourceStyleElement.declarations(from: styleStr))
     }
 
     func set(attributeDict: [String: String]) throws {

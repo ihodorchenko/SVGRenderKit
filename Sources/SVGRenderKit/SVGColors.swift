@@ -69,6 +69,9 @@ public class SVGColors {
         } else if let colorHex = HTMLColors.colors[string] {
             color = getColor(hexString: colorHex, alpha: alpha)
         } else {
+            if !string.isEmpty {
+                SVGLog.addSLog(errorStr: "unknown color '\(string)'")
+            }
             color = nil
         }
         if let color = color {
@@ -83,59 +86,72 @@ public class SVGColors {
     /// - parameter alpha: An optional alpha value that overrides the default of `1.0`.
     /// - returns: The parsed color, or `nil` if the string is malformed.
     public class func getColor(rgbString: String, alpha: CGFloat? = nil) -> UIColor? {
-
-
-        var _rgbString = rgbString.removeSpaces()
-        guard _rgbString.hasPrefix("rgb("), _rgbString.hasSuffix(")"), _rgbString.count >= 5 else { return nil }
-        _rgbString.removeFirst("rgb(".count)
-        _rgbString.removeLast()
-        let arr = _rgbString.split(separator: ",")
-        if arr.count == 3 {
-            if let _red = Double(arr[0]), let _green = Double(arr[1]), let _blue = Double(arr[2]) {
-                return UIColor(red: clamp01(_red/255.0), green: clamp01(_green/255.0), blue: clamp01(_blue/255.0), alpha: alpha.map(clamp01) ?? 1)
-            }
-        }
-        return nil
-
+        guard let body = functionBody(of: rgbString, name: "rgb") else { return nil }
+        let parts = components(body)
+        guard parts.count == 3,
+              let r = channel(parts[0]), let g = channel(parts[1]), let b = channel(parts[2]) else { return nil }
+        return UIColor(red: r, green: g, blue: b, alpha: alpha.map(clamp01) ?? 1)
     }
 
     /// Parses an `rgba(r, g, b, a)` string into a `UIColor`.
     /// - parameter _alpha: An optional alpha value that overrides the alpha encoded in the string.
     /// - returns: The parsed color, or `nil` if the string is malformed.
     public class func getColor(rgbaString: String, alpha _alpha: CGFloat? = nil) -> UIColor? {
-
-
-        var _rgbString = rgbaString.removeSpaces()
-        guard _rgbString.hasPrefix("rgba("), _rgbString.hasSuffix(")"), _rgbString.count >= 6 else { return nil }
-        _rgbString.removeFirst("rgba(".count)
-        _rgbString.removeLast()
-        let arr = _rgbString.split(separator: ",")
-        if arr.count == 4 {
-            if let red = Double(arr[0]), let green = Double(arr[1]), let blue = Double(arr[2]), let alpha = Double(arr[3]) {
-                return UIColor(red: clamp01(red/255.0), green: clamp01(green/255.0), blue: clamp01(blue/255.0), alpha: (_alpha ?? CGFloat(alpha)).clamped01)
-            }
-        }
-        return nil
-
-
+        guard let body = functionBody(of: rgbaString, name: "rgba") else { return nil }
+        let parts = components(body)
+        guard parts.count == 4,
+              let r = channel(parts[0]), let g = channel(parts[1]), let b = channel(parts[2]),
+              let a = alphaValue(parts[3]) else { return nil }
+        return UIColor(red: r, green: g, blue: b, alpha: _alpha.map(clamp01) ?? a)
     }
 
     /// Parses an `argb(a, r, g, b)` string into a `UIColor`.
     /// - parameter _alpha: An optional alpha value that overrides the alpha encoded in the string.
     /// - returns: The parsed color, or `nil` if the string is malformed.
     public class func getColor(argbString: String, alpha _alpha: CGFloat? = nil) -> UIColor? {
-        var _rgbString = argbString.removeSpaces()
-        guard _rgbString.hasPrefix("argb("), _rgbString.hasSuffix(")"), _rgbString.count >= 6 else { return nil }
-        _rgbString.removeFirst("argb(".count)
-        _rgbString.removeLast()
-        let arr = _rgbString.split(separator: ",")
-        if arr.count == 4 {
-            if let alpha = Double(arr[0]), let red = Double(arr[1]), let green = Double(arr[2]), let blue = Double(arr[3]) {
-                return UIColor(red: clamp01(red/255.0), green: clamp01(green/255.0), blue: clamp01(blue/255.0), alpha: (_alpha ?? CGFloat(alpha)).clamped01)
-            }
-        }
-        return nil
+        guard let body = functionBody(of: argbString, name: "argb") else { return nil }
+        let parts = components(body)
+        guard parts.count == 4,
+              let a = alphaValue(parts[0]),
+              let r = channel(parts[1]), let g = channel(parts[2]), let b = channel(parts[3]) else { return nil }
+        return UIColor(red: r, green: g, blue: b, alpha: _alpha.map(clamp01) ?? a)
+    }
 
+    /// The text inside `name( … )`, or `nil` when `string` is not that function.
+    /// Whitespace between the name and the `(` is tolerated (`rgb (0, 0, 0)`).
+    private static func functionBody(of string: String, name: String) -> String? {
+        let trimmed = string.trimmed
+        guard trimmed.count > name.count,
+              String(trimmed.prefix(name.count)).lowercased() == name else { return nil }
+        let rest = trimmed.dropFirst(name.count).drop(while: { $0 == " " || $0 == "\t" })
+        guard rest.count > 1, rest.first == "(", rest.last == ")" else { return nil }
+        return String(rest.dropFirst().dropLast())
+    }
+
+    /// The numeric arguments of a color function, split on commas and/or whitespace.
+    private static func components(_ body: String) -> [Substring] {
+        body.replacingOccurrences(of: ",", with: " ")
+            .split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\n" || $0 == "\r" })
+    }
+
+    /// A color channel: `0…255`, or a percentage (CSS Color 4), normalised to `0…1`.
+    private static func channel(_ text: Substring) -> CGFloat? {
+        if text.hasSuffix("%") {
+            guard let value = Double(text.dropLast()) else { return nil }
+            return clamp01(value / 100)
+        }
+        guard let value = Double(text) else { return nil }
+        return clamp01(value / 255)
+    }
+
+    /// An alpha argument: `0…1`, or a percentage, clamped to `0…1`.
+    private static func alphaValue(_ text: Substring) -> CGFloat? {
+        if text.hasSuffix("%") {
+            guard let value = Double(text.dropLast()) else { return nil }
+            return clamp01(value / 100)
+        }
+        guard let value = Double(text) else { return nil }
+        return CGFloat(min(max(value, 0), 1))
     }
 
     /// Parses an `hsl(h, s%, l%)` string into a `UIColor`.

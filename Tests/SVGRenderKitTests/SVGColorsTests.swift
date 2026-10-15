@@ -97,6 +97,27 @@ final class SVGColorsTests: XCTestCase {
         XCTAssertNil(SVGColors.getColor(rgbString: "rgb(1,2)"))
     }
 
+    // MARK: B109 — CSS Color 4 rgb forms
+
+    func testRGBPercentages() {
+        assertColor(SVGColors.getColor(string: "rgb(100%,0%,0%)"), red: 1, green: 0, blue: 0, alpha: 1)
+    }
+
+    func testRGBSpaceSeparated() {
+        assertColor(SVGColors.getColor(string: "rgb(0 0 255)"), red: 0, green: 0, blue: 1, alpha: 1)
+    }
+
+    func testRGBAPercentAlpha() {
+        assertColor(SVGColors.getColor(string: "rgba(0, 255, 0, 50%)"), red: 0, green: 1, blue: 0, alpha: 0.5)
+    }
+
+    func testOverrideIsCaseInsensitive() {
+        SVGColors.setOvverideColors(colors: ["Brand": "#00ff00"])
+        assertColor(SVGColors.getColor(string: "brand"), red: 0, green: 1, blue: 0, alpha: 1)
+        assertColor(SVGColors.getColor(string: "BRAND"), red: 0, green: 1, blue: 0, alpha: 1)
+        SVGColors.setOvverideColors(colors: [:])
+    }
+
     func testMalformedRGBADoesNotCrash() {
         XCTAssertNil(SVGColors.getColor(rgbaString: "rgba"))
         XCTAssertNil(SVGColors.getColor(rgbaString: "rgba("))

@@ -56,6 +56,18 @@ final class SVGStylePrecedenceTests: XCTestCase {
         assertColor(c, 0, 0, 1)
     }
 
+    // MARK: B109 — inline style parsing
+
+    func testInlineStyleLastDuplicateWins() throws {
+        let c = try fill("<rect width=\"10\" height=\"10\" style=\"fill:#ff0000;fill:#00ff00\"/>")
+        assertColor(c, 0, 1, 0)
+    }
+
+    func testInlineStyleImportantSuffixIsIgnored() throws {
+        let c = try fill("<rect width=\"10\" height=\"10\" style=\"fill:#00ff00 !important\"/>")
+        assertColor(c, 0, 1, 0)
+    }
+
     func testPatternInheritedFillDoesNotOverrideShapeAttribute() throws {
         let c = try fill("<defs><clipPath id=\"c\" fill=\"#ff0000\"><rect fill=\"#0000ff\" width=\"10\" height=\"10\"/></clipPath></defs><rect width=\"5\" height=\"5\" fill=\"#00ff00\"/>")
         assertColor(c, 0, 1, 0)
