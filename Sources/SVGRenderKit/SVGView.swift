@@ -163,7 +163,10 @@ open class SVGView: UIView {
     /// - parameter svgData: The raw SVG data to render.
     /// - parameter name: An optional identifier used for caching.
     /// - parameter overrideElements: A dictionary mapping element names to their override styles.
-    open func set(svgData: Data, name: String? = nil, overrideElements: [String: SVGSourceStyleElement]? = nil) {
+    ///
+    /// Unlike the `fill_colors` overload, `overrideElements` has no default: with one, a call
+    /// that passes only `name` (`set(svgData:name:)`) would be ambiguous between the two (B105).
+    open func set(svgData: Data, name: String? = nil, overrideElements: [String: SVGSourceStyleElement]?) {
         _SVGName = nil
         _svgString = nil
         self.overrideElements = overrideElements

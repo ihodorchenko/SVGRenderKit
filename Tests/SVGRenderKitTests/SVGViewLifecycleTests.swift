@@ -36,6 +36,14 @@ final class SVGViewLifecycleTests: XCTestCase {
         waitUntil { view.parser != nil }
     }
 
+    func testSetDataWithNameCompilesAndLoads() {
+        // The README call shape: the overloads must not be ambiguous (B105).
+        let view = makeView()
+        view.set(svgData: Data(markup.utf8), name: "b105")
+        waitUntil { view.shapeLayer != nil }
+        XCTAssertNotNil(view.shapeLayer)
+    }
+
     // B78: assigning nil clears the rendered content and invalidates an in-flight load.
     func testNilSvgStringClearsView() {
         let view = makeView()
