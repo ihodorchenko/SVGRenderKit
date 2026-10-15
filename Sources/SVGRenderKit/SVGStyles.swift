@@ -166,6 +166,26 @@ open class SVGSourceStyleElement {
         fontSize = element.fontSize
     }
 
+    /// Whether this style carries a property that composites the element as a whole
+    /// (`opacity`, `clip-path`, `mask`, `filter`) — the ones that must not be inherited
+    /// by a `<use>` clone's content (B119-1).
+    var hasGroupCompositing: Bool {
+        return opacity != nil || clipPath != nil || mask != nil || filter != nil
+    }
+
+    /// This style without the group-compositing properties (`opacity`, `clip-path`, `mask`,
+    /// `filter`). Those apply to a group — or to a `<use>` clone — as a whole, so they must
+    /// not be inherited by its content: doing so applies them a second time (B119-1).
+    func withoutGroupCompositing() -> SVGSourceStyleElement {
+        let copy = SVGSourceStyleElement()
+        copy.set(element: self)
+        copy.opacity = nil
+        copy.clipPath = nil
+        copy.mask = nil
+        copy.filter = nil
+        return copy
+    }
+
     func set(styleStr: String, force: Bool = false) throws {
         try set(attributeDict: SVGSourceStyleElement.declarations(from: styleStr))
     }

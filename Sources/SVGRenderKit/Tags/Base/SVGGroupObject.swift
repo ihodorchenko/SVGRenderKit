@@ -392,15 +392,10 @@ extension SVGGroupObject {
         return style.combine(child: selectorStyle(forObject: forObject))
     }
 
-    /// `<style>`-block selectors target the shape itself, so they override inherited
-    /// group styles. Applied root→leaf so a nested `<style>` wins.
-    public func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
-        return selectorStyle(for: forObject)
-    }
-
     /// Resolves the `<style>`-block rules (tag/class/id) matching any object, so a
-    /// selector can target a container such as `<g class="st0">`, not only a shape (B91).
-    private func selectorStyle(for object: SVGObject) -> SVGSourceStyleElement {
+    /// selector can target a container such as `<g class="st0">`, not only a shape (B91),
+    /// or an element that is not a shape at all, like `<use>` (B119-12).
+    func selectorStyle(for object: SVGObject) -> SVGSourceStyleElement {
         var style = SVGSourceStyleElement()
         for styleTag in styleTags() {
             if let tagStyle = styleTag.byTagDict[object.key] {
@@ -418,6 +413,12 @@ extension SVGGroupObject {
         return style
     }
 
+    /// `<style>`-block selectors target the shape itself, so they override inherited
+    /// group styles. Applied root→leaf so a nested `<style>` wins.
+    public func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
+        return selectorStyle(for: forObject)
+    }
+
     /// This group's own effective style: presentation attributes, then the `<style>`-block
     /// rules that target the group itself (`<g class="st0">` with `.st0{…}`), then its
     /// inline `style`. A selector outranks a presentation attribute; inline `style`
@@ -426,6 +427,26 @@ extension SVGGroupObject {
         return presentationStyle
             .combine(child: selectorStyle(for: self))
             .combine(child: inlineStyle)
+    }
+
+    /// This group's own style with the group-compositing properties removed: those are
+    /// applied to the group as a whole, not inherited by its children (B119-1/-4).
+    func inheritableOwnStyle() -> SVGSourceStyleElement {
+        return ownStyle().withoutGroupCompositing()
+    }
+
+    /// The style a descendant inherits from this element: everything this element
+    /// inherits from its ancestors plus its own inheritable properties. A `<use>`
+    /// resolves inheritance for the cloned content itself, so it walks the chain of the
+    /// `<use>`'s own ancestors, not of the referenced element's (B119-4).
+    func inheritedChainStyle() -> SVGSourceStyleElement {
+        var style: SVGSourceStyleElement
+        if let groupParent = parent as? SVGGroupObject {
+            style = groupParent.inheritedChainStyle()
+        } else {
+            style = SVGSourceStyleElement()
+        }
+        return style.combine(child: inheritableOwnStyle())
     }
 
     /// Walks up the group chain combining inherited group styles (no selectors).
@@ -439,16 +460,7 @@ extension SVGGroupObject {
         } else {
             style = parent.getStyle(forObject: forObject, overrideElements: overrideElements)
         }
-        let selfStyle = ownStyle()
-        // Group-compositing properties (opacity, clip-path, mask, filter) are
-        // applied to the group as a whole, not inherited to child shapes.
-        let inheritable = SVGSourceStyleElement()
-        inheritable.set(element: selfStyle)
-        inheritable.opacity = nil
-        inheritable.clipPath = nil
-        inheritable.mask = nil
-        inheritable.filter = nil
-        style = style.combine(child: inheritable)
+        style = style.combine(child: inheritableOwnStyle())
         if let overrideElements = overrideElements {
             if let tagElem = overrideElements[key] {
                 style = style.combine(child: tagElem)
@@ -594,7 +606,9 @@ extension SVGGroupObject {
             return image.frame(viewBox: getSvgOptions().viewBox).applying(svgTransform: image.transform)
         }
         if let use = element as? SVGUseTag, let useBounds = use.contentBounds {
-            return useBounds.applying(svgTransform: use.transform)
+            // `contentBounds` is already in this group's space: it includes the `<use>`'s
+            // x/y translate and its own transform.
+            return useBounds
         }
         return .null
     }
