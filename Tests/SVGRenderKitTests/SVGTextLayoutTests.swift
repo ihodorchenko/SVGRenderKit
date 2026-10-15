@@ -117,4 +117,12 @@ final class SVGTextLayoutTests: XCTestCase {
         """)
         XCTAssertLessThan(end.transform.m41, start.transform.m41)
     }
+
+    // B106: `text-anchor` from the inline `style` (or a `<style>` rule) must win over the default.
+    func testTextAnchorFromInlineStyle() throws {
+        let layer = try firstTextLayer("""
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="50" y="20" style="text-anchor:middle">Hi</text></svg>
+        """)
+        XCTAssertLessThan(layer.transform.m41, 50)
+    }
 }

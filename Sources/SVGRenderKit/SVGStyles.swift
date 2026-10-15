@@ -25,6 +25,9 @@ open class SVGSourceStyleElement {
     /// Whether the element is visible (`visible`, `hidden`, or `collapse`).
     open var visibility: SVGVisibility?
 
+    /// The `text-anchor` alignment (`start`, `middle`, or `end`) for `<text>` elements.
+    open var textAnchor: String?
+
     /// The fill paint applied to the interior of the shape.
     open var fill: SVGPaint?
     /// The current text color (`color` property), used to resolve `currentColor`.
@@ -98,6 +101,7 @@ open class SVGSourceStyleElement {
         newElem.set(element: self)
         if let display = child.display { newElem.display = display }
         if let visibility = child.visibility { newElem.visibility = visibility }
+        if let textAnchor = child.textAnchor { newElem.textAnchor = textAnchor }
         if let fill = child.fill { newElem.fill = fill }
         if let color = child.color { newElem.color = color }
         if let fillOpacity = child.fillOpacity { newElem.fillOpacity = fillOpacity }
@@ -124,7 +128,7 @@ open class SVGSourceStyleElement {
         if let fontWeight = child.fontWeight { newElem.fontWeight = fontWeight }
         if let fontSize = child.fontSize {
             let parentSize: CGFloat
-            if case .px(let value)? = self.fontSize { parentSize = value } else { parentSize = 17.0 }
+            if case .px(let value)? = self.fontSize { parentSize = value } else { parentSize = 16.0 }
             newElem.fontSize = .px(fontSize.resolvedPx(relativeTo: parentSize))
         }
 
@@ -134,6 +138,7 @@ open class SVGSourceStyleElement {
     func set(element: SVGSourceStyleElement) {
         display = element.display
         visibility = element.visibility
+        textAnchor = element.textAnchor
         fill = element.fill
         color = element.color
         fillOpacity = element.fillOpacity
@@ -183,6 +188,7 @@ open class SVGSourceStyleElement {
     func set(attributeDict: [String: String]) throws {
         if let str = attributeDict["display"], !str.isEmpty { ignoring("display") { try setDisplay(str: str) } }
         if let str = attributeDict["visibility"], !str.isEmpty { setVisibility(str: str) }
+        if let str = attributeDict["text-anchor"], !str.isEmpty { textAnchor = str.trimmed }
         if let str = attributeDict["fill"], !str.isEmpty { ignoring("fill") { try setFill(str: str) } }
         if let str = attributeDict["color"], !str.isEmpty { setColor(str: str) }
         if let str = attributeDict["opacity"], !str.isEmpty { ignoring("opacity") { try setOpacity(str: str) } }

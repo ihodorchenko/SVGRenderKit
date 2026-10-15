@@ -57,6 +57,55 @@ final class SVGTextTagTests: XCTestCase {
         return try XCTUnwrap(attributed.attribute(.font, at: 0, effectiveRange: nil) as? UIFont)
     }
 
+    private func textLayerCount(_ svg: String) throws -> Int {
+        func count(in layer: CALayer) -> Int {
+            var n = layer is CATextLayer ? 1 : 0
+            for sublayer in layer.sublayers ?? [] { n += count(in: sublayer) }
+            return n
+        }
+        let parser = try SVGParser(svgString: svg, parsedRoot: nil)
+        return count(in: try parser.getLayer(overrideElements: nil))
+    }
+
+    // MARK: B106 — text styling
+
+    func testDefaultFontSizeIs16() throws {
+        let font = try renderedFont("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text>Hi</text></svg>")
+        XCTAssertEqual(font.pointSize, 16)
+    }
+
+    func testQuotedFontFamilyIsStripped() throws {
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text font-family=\"'Helvetica'\">Hi</text></svg>"
+        let font = try renderedFont(svg)
+        XCTAssertEqual(font.familyName, "Helvetica")
+    }
+
+    func testWeightAppliesToNamedFamily() throws {
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text font-family=\"Helvetica\" font-weight=\"bold\">Hi</text></svg>"
+        let font = try renderedFont(svg)
+        XCTAssertTrue(font.fontDescriptor.symbolicTraits.contains(.traitBold))
+    }
+
+    func testDisplayNoneTextIsNotRendered() throws {
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text display=\"none\">Hi</text></svg>"
+        XCTAssertEqual(try textLayerCount(svg), 0)
+    }
+
+    func testVisibilityHiddenTextIsNotRendered() throws {
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text visibility=\"hidden\">Hi</text></svg>"
+        XCTAssertEqual(try textLayerCount(svg), 0)
+    }
+
+    func testWhitespaceIsCollapsed() throws {
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text>  Hello   World  </text></svg>"
+        XCTAssertEqual(try renderedText(svg), "Hello World")
+    }
+
+    func testXmlSpacePreserveKeepsWhitespace() throws {
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text xml:space=\"preserve\"> A  B </text></svg>"
+        XCTAssertEqual(try renderedText(svg), " A  B ")
+    }
+
     func testFontSizeApplied() throws {
         let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text font-size=\"24\">Big</text></svg>"
         let font = try renderedFont(svg)

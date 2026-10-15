@@ -64,6 +64,13 @@ open class SVGTextTag: SVGShapeObject {
             sourceStyle = sourceStyle.combine(child: addStyle)
         }
 
+        // Text honours `display`/`visibility` like any other element (B106).
+        if sourceStyle.display == SVGDisplaytype.none { return container }
+        if sourceStyle.visibility == .hidden || sourceStyle.visibility == .collapse { return container }
+        // `text-anchor` may come from a presentation attribute, an inline `style` or a
+        // `<style>` rule; the resolved style wins (B106).
+        let anchor = sourceStyle.textAnchor ?? textAnchor
+
         // `fill`: none hides the text, currentColor resolves through `color`. Gradients and
         // patterns are not supported for text and degrade to the default black.
         var textColor = UIColor.black
@@ -91,19 +98,22 @@ open class SVGTextTag: SVGShapeObject {
         // `<tspan>` with only `dx`/`dy` follows the preceding text (start-anchored text only).
         var cursorX = x
         var cursorY = y
-        let advances = textAnchor == "start"
+        let advances = anchor == "start"
 
-        let mainText = xmlElement.text
-        if !mainText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let layer = makeTextLayer(text: mainText, font: font, color: textColor, x: x, y: y)
+        let preserveSpace = attributeDict["xml:space"] == "preserve"
+        let mainText = SVGTextTag.normalize(xmlElement.text, preserve: preserveSpace)
+        if !mainText.isEmpty {
+            let layer = makeTextLayer(text: mainText, font: font, color: textColor, x: x, y: y, anchor: anchor)
             container.addSublayer(layer)
             if advances { cursorX += layer.bounds.width }
         }
 
         for span in tspans {
+            let spanText = SVGTextTag.normalize(span.text, preserve: preserveSpace)
+            guard !spanText.isEmpty else { continue }
             let spanX = span.x ?? (cursorX + span.dx)
             let spanY = span.y ?? (cursorY + span.dy)
-            let layer = makeTextLayer(text: span.text, font: font, color: textColor, x: spanX, y: spanY)
+            let layer = makeTextLayer(text: spanText, font: font, color: textColor, x: spanX, y: spanY, anchor: anchor)
             container.addSublayer(layer)
             cursorX = advances ? spanX + layer.bounds.width : spanX
             cursorY = spanY
@@ -112,8 +122,15 @@ open class SVGTextTag: SVGShapeObject {
         return container
     }
 
+    /// Collapses whitespace runs to a single space and trims (SVG's default `xml:space`
+    /// handling). `xml:space="preserve"` keeps the text as written (B106).
+    private static func normalize(_ text: String, preserve: Bool) -> String {
+        if preserve { return text }
+        return text.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+    }
+
     /// Builds a positioned `CATextLayer` for a single text run, applying `text-anchor` alignment.
-    private func makeTextLayer(text: String, font: UIFont, color: UIColor, x: CGFloat, y: CGFloat) -> CATextLayer {
+    private func makeTextLayer(text: String, font: UIFont, color: UIColor, x: CGFloat, y: CGFloat, anchor: String) -> CATextLayer {
         let textLayer = CATextLayer()
         let attributedString = NSAttributedString(string: text, attributes: [
             .font: font,
@@ -131,7 +148,7 @@ open class SVGTextTag: SVGShapeObject {
         textLayer.anchorPoint = CGPoint(x: 0, y: 0)
 
         var offsetX: CGFloat = 0
-        switch textAnchor {
+        switch anchor {
         case "middle":
             offsetX = -size.width / 2
         case "end":
@@ -172,7 +189,7 @@ open class SVGTextTag: SVGShapeObject {
     private func makeFont(from sourceStyle: SVGSourceStyleElement) -> UIFont {
         let key = FontKey(
             family: sourceStyle.fontFamily,
-            size: sourceStyle.fontSize?.resolvedPx(relativeTo: 17.0) ?? 17.0,
+            size: sourceStyle.fontSize?.resolvedPx(relativeTo: 16.0) ?? 16.0,
             weight: sourceStyle.fontWeight,
             style: sourceStyle.fontStyle)
         return Self.fontCache.value(for: key) { buildFont(from: sourceStyle) } ?? buildFont(from: sourceStyle)
@@ -180,14 +197,17 @@ open class SVGTextTag: SVGShapeObject {
 
     /// Builds a `UIFont` from the resolved font-related style values.
     private func buildFont(from sourceStyle: SVGSourceStyleElement) -> UIFont {
-        let size = sourceStyle.fontSize?.resolvedPx(relativeTo: 17.0) ?? 17.0
+        // SVG's default `font-size` is the `medium` keyword, i.e. 16px (not 17).
+        let size = sourceStyle.fontSize?.resolvedPx(relativeTo: 16.0) ?? 16.0
 
         // Prefer an explicitly named family; try each comma-separated candidate.
+        // Candidates may be quoted (`'Helvetica', sans-serif`), so drop the quotes (B106).
         if let family = sourceStyle.fontFamily {
             for name in family.split(separator: ",") {
                 let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                if let font = UIFont(name: trimmed, size: size) {
-                    return font
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                if !trimmed.isEmpty, let font = UIFont(name: trimmed, size: size) {
+                    return applyingWeightAndStyle(to: font, from: sourceStyle, size: size)
                 }
             }
         }
@@ -200,6 +220,16 @@ open class SVGTextTag: SVGShapeObject {
             }
         }
         return font
+    }
+
+    /// `UIFont(name:size:)` ignores `font-weight`/`font-style`, so apply them to the
+    /// named family's descriptor (B106).
+    private func applyingWeightAndStyle(to font: UIFont, from sourceStyle: SVGSourceStyleElement, size: CGFloat) -> UIFont {
+        var traits: UIFontDescriptor.SymbolicTraits = []
+        if let fontWeight = sourceStyle.fontWeight, fontWeight >= 600 { traits.insert(.traitBold) }
+        if let fontStyle = sourceStyle.fontStyle, fontStyle != .normal { traits.insert(.traitItalic) }
+        guard !traits.isEmpty, let descriptor = font.fontDescriptor.withSymbolicTraits(traits) else { return font }
+        return UIFont(descriptor: descriptor, size: size)
     }
 
     /// Maps an SVG `font-weight` value to a `UIFont.Weight`.
