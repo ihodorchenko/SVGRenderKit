@@ -75,6 +75,21 @@ final class SVGRendererTests: XCTestCase {
         } catch {}
     }
 
+    // B112: cancelling the awaiting task cancels the render.
+    func testCancellingAnAsyncRenderThrows() async {
+        let markup = svg
+        let task = Task { try await SVGRenderer.render(.string(markup), size: CGSize(width: 20, height: 20)) }
+        task.cancel()
+        do {
+            _ = try await task.value
+            XCTFail("expected cancellation")
+        } catch is CancellationError {
+            // expected
+        } catch {
+            XCTFail("expected CancellationError, got \(error)")
+        }
+    }
+
     // MARK: Concurrent rasterization
 
     /// Layer building is serialized but rasterization runs concurrently; concurrent renders of different

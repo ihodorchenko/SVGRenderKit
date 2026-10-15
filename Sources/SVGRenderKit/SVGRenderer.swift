@@ -46,9 +46,16 @@ public enum SVGRenderer {
         background: UIColor? = nil,
         overrideElements: [String: SVGSourceStyleElement]? = nil
     ) async throws -> Data {
-        try await withCheckedThrowingContinuation { continuation in
-            render(source, size: size, format: format, scale: scale, background: background,
-                   overrideElements: overrideElements) { continuation.resume(with: $0) }
+        // Cancelling the awaiting task cancels the render cooperatively: queued work that
+        // has not started yet is abandoned (B112).
+        let token = CancelToken()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                start(source, size: size, format: format, scale: scale, background: background,
+                      overrideElements: overrideElements, token: token) { continuation.resume(with: $0) }
+            }
+        } onCancel: {
+            token.cancelled.value = true
         }
     }
 
@@ -63,11 +70,26 @@ public enum SVGRenderer {
         overrideElements: [String: SVGSourceStyleElement]? = nil,
         completion: @escaping @Sendable (Result<Data, Error>) -> Void
     ) {
+        start(source, size: size, format: format, scale: scale, background: background,
+              overrideElements: overrideElements, token: CancelToken(), completion: completion)
+    }
+
+    /// A cooperative cancellation flag, shared between the async wrapper and the queued work.
+    private final class CancelToken: @unchecked Sendable {
+        let cancelled = LockedBox<Bool>(false)
+    }
+
+    private static func start(
+        _ source: SVGSource, size: CGSize?, format: SVGRenderFormat, scale: CGFloat,
+        background: UIColor?, overrideElements: [String: SVGSourceStyleElement]?,
+        token: CancelToken, completion: @escaping @Sendable (Result<Data, Error>) -> Void
+    ) {
         // Parsing and layer building share per-document state (`renderScale`, parser cache) with `SVGView`
         // loads, so they run on the shared serial queue. The built layer tree is private to this render,
         // so rasterizing and encoding it can proceed concurrently with other renders.
         let overrides = UncheckedSendable(overrideElements)
         SVGWorkQueue.shared.async {
+            guard !token.cancelled.value else { completion(.failure(CancellationError())); return }
             let prepared: Prepared
             do {
                 prepared = try prepare(source, size: size, format: format, scale: scale,
@@ -76,8 +98,10 @@ public enum SVGRenderer {
                 completion(.failure(error))
                 return
             }
+            guard !token.cancelled.value else { completion(.failure(CancellationError())); return }
             let job = UncheckedSendable(prepared)
             rasterizeQueue.addOperation {
+                guard !token.cancelled.value else { completion(.failure(CancellationError())); return }
                 completion(Result { rasterize(job.value) })
             }
         }

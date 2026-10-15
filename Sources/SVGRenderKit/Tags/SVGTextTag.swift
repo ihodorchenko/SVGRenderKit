@@ -137,7 +137,10 @@ open class SVGTextTag: SVGShapeObject {
             .foregroundColor: color
         ])
         textLayer.string = attributedString
-        textLayer.contentsScale = SVGTextTag.screenScale
+        // Rasterize the glyphs at the output resolution. The document's `renderScale` tracks
+        // that for both `SVGView` and `SVGRenderer`; a process-global screen scale does not
+        // (B112).
+        textLayer.contentsScale = max(1, parent.getSvgOptions().renderScale)
 
         // CATextLayer does not auto-size: with a zero frame it draws nothing.
         // Size it to the rendered text so the glyphs have a drawing area.
