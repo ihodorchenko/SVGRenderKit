@@ -12,7 +12,10 @@ concurrency:
 
 jobs:
   test:
-    runs-on: macos-27
+    # Pinned to the current GA image on purpose: `macos-latest` floats (it would move to 27
+    # on its own) and the 27 runners are still slow to schedule (B120). Revisit when 27 is
+    # GA and schedules as fast as 26.
+    runs-on: macos-26
     timeout-minutes: 45
     strategy:
       fail-fast: false

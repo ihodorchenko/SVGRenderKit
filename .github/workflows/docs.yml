@@ -22,7 +22,8 @@ concurrency:
 
 jobs:
   test:
-    runs-on: macos-27
+    # Pinned on purpose — see the note in ci.yml (B120).
+    runs-on: macos-26
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -46,7 +47,8 @@ jobs:
 
   build:
     needs: [test]
-    runs-on: macos-27
+    # Pinned on purpose — see the note in ci.yml (B120).
+    runs-on: macos-26
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4

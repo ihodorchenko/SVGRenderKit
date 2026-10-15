@@ -20,7 +20,8 @@ on:
 jobs:
   perf:
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'perf')
-    runs-on: macos-27
+    # Pinned on purpose — see the note in ci.yml (B120).
+    runs-on: macos-26
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -42,7 +43,7 @@ jobs:
       - name: Report and compare with baseline
         run: |
           {
-            echo '## Performance (Release, macos-27)'
+            echo '## Performance (Release, macos-26)'
             python3 -I Scripts/perf_report.py perf.log --json perf.json \
               --baseline .github/perf-baseline.json
           } | tee -a "$GITHUB_STEP_SUMMARY"
