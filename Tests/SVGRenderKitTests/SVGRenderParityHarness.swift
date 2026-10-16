@@ -654,7 +654,8 @@ enum ParityTriage {
         "svg_1.0/hawaiiFlowers.svg": "logo: many-path rasterization / AA",
         "svg_1.0/finger_print.svg": "logo: many-path rasterization / AA",
         "svg_2.0/payment/maestro_200px.svg": "logo: many-path rasterization / AA",
-        "svg_3.0/devices/icon__devices__huawei.svg": "stroke: miter spikes (the default stroke-miterlimit is not applied — B123)",
+        // (svg_3.0/devices/icon__devices__huawei.svg matched the reference once the SVG default
+        // stroke-miterlimit was applied, B123.)
 
         // ── Cards / emblems ──
         "svg_0.0/card1.svg": "card: vectorized-glyph anti-aliasing",
@@ -704,9 +705,6 @@ enum ParityTriage {
         "svg_3.0/Illustration/cards_black/black_visa_stack.svg": "filter: feMorphology erode is not applied by the kit; browsers apply it (CoreSVG does not either)",
         "svg_3.0/Illustration/widget_cards.svg": "filter: feMorphology erode is not applied by the kit; browsers apply it (CoreSVG does not either)",
         "svg_3.0/Illustration/widget_cards_empty.svg": "filter: feMorphology erode is not applied by the kit; browsers apply it (CoreSVG does not either)",
-
-        // ── A real kit bug the browser exposed: default stroke-miterlimit is not applied (B123) ── (1)
-        "svg_3.0/devices/icon__devices__huawei.svg": "stroke: miter spikes — the default stroke-miterlimit (4) is not applied, CALayer's 10 is used (B123)",
 
         // ── Linear gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121) ── (37)
         "svg_0.0/7560-gradient-blue-svg.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",

@@ -570,9 +570,9 @@ extension SVGSourceStyleElement {
                 pathLayer.lineJoin = .bevel
             }
         }
-        if let strokeMiterlimit = self.strokeMiterlimit {
-            pathLayer.miterLimit = strokeMiterlimit
-        }
+        // The SVG default is 4; leaving the attribute unset must not keep CALayer's own default
+        // (10) in place, or sharp corners grow miter spikes that browsers cut off (B123).
+        pathLayer.miterLimit = strokeMiterlimit ?? 4
         if let strokeDasharray = self.strokeDasharray {
             pathLayer.lineDashPattern = strokeDasharray.map { NSNumber(value: Double($0)) }
         }
