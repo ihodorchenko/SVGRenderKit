@@ -291,6 +291,14 @@ allowlist fails the build — while known limitations (text metrics, anti-aliasi
 iPhone and iPad simulators and emits the corpus summary into the GitHub step
 summary.
 
+The same rasters can be judged by a second, *browser* oracle: `Scripts/webkit-parity.sh`
+renders the corpus in a `WKWebView` (inside the Example app, because a bare test
+bundle cannot host WebKit's WebContent process), runs the parity test against those
+rasters, and gates both summaries. A behaviour that CoreSVG shares with the kit — or
+hides — then shows up next to the CoreSVG report in the same run; the browser rasters
+live in a temporary directory (recorded in `.webkit-rasters`, so later test runs pick
+them up too) and nothing is committed.
+
 ## Performance
 
 `SVGPerformanceTests` benchmark cold and cached parsing, layer building, PNG export, concurrent

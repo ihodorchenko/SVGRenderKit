@@ -4,6 +4,10 @@ import UIKit
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // `Scripts/webkit-parity.sh` drives the browser oracle: with `-webkitParity <corpus-dir>`
+        // the app renders the corpus in a web view, writes the rasters and exits instead of
+        // showing the gallery (B122). The work is asynchronous so launch is not blocked.
+        if WebKitParityRunner.runIfRequested() { return true }
         return true
     }
 

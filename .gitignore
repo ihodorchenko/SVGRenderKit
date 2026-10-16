@@ -3,6 +3,10 @@
 Task.md
 
 #####
+# Where `Scripts/webkit-parity.sh` recorded the browser oracle's rasters (never commit)
+.webkit-rasters
+
+#####
 # OS X temporary files that should never be committed
 .DS_Store
 *.swp

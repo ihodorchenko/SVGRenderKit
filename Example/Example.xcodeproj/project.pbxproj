@@ -17,6 +17,7 @@
 		AB0100000000000000000012 /* svg_1.0 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000002 /* svg_1.0 */; };
 		AB0100000000000000000013 /* svg_2.0 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000003 /* svg_2.0 */; };
 		AB0100000000000000000014 /* svg_3.0 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000004 /* svg_3.0 */; };
+		AC6EFEE73081FA7000F7B036 /* WebKitParityRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6EFEE63081FA7000F7B036 /* WebKitParityRunner.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +33,7 @@
 		AB0100000000000000000002 /* svg_1.0 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = svg_1.0; sourceTree = "<group>"; };
 		AB0100000000000000000003 /* svg_2.0 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = svg_2.0; sourceTree = "<group>"; };
 		AB0100000000000000000004 /* svg_3.0 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = svg_3.0; sourceTree = "<group>"; };
+		AC6EFEE63081FA7000F7B036 /* WebKitParityRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebKitParityRunner.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,6 +75,7 @@
 				4A2788E71EC71DCE00D47036 /* Assets.xcassets */,
 				4A2788E91EC71DCE00D47036 /* LaunchScreen.storyboard */,
 				4A2788EC1EC71DCE00D47036 /* Info.plist */,
+				AC6EFEE63081FA7000F7B036 /* WebKitParityRunner.swift */,
 			);
 			path = Example;
 			sourceTree = "<group>";
@@ -170,6 +173,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AC6EFEE73081FA7000F7B036 /* WebKitParityRunner.swift in Sources */,
 				4A319DFB1EEE8E3000F84AE3 /* VC2.swift in Sources */,
 				4A2788E11EC71DCE00D47036 /* AppDelegate.swift in Sources */,
 				4A2788F61EC71DE900D47036 /* SceneDelegate.swift in Sources */,

@@ -69,6 +69,12 @@ final class SVGRenderParityTests: XCTestCase {
     /// parse failures, and every divergence must be accounted for in
     /// `ParityTriage.reasons` (known limitations). New/unknown failures fail the
     /// build so a regression can't slip in silently.
+    ///
+    /// The same kit rasters are also judged by a *browser* oracle (`WKWebView`, B122) whenever
+    /// `SVGRENDERKIT_WEBKIT_RASTERS` points at a dump that `Scripts/webkit-parity.sh` produced:
+    /// the run then prints `WEBKIT_SUMMARY` next to `CORPUS_SUMMARY`, and the browser side is
+    /// triaged in `ParityTriage.webKitReasons` and gated against `.github/webkit-baseline.txt` by
+    /// `Scripts/check-parity.sh`.
     @MainActor func testCorpusParity() throws {
         let fixtures = CorpusLoader.load()
         guard !fixtures.isEmpty else {
@@ -90,6 +96,16 @@ final class SVGRenderParityTests: XCTestCase {
         var kitErrorNames: [String] = []
         var referenceMissingNames: [String] = []
         var unexpectedFailures: [String] = []
+
+        // B122: the browser oracle. Its rasters come from the Example app (`WebKitParityRunner`) —
+        // a bare unit-test bundle cannot start WebKit's WebContent process — so this only reads the
+        // dump that `Scripts/webkit-parity.sh` recorded; without one the CoreSVG parity below runs
+        // exactly as before.
+        let browserDirectory = WebKitReferenceRasters.dumpDirectory()
+        let browser = browserDirectory.map { WebKitReferenceRasters.load(from: $0) }
+            ?? (images: [String: Data](), failures: [String: String]())
+        var webKitPass = 0, webKitFail = 0, webKitMissing = 0
+        var webKitLines: [String] = []
 
         for fixture in fixtures {
             // CoreSVG (the parity oracle) does not implement a few SVG 1.1 features
@@ -121,6 +137,24 @@ final class SVGRenderParityTests: XCTestCase {
                 lines.append("KIT-ERROR \(fixture.name)")
                 continue
             }
+
+            // The browser comparison, on the very same kit raster (B122). Reference-limited
+            // fixtures were skipped above, so neither oracle judges them.
+            if browserDirectory != nil {
+                if let png = browser.images[fixture.name], let reference = UIImage(data: png),
+                   let cmp = ImageComparator.compare(actual, reference, size: size, tolerance: tolerance) {
+                    if cmp.passed(maxDifferingFraction: maxDifferingFraction) {
+                        webKitPass += 1
+                    } else {
+                        webKitFail += 1
+                        let annotation = ParityTriage.webKitReason(for: fixture.name) ?? "unknown (add to ParityTriage.webKitReasons)"
+                        webKitLines.append("FAIL \(fixture.name) differing=\(String(format: "%.3f", cmp.differingFraction)) maxDelta=\(cmp.maxChannelDelta) mae=\(String(format: "%.4f", cmp.meanAbsoluteError)) — \(annotation)")
+                    }
+                } else {
+                    webKitMissing += 1
+                    webKitLines.append("MISSING \(fixture.name) (\(browser.failures[fixture.name] ?? "no raster (run Scripts/webkit-parity.sh)"))")
+                }
+            }
             guard let cmp = ImageComparator.compare(actual, reference, size: size, tolerance: tolerance) else {
                 kitError += 1
                 kitErrorNames.append(fixture.name)
@@ -144,6 +178,15 @@ final class SVGRenderParityTests: XCTestCase {
         print("CORPUS_SUMMARY pass=\(pass) fail=\(fail) referenceMissing=\(referenceMissing) kitError=\(kitError) referenceLimited=\(referenceLimited) total=\(fixtures.count)")
         for line in lines {
             print("CORPUS_\(line)")
+        }
+        if browserDirectory != nil {
+            print("WEBKIT_ORACLE rasters=\(browserDirectory?.path ?? "") fixtures=\(browser.images.count) recordedFailures=\(browser.failures.count)")
+            print("WEBKIT_SUMMARY pass=\(webKitPass) fail=\(webKitFail) webkitMissing=\(webKitMissing) kitError=\(kitError) total=\(fixtures.count)")
+            for line in webKitLines {
+                print("WEBKIT_\(line)")
+            }
+        } else {
+            print("WEBKIT_ORACLE disabled (run Scripts/webkit-parity.sh to produce the browser rasters)")
         }
 
         // Gate (hard): a regression is a crash, a reference parse failure, or a

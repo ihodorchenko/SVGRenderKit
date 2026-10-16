@@ -319,15 +319,19 @@ enum ParityFixtures {
 /// The corpus is discovered on disk relative to the repository root (derived from
 /// `#filePath`), which works for local development and CI on a full checkout.
 enum CorpusLoader {
-    /// Enumerates every `.svg` under `Example/Example/data` and returns it as a
-    /// fixture named by its path relative to that directory.
-    static func load(relativePath: String = "Example/Example/data") -> [ParityFixture] {
-        let sourceURL = URL(fileURLWithPath: #filePath)
-        let repoRoot = sourceURL
+    /// The repository root, derived from this file's path — the same trick the parity fixtures
+    /// use to find the corpus, and `WebKitReferenceRasters` to find its dump pointer.
+    static var repositoryRoot: URL {
+        URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent() // SVGRenderKitTests
             .deletingLastPathComponent() // Tests
             .deletingLastPathComponent() // repo root
-        let dataDirectory = repoRoot.appendingPathComponent(relativePath)
+    }
+
+    /// Enumerates every `.svg` under `Example/Example/data` and returns it as a
+    /// fixture named by its path relative to that directory.
+    static func load(relativePath: String = "Example/Example/data") -> [ParityFixture] {
+        let dataDirectory = repositoryRoot.appendingPathComponent(relativePath)
 
         guard FileManager.default.fileExists(atPath: dataDirectory.path) else { return [] }
 
@@ -650,7 +654,7 @@ enum ParityTriage {
         "svg_1.0/hawaiiFlowers.svg": "logo: many-path rasterization / AA",
         "svg_1.0/finger_print.svg": "logo: many-path rasterization / AA",
         "svg_2.0/payment/maestro_200px.svg": "logo: many-path rasterization / AA",
-        "svg_3.0/devices/icon__devices__huawei.svg": "logo: many-path rasterization / AA",
+        "svg_3.0/devices/icon__devices__huawei.svg": "stroke: miter spikes (the default stroke-miterlimit is not applied — B123)",
 
         // ── Cards / emblems ──
         "svg_0.0/card1.svg": "card: vectorized-glyph anti-aliasing",
@@ -678,4 +682,109 @@ enum ParityTriage {
     static func reason(for name: String) -> String? {
         reasons[name]
     }
+
+    /// Human-readable reasons for the fixtures that diverge from the *browser* oracle
+    /// (`WKWebView`), keyed by fixture name. The browser comparison runs next to the CoreSVG one
+    /// (B122) whenever `SVGRENDERKIT_WEBKIT_RASTERS` points at a dump produced by
+    /// `Scripts/webkit-parity.sh`; it reports rather than fails, so an entry here documents a
+    /// known difference (and `Scripts/check-parity.sh` keeps the count from growing).
+    static func webKitReason(for name: String) -> String? {
+        webKitReasons[name]
+    }
+
+    static let webKitReasons: [String: String] = [
+        // ── A CSS background on the root: browsers paint it, the kit and CoreSVG do not ── (2)
+        "svg_2.0/launch/logo_insync.svg": "CSS background on the root: browsers paint it, the kit and CoreSVG do not (not in the Icon Profile)",
+        "svg_2.0/launch/logo_insync_grey.svg": "CSS background on the root: browsers paint it, the kit and CoreSVG do not (not in the Icon Profile)",
+
+        // ── Figma drop-shadow filters: feMorphology erode is not applied (see the CoreSVG triage) ── (6)
+        "svg_3.0/Illustration/cards_black/black_mc_3rd_stack.svg": "filter: feMorphology erode is not applied by the kit; browsers apply it (CoreSVG does not either)",
+        "svg_3.0/Illustration/cards_black/black_mc_stack.svg": "filter: feMorphology erode is not applied by the kit; browsers apply it (CoreSVG does not either)",
+        "svg_3.0/Illustration/cards_black/black_visa_3rd_stack.svg": "filter: feMorphology erode is not applied by the kit; browsers apply it (CoreSVG does not either)",
+        "svg_3.0/Illustration/cards_black/black_visa_stack.svg": "filter: feMorphology erode is not applied by the kit; browsers apply it (CoreSVG does not either)",
+        "svg_3.0/Illustration/widget_cards.svg": "filter: feMorphology erode is not applied by the kit; browsers apply it (CoreSVG does not either)",
+        "svg_3.0/Illustration/widget_cards_empty.svg": "filter: feMorphology erode is not applied by the kit; browsers apply it (CoreSVG does not either)",
+
+        // ── A real kit bug the browser exposed: default stroke-miterlimit is not applied (B123) ── (1)
+        "svg_3.0/devices/icon__devices__huawei.svg": "stroke: miter spikes — the default stroke-miterlimit (4) is not applied, CALayer's 10 is used (B123)",
+
+        // ── Linear gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121) ── (37)
+        "svg_0.0/7560-gradient-blue-svg.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_1.0/registrationInfo/3_Illustr_1.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_2.0/payment/many_payments_48px.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/Visa_CL_PW_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/Visa_CL_PW_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/Visa_csgo_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/Visa_csgo_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/Visa_cyber_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/Visa_cyber_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/Visa_dota_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/Visa_dota_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/Visa_fifa_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/Visa_fifa_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/belcard_credit_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/cmok_belcard_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/cmok_belcard_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/csgo_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/csgo_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/cyber_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/cyber_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/dota_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/dota_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/ds_mc_pictures_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/ds_mc_pictures_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/ds_visa_braslav_10_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/ds_visa_braslav_10_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/ds_visa_braslav_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/ds_visa_braslav_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/ds_visa_pictures_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/ds_visa_pictures_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/ds_visa_viva_braslav_01_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/ds_visa_viva_braslav_01_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/fifa_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/fifa_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/mc_virtual_ecard_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/mc_virtual_ecard_mini_stack.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+        "svg_3.0/Illustration/cards/scorina_belcard_mini.svg": "gradient stops: browsers mix in sRGB, the kit and CoreSVG in a wider space (B121)",
+
+        // ── Text: font metrics ── (2)
+        "svg_1.0/PASSPORT_31.svg": "text: font metrics/kerning (browser fonts vs the kit's fallback)",
+        "svg_1.0/PASSPORT_33.svg": "text: font metrics/kerning (browser fonts vs the kit's fallback)",
+
+        // ── Mask boundary rasterization ── (1)
+        "svg_3.0/action/icon__action__transaction_special.svg": "mask: soft mask boundary rasterization (the CoreSVG triage entry for this icon says the same)",
+
+        // ── Anti-aliasing: WebKit vs CoreGraphics at shape edges ── (31)
+        "svg_0.0/card1.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_0.0/tiger.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_0.0/unc.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_1.0/calendar_white.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_1.0/finger_print.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_1.0/hawaiiFlowers.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_1.0/logo_bank_old.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_1.0/mgm/Illustr_0.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_1.0/overall/calendar-tool.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_1.0/widget/america.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/applePay/apple-pay.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/interview/video_dark_01.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/interview/video_dark_02.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/interview/video_dark_03.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/interview/video_light_01.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/interview/video_light_02.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/interview/video_light_03.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/onboarding/fingerprint.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/onboarding/key_ok.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/onboarding/passport_page31.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/onboarding/passport_page31_done.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/onboarding/passport_page31_none.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/onboarding/passport_page33.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/onboarding/passport_page33_done.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/onboarding/passport_page33_none.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/payment/Visa_Inc_logo_blue.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/payment/union-pay.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/tutorial/cash_back.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/tutorial/history_pay.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/tutorial/pay.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+        "svg_2.0/widget/unc.svg": "aa: WebKit vs CoreGraphics rasterization (differences at shape edges)",
+    ]
 }

@@ -162,6 +162,11 @@ against Apple's CoreSVG over a corpus of real icons, not by the W3C SVG test sui
   (iPhone + iPad) and surfaced in the GitHub step summary.
 - Fixtures that use features CoreSVG does not implement (`display:none`, `<switch>`,
   8-digit hex) are classified as *reference-limited* rather than failures.
+- The same kit rasters are also judged by a second, *browser* oracle (`WKWebView`, B122):
+  `Scripts/webkit-parity.sh` renders the corpus in a web view (from the Example app — a bare
+  test bundle cannot host WebKit's WebContent process) and the test then compares *both*
+  oracles against the identical raster, so a behaviour CoreSVG shares with the kit, or hides,
+  is visible in one report. That side reports as `WEBKIT_SUMMARY` and is triaged the same way.
 - New icons that fail are triaged as either bugs or new profile features.
 
 The live corpus summary is reported by CI in the GitHub step summary; see [README.md](README.md#tests) for how the suite is run.
