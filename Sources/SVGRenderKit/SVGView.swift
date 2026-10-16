@@ -215,8 +215,6 @@ open class SVGView: UIView {
         // Rasters (patterns, masks) are built for this destination scale: the screen's, unless
         // the caller declared its own because it rasterizes the view itself (B119-6).
         let outputScale = self.outputScale ?? window?.screen.scale ?? UIScreen.main.scale
-        // `UIScreen` is main-thread API; capture the text scale here for the background render.
-        SVGTextTag.screenScale = window?.screen.scale ?? UIScreen.main.scale
 
         let overrides = UncheckedSendable(value: overrideElements)
         let latestGeneration = self.latestGeneration

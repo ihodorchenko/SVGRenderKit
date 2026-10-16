@@ -108,8 +108,6 @@ final class SVGTextTagTests: XCTestCase {
 
     // B112: the text bitmap must follow the render scale, not a global screen scale.
     func testTextContentsScaleUsesRenderScale() throws {
-        SVGTextTag.screenScale = 1
-        defer { SVGTextTag.screenScale = 2 }
         let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><text x=\"1\" y=\"5\">Hi</text></svg>"
         let parser = try SVGParser(svgString: svg, parsedRoot: nil)
         parser.root.getSvgOptions().renderScale = 3

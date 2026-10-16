@@ -3,6 +3,8 @@ import UIKit
 /// A single text run (direct `<text>` content or a `<tspan>` child).
 struct SVGTextSpan {
     var text: String
+    /// Presentation attributes and inline `style` of a `<tspan>`; `nil` for a bare text node.
+    var style: SVGSourceStyleElement?
     var x: CGFloat?
     var y: CGFloat?
     var dx: CGFloat = 0
@@ -13,16 +15,10 @@ struct SVGTextSpan {
 open class SVGTextTag: SVGShapeObject {
     class override var key: String { get { return "text" }}
 
-    private static let screenScaleBox = LockedBox<CGFloat>(2)
-    /// Display scale used for text layers; set from the main thread before background rendering.
-    static var screenScale: CGFloat {
-        get { screenScaleBox.value }
-        set { screenScaleBox.value = newValue }
-    }
-
     var x: CGFloat = 0
     var y: CGFloat = 0
     var textAnchor: String = "start"
+    /// Text nodes and `<tspan>` children in document order.
     private(set) var tspans: [SVGTextSpan] = []
 
     /// Initializes a text element by parsing its `x` and `y` attributes.
@@ -36,14 +32,27 @@ open class SVGTextTag: SVGShapeObject {
         if let str = attributeDict["text-anchor"] {
             textAnchor = str.trimmed
         }
-        for child in xmlElement.xmlChildren where child.name == "tspan" {
-            var span = SVGTextSpan(text: child.text, x: nil, y: nil)
-            if let str = child.attribute(by: "x")?.text, let f = Float(str.trimmed) { span.x = CGFloat(f) }
-            if let str = child.attribute(by: "y")?.text, let f = Float(str.trimmed) { span.y = CGFloat(f) }
-            if let str = child.attribute(by: "dx")?.text, let f = Float(str.trimmed) { span.dx = CGFloat(f) }
-            if let str = child.attribute(by: "dy")?.text, let f = Float(str.trimmed) { span.dy = CGFloat(f) }
-            tspans.append(span)
+        for node in xmlElement.children {
+            if let textNode = node as? TextElement {
+                tspans.append(SVGTextSpan(text: textNode.text, style: nil, x: nil, y: nil))
+            } else if let child = node as? XMLElement, child.name == "tspan" {
+                var span = SVGTextSpan(text: child.text, style: SVGTextTag.style(of: child), x: nil, y: nil)
+                if let str = child.attribute(by: "x")?.text, let f = Float(str.trimmed) { span.x = CGFloat(f) }
+                if let str = child.attribute(by: "y")?.text, let f = Float(str.trimmed) { span.y = CGFloat(f) }
+                if let str = child.attribute(by: "dx")?.text, let f = Float(str.trimmed) { span.dx = CGFloat(f) }
+                if let str = child.attribute(by: "dy")?.text, let f = Float(str.trimmed) { span.dy = CGFloat(f) }
+                tspans.append(span)
+            }
         }
+    }
+
+    /// A `<tspan>`'s own style: presentation attributes, then the inline `style` (which wins).
+    private static func style(of element: XMLElement) -> SVGSourceStyleElement {
+        let style = SVGSourceStyleElement()
+        let attributes = element.attributesDict()
+        try? style.set(attributeDict: attributes)
+        if let inline = attributes["style"] { try? style.set(styleStr: inline) }
+        return style
     }
 
     private static func firstLength(_ list: String) -> CGFloat {
@@ -71,28 +80,12 @@ open class SVGTextTag: SVGShapeObject {
         // `<style>` rule; the resolved style wins (B106).
         let anchor = sourceStyle.textAnchor ?? textAnchor
 
-        // `fill`: none hides the text, currentColor resolves through `color`. Gradients and
-        // patterns are not supported for text and degrade to the default black.
-        var textColor = UIColor.black
-        switch sourceStyle.fill {
-        case .some(.none):
-            return container
-        case .some(.currentColor):
-            textColor = sourceStyle.color ?? .black
-        case .some(.color(let color)):
-            textColor = color
-        default:
-            break
-        }
-        if let fillOpacity = sourceStyle.fillOpacity {
-            var alpha: CGFloat = 1
-            textColor.getRed(nil, green: nil, blue: nil, alpha: &alpha)
-            textColor = textColor.withAlphaComponent(alpha * min(max(fillOpacity, 0), 1))
-        }
+        // The glyph bitmap is rasterized at `renderScale`, so a resize must rebuild the layers.
+        parent.getSvgOptions().usesMasks = true
+
         if let opacity = sourceStyle.opacity {
             container.opacity = opacity
         }
-        let font = makeFont(from: sourceStyle)
 
         // Current text position: each run continues where the previous one ended, so a
         // `<tspan>` with only `dx`/`dy` follows the preceding text (start-anchored text only).
@@ -101,32 +94,71 @@ open class SVGTextTag: SVGShapeObject {
         let advances = anchor == "start"
 
         let preserveSpace = attributeDict["xml:space"] == "preserve"
-        let mainText = SVGTextTag.normalize(xmlElement.text, preserve: preserveSpace)
-        if !mainText.isEmpty {
-            let layer = makeTextLayer(text: mainText, font: font, color: textColor, x: x, y: y, anchor: anchor)
-            container.addSublayer(layer)
-            if advances { cursorX += layer.bounds.width }
-        }
-
-        for span in tspans {
-            let spanText = SVGTextTag.normalize(span.text, preserve: preserveSpace)
-            guard !spanText.isEmpty else { continue }
-            let spanX = span.x ?? (cursorX + span.dx)
-            let spanY = span.y ?? (cursorY + span.dy)
-            let layer = makeTextLayer(text: spanText, font: font, color: textColor, x: spanX, y: spanY, anchor: anchor)
-            container.addSublayer(layer)
-            cursorX = advances ? spanX + layer.bounds.width : spanX
-            cursorY = spanY
+        let texts = SVGTextTag.normalize(tspans.map { $0.text }, preserve: preserveSpace)
+        for (span, text) in zip(tspans, texts) {
+            guard !text.isEmpty else { continue }
+            let runStyle = span.style.map { sourceStyle.combine(child: $0) } ?? sourceStyle
+            guard let color = textColor(of: runStyle) else { continue }
+            let font = makeFont(from: runStyle)
+            let runX = span.x ?? (cursorX + span.dx)
+            let runY = span.y ?? (cursorY + span.dy)
+            let layer = makeTextLayer(text: text, font: font, color: color, x: runX, y: runY, anchor: anchor)
+            // A whitespace-only run draws nothing: keep it out of the tree but still advance.
+            if !text.allSatisfy({ $0.isWhitespace }) { container.addSublayer(layer) }
+            cursorX = advances ? runX + layer.bounds.width : runX
+            cursorY = runY
         }
 
         return container
     }
 
-    /// Collapses whitespace runs to a single space and trims (SVG's default `xml:space`
-    /// handling). `xml:space="preserve"` keeps the text as written (B106).
-    private static func normalize(_ text: String, preserve: Bool) -> String {
-        if preserve { return text }
-        return text.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+    /// `fill`: none hides the text (returns `nil`), currentColor resolves through `color`.
+    /// Gradients and patterns are not supported for text and degrade to the default black.
+    private func textColor(of style: SVGSourceStyleElement) -> UIColor? {
+        var textColor = UIColor.black
+        switch style.fill {
+        case .some(.none):
+            return nil
+        case .some(.currentColor):
+            textColor = style.color ?? .black
+        case .some(.color(let color)):
+            textColor = color
+        default:
+            break
+        }
+        if let fillOpacity = style.fillOpacity {
+            var alpha: CGFloat = 1
+            textColor.getRed(nil, green: nil, blue: nil, alpha: &alpha)
+            textColor = textColor.withAlphaComponent(alpha * min(max(fillOpacity, 0), 1))
+        }
+        return textColor
+    }
+
+    /// SVG's default `xml:space` handling over the whole element: newlines and tabs become
+    /// spaces, a run of spaces collapses to one — also across run boundaries — and the
+    /// text's leading and trailing space is dropped. `xml:space="preserve"` keeps the text
+    /// as written (B106).
+    private static func normalize(_ runs: [String], preserve: Bool) -> [String] {
+        if preserve { return runs }
+        var result: [String] = []
+        var previousEndedWithSpace = true  // swallows the leading space of the text
+        for run in runs {
+            var out = ""
+            for character in run {
+                if character.isWhitespace {
+                    if !previousEndedWithSpace { out.append(" "); previousEndedWithSpace = true }
+                } else {
+                    out.append(character)
+                    previousEndedWithSpace = false
+                }
+            }
+            result.append(out)
+        }
+        // Drop the trailing space of the whole text.
+        if let last = result.lastIndex(where: { !$0.isEmpty }), result[last].hasSuffix(" ") {
+            result[last].removeLast()
+        }
+        return result
     }
 
     /// Builds a positioned `CATextLayer` for a single text run, applying `text-anchor` alignment.
