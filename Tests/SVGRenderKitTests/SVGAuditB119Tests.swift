@@ -5,7 +5,7 @@ import XCTest
 ///
 /// Every test asserts the behaviour required by the SVG spec. A RED test = the audit finding is
 /// confirmed (the bug exists); a GREEN test = the finding is not reproduced. Tests are named
-/// `testB119_<item>_<what>`. The item numbers refer to the list in Task.md (B119).
+/// `testB119_<item>_<what>`. The item numbers refer to the B119 audit list.
 /// Nothing here is marked as an expected failure on purpose.
 @MainActor
 final class SVGAuditB119Tests: XCTestCase {
@@ -746,7 +746,7 @@ final class SVGAuditB119Tests: XCTestCase {
         // the pure first stop, and x − y = 40 holds the same colour as x = 40 of the same
         // gradient without the skew. The absolute mid-gradient value is deliberately not pinned:
         // it depends on the renderer's interpolation space (WebKit mixes stops in sRGB,
-        // CoreAnimation — and CoreSVG — in a wider space; see B121 in Task.md), while the
+        // CoreAnimation — and CoreSVG — in a wider space; see the rejected sRGB-interpolation experiment, B121), while the
         // geometry does not.
         let low = pixel(data, 50, 90)        // x − y = −40 → clamped to the first stop
         let high = pixel(data, 50, 10)       // x − y = 40
