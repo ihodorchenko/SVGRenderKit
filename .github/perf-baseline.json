@@ -1,0 +1,158 @@
+{
+  "testPerf_coldParse_gradientHeavy": {
+    "clock": 0.009,
+    "rsd": 26.166
+  },
+  "testPerf_coldParse_icon": {
+    "clock": 0.0,
+    "rsd": 59.468
+  },
+  "testPerf_coldParse_imageUse": {
+    "clock": 0.002,
+    "rsd": 16.856
+  },
+  "testPerf_coldParse_nestedClip": {
+    "clock": 0.008,
+    "rsd": 21.932
+  },
+  "testPerf_coldParse_pathHeavyMap": {
+    "clock": 0.026,
+    "rsd": 3.48
+  },
+  "testPerf_coldParse_patternAndMask": {
+    "clock": 0.003,
+    "rsd": 39.223
+  },
+  "testPerf_concurrentRender50_gradientHeavy": {
+    "clock": 2.488,
+    "rsd": 8.098
+  },
+  "testPerf_corpus_coldParse": {
+    "clock": 1.242,
+    "rsd": 110.486
+  },
+  "testPerf_corpus_getLayer": {
+    "clock": 1.925,
+    "rsd": 73.587
+  },
+  "testPerf_corpus_xmlOnly": {
+    "clock": 0.202,
+    "rsd": 46.913
+  },
+  "testPerf_feature_clipPath": {
+    "clock": 0.079,
+    "rsd": 24.115
+  },
+  "testPerf_feature_dropShadow": {
+    "clock": 0.171,
+    "rsd": 20.907
+  },
+  "testPerf_feature_groupOpacity": {
+    "clock": 0.103,
+    "rsd": 16.235
+  },
+  "testPerf_feature_linearGradient": {
+    "clock": 0.07,
+    "rsd": 20.188
+  },
+  "testPerf_feature_mask": {
+    "clock": 0.098,
+    "rsd": 12.539
+  },
+  "testPerf_feature_pattern": {
+    "clock": 0.011,
+    "rsd": 12.289
+  },
+  "testPerf_feature_radialGradient": {
+    "clock": 0.064,
+    "rsd": 7.62
+  },
+  "testPerf_feature_shapeOpacity": {
+    "clock": 0.093,
+    "rsd": 12.154
+  },
+  "testPerf_feature_solid": {
+    "clock": 0.008,
+    "rsd": 10.241
+  },
+  "testPerf_feature_stroke": {
+    "clock": 0.009,
+    "rsd": 6.148
+  },
+  "testPerf_getLayer_gradientHeavy": {
+    "clock": 0.002,
+    "rsd": 39.463
+  },
+  "testPerf_getLayer_icon": {
+    "clock": 0.0,
+    "rsd": 35.533
+  },
+  "testPerf_getLayer_imageUse": {
+    "clock": 0.003,
+    "rsd": 28.733
+  },
+  "testPerf_getLayer_nestedClip": {
+    "clock": 0.03,
+    "rsd": 6.435
+  },
+  "testPerf_getLayer_pathHeavyMap": {
+    "clock": 0.001,
+    "rsd": 4.914
+  },
+  "testPerf_getLayer_patternAndMask": {
+    "clock": 0.002,
+    "rsd": 19.056
+  },
+  "testPerf_isolate_pathDataOnly": {
+    "clock": 0.02,
+    "rsd": 16.656
+  },
+  "testPerf_isolate_xmlParseOnly": {
+    "clock": 0.002,
+    "rsd": 28.6
+  },
+  "testPerf_renderPNG_1x_gradientHeavy": {
+    "clock": 0.137,
+    "rsd": 9.323
+  },
+  "testPerf_renderPNG_1x_nestedClip": {
+    "clock": 0.205,
+    "rsd": 14.622
+  },
+  "testPerf_renderPNG_1x_pathHeavyMap": {
+    "clock": 2.347,
+    "rsd": 12.185
+  },
+  "testPerf_renderPNG_1x_patternAndMask": {
+    "clock": 0.098,
+    "rsd": 17.722
+  },
+  "testPerf_renderPNG_3x_gradientHeavy": {
+    "clock": 1.113,
+    "rsd": 15.315
+  },
+  "testPerf_renderPNG_3x_nestedClip": {
+    "clock": 0.873,
+    "rsd": 10.102
+  },
+  "testPerf_renderPNG_3x_pathHeavyMap": {
+    "clock": 29.462,
+    "rsd": 17.822
+  },
+  "testPerf_renderPNG_3x_patternAndMask": {
+    "clock": 0.341,
+    "rsd": 4.733
+  },
+  "testPerf_svgViewCreateAndLayout50": {
+    "clock": 0.22,
+    "rsd": 18.837
+  },
+  "testPerf_warmCacheHit_gradientHeavy": {
+    "clock": 0.013,
+    "rsd": 18.919
+  },
+  "testPerf_warmCacheHit_pathHeavyMap": {
+    "clock": 0.132,
+    "rsd": 15.561
+  }
+}
