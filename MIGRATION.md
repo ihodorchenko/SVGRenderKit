@@ -1,5 +1,40 @@
 # Migration guide
 
+## `open` → `public` for non-instantiable classes; `SVGBaseGradient` as an extension point (Unreleased)
+
+`SVGCache`, `SVGParser`, `SVGUtils` and `SVGTransform` changed from `open` to `public`. Their
+initializers are not accessible outside the module, so an external subclass could never be created or
+used by the library; in practice nothing breaks. The only source-breaking case is an external
+`class Foo: SVGUtils { override class func … }` (or an `override` of `SVGParser.getLayer`,
+`SVGCache.resetCache`) — remove the subclass and call the library's implementation, or wrap it in your
+own helper type.
+
+Everything else that was `open` is unchanged: `SVGView`, `SVGRoot`, `SVGOptions`,
+`SVGSourceStyleElement` and the tag classes (`SVGObject`, `SVGShape*`, `SVGGTag`, …) keep a public
+`init`, so they remain subclassable.
+
+`SVGBaseGradient` is the supported place to plug in a custom gradient. Subclass it, override
+`getGradientLayer(maskLayer:path:viewBox:currentColor:)` and read the now-public `stops`,
+`gradientUnits`, `spreadMethod` and `transform`:
+
+```swift
+import SVGRenderKit
+
+final class MyGradient: SVGBaseGradient {
+    override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect,
+                                   currentColor: UIColor = .black) -> CALayer? {
+        let layer = CAGradientLayer()
+        layer.frame = path.bounds
+        layer.colors = stops.map { $0.resolvedColor(currentColor: currentColor).cgColor }
+        layer.locations = stops.map { NSNumber(value: $0.offset) }
+        return layer
+    }
+}
+```
+
+If your subclass previously used `@testable import` to reach `stops`/`offset`/`stop_color`, switch to
+the public properties (they are get-only outside the module).
+
 ## Swift 5.9 and Swift 6.0 support (1.2.0)
 
 SVGRenderKit now builds in both the Swift 5 and the Swift 6 language mode

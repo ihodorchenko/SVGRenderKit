@@ -2,22 +2,28 @@ import UIKit
 
 /// Base class for SVG gradients, holding shared attributes and color stops.
 open class SVGBaseGradient: SVGChildObject {
-    enum GradientUnits: String {
+    /// The coordinate system of the gradient geometry (`gradientUnits`).
+    public enum GradientUnits: String {
         case userSpaceOnUse = "userSpaceOnUse"
         case objectBoundingBox = "objectBoundingBox"
     }
 
-    enum SVGSpreadMethod: String {
+    /// How the gradient fills beyond its end points (`spreadMethod`).
+    public enum SVGSpreadMethod: String {
         case pad = "pad"
         case reflect = "reflect"
         case `repeat` = "repeat"
     }
 
-    var stops: [SVGGradientStop] = []
-    var gradientUnits: GradientUnits = GradientUnits.objectBoundingBox
-    var spreadMethod: SVGSpreadMethod = SVGSpreadMethod.pad
+    /// The colour stops, in document order.
+    public internal(set) var stops: [SVGGradientStop] = []
+    /// The `gradientUnits` attribute (default `objectBoundingBox`).
+    public internal(set) var gradientUnits: GradientUnits = GradientUnits.objectBoundingBox
+    /// The `spreadMethod` attribute (default `pad`).
+    public internal(set) var spreadMethod: SVGSpreadMethod = SVGSpreadMethod.pad
 
-    var transform: CATransform3D?
+    /// The parsed `gradientTransform`, or `nil` when absent.
+    public internal(set) var transform: CATransform3D?
 
     /// Returns whether this gradient can be rendered. The base implementation returns false.
     public func isEnable() -> Bool {
@@ -268,14 +274,16 @@ open class RadialGradientLayer: CALayer {
 open class SVGGradientStop: SVGObject {
     class override var key: String { get { return "stop" }}
 
-    var offset: Float = 0
-    var stop_color: UIColor = UIColor.black
+    /// The stop position, `0...1` for well-formed documents.
+    public internal(set) var offset: Float = 0
+    /// The `stop-color` (without `stop-opacity`; see `resolvedColor(currentColor:)`).
+    public internal(set) var stop_color: UIColor = UIColor.black
     private(set) var stopColorString: String?
     private(set) var stopOpacity: CGFloat = 1
 
     /// Resolves the stop's final color, honoring `currentColor` (resolved against
     /// the referencing element's inherited `color`) and `stop-opacity`.
-    func resolvedColor(currentColor: UIColor) -> UIColor {
+    public func resolvedColor(currentColor: UIColor) -> UIColor {
         let base: UIColor
         if let raw = stopColorString, SVGUtils.trimmed(string: raw) == "currentColor" {
             base = currentColor

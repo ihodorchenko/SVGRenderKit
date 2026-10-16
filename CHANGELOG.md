@@ -5,6 +5,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+- `SVGCache`, `SVGParser`, `SVGUtils` and `SVGTransform` are now `public` instead of `open`. None of
+  them has an initializer reachable from outside the module (`SVGCache` is a singleton with a private
+  init, the others have internal or implicit-internal inits), so they could never be instantiated, and
+  their `open` members were never reachable through a subclass the library would use. For callers
+  this is not a source change: calling members, reading `SVGCache.s`, etc. is unchanged.
+  **Breaking only for** code that declared `class X: SVGUtils` / `SVGParser` / `SVGCache` /
+  `SVGTransform` and `override`s one of their members (`SVGUtils.trimmed`/`split`/`md5`/
+  `pathEndInfo`/`pathVertices`/`bisector`, `SVGParser.getLayer`, `SVGCache.resetCache`); the
+  library never dispatched through such a subclass, so the override had no effect.
+- `SVGBaseGradient` is a supported extension point: it stays `open` with its `public required
+  init(xmlElement:addDict:parent:)`, and what a subclass needs to implement `getGradientLayer` is now
+  public: `stops`, `gradientUnits`, `spreadMethod`, `transform` (read-only outside the module), the
+  `GradientUnits`/`SVGSpreadMethod` enums, and `SVGGradientStop.offset`/`stop_color`/
+  `resolvedColor(currentColor:)`. Covered by a test that builds a subclass without `@testable`.
+
 ## 1.3.1
 
 Performance release; there are no public API changes.
