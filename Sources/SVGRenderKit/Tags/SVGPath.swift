@@ -92,7 +92,7 @@ open class SVGShapeObject: SVGObject, SVGRendering {
         }
 
         for anim in animations {
-            anim.apply(to: mainLayer, pathLayer: pathLayer)
+            anim.apply(to: mainLayer, pathLayer: pathLayer, epoch: getSvgOptions()?.animationEpoch)
         }
 
         return mainLayer

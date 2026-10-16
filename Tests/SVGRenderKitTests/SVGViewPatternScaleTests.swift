@@ -69,4 +69,33 @@ final class SVGViewPatternScaleTests: XCTestCase {
         views.forEach { $0.svgString = plainSVG }
         waitUntil(10) { views.allSatisfy { $0.shapeLayer != nil } }
     }
+
+    // B131: a re-render of the same source (resize) must not restart the SMIL timeline.
+    func testReRenderKeepsAnimationBeginTime() {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">
+          <defs><pattern id="p" width="2" height="2" patternUnits="userSpaceOnUse"><rect width="1" height="1" fill="#f00"/></pattern></defs>
+          <rect width="10" height="10" fill="url(#p)"><animate attributeName="opacity" from="0" to="1" dur="5s"/></rect>
+        </svg>
+        """
+        func beginTime(_ layer: CALayer) -> CFTimeInterval? {
+            if let t = layer.animation(forKey: "opacity")?.beginTime { return t }
+            for sub in layer.sublayers ?? [] { if let t = beginTime(sub) { return t } }
+            return nil
+        }
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 300, height: 300))
+        let view = SVGView(frame: CGRect(x: 0, y: 0, width: 20, height: 20))
+        window.addSubview(view)
+        window.makeKeyAndVisible()
+        view.svgString = svg
+        waitUntil { view.renderedScale != nil }
+        let first = view.shapeLayer.flatMap(beginTime)
+        XCTAssertNotNil(first)
+        Thread.sleep(forTimeInterval: 0.3)
+
+        view.frame = CGRect(x: 0, y: 0, width: 200, height: 200)
+        view.layoutIfNeeded()
+        waitUntil { (view.renderedScale ?? 0) >= 19.9 }
+        XCTAssertEqual(view.shapeLayer.flatMap(beginTime) ?? 0, first ?? -1, accuracy: 1e-6)
+    }
 }

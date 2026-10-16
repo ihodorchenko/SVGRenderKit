@@ -60,6 +60,8 @@ open class SVGView: UIView {
     internal var _SVGName: String?
     /// The last requested source, replayed when the update notification fires.
     private var currentSource: LoadSource?
+    /// Host time the current source's SMIL timeline started; survives re-renders of the same source (B131).
+    private var animationEpoch: CFTimeInterval = CACurrentMediaTime()
 
     /// The name of a bundled SVG resource to render. Setting this property triggers parsing.
     @IBInspectable open var SVGName: String? {
@@ -221,14 +223,18 @@ open class SVGView: UIView {
     }
 
     /// Parses and renders the given source asynchronously, discarding stale results.
-    private func load(_ source: LoadSource, overrideElements: [String: SVGSourceStyleElement]?) {
+    private func load(_ source: LoadSource, overrideElements: [String: SVGSourceStyleElement]?, restartsAnimation: Bool = true) {
         // Reads `bounds`/`window` and owns `loadGeneration`: UIKit state is main-thread only,
         // so calls from other threads are marshalled onto the main queue.
         guard Thread.isMainThread else {
-            DispatchQueue.main.async { [weak self] in self?.load(source, overrideElements: overrideElements) }
+            DispatchQueue.main.async { [weak self] in
+                self?.load(source, overrideElements: overrideElements, restartsAnimation: restartsAnimation)
+            }
             return
         }
         currentSource = source
+        if restartsAnimation { animationEpoch = CACurrentMediaTime() }
+        let epoch = animationEpoch
         loadGeneration += 1
         let generation = loadGeneration
         let containerSize = bounds.size
@@ -267,6 +273,8 @@ open class SVGView: UIView {
                     options.renderScale = pointsPerUnit * outputScale
                 }
 
+                options.animationEpoch = epoch
+                defer { options.animationEpoch = nil }
                 let layer = try parser.getLayer(overrideElements: overrides.value)
                 let usesScaledPaint = options.usesPatterns || options.usesMasks
 
@@ -427,7 +435,7 @@ open class SVGView: UIView {
            viewBox.width > 0, viewBox.height > 0 {
             let needed = max(resolved.scaleX, resolved.scaleY)
             if renderedScale == nil || needed > (renderedScale ?? 0) * 1.5 {
-                load(source, overrideElements: overrideElements)
+                load(source, overrideElements: overrideElements, restartsAnimation: false)
             }
         }
     }

@@ -87,8 +87,9 @@ struct SVGAnimation {
         return nil
     }
 
-    /// Adds the animation to the appropriate layer.
-    func apply(to layer: CALayer, pathLayer: CAShapeLayer?) {
+    /// Adds the animation to the appropriate layer. `epoch` is the host time the document's
+    /// timeline started at (`begin` is relative to it); `nil` means "now".
+    func apply(to layer: CALayer, pathLayer: CAShapeLayer?, epoch: CFTimeInterval? = nil) {
         let targetLayer: CALayer
         let keyPath: String
         switch kind {
@@ -105,18 +106,15 @@ struct SVGAnimation {
         }
 
         let animation: CAAnimation
-        if values.count == 2, case .transform(let type) = kind, type == "rotate",
-           let a = Self.rotateParameters(values[0]), let b = Self.rotateParameters(values[1]),
-           abs(b.angle - a.angle) > 180 {
-            // A rotation is interpolated as a matrix, so a sweep past half a turn takes
-            // the short way round, and a whole turn (0 → 360) maps to the same matrix at
-            // both ends and would not move at all. Subdivide it into keyframes (B103).
-            let steps = max(2, Int((abs(b.angle - a.angle) / 120).rounded(.up)))
+        if case .transform(let type) = kind, Self.interpolatesAngle(type),
+           let sampled = Self.sampledTransformKeyframes(type: type, values: values, keyTimes: keyTimes) {
+            // Core Animation interpolates a transform by decomposing the two matrices, so a
+            // large angular step cuts the corner: the pivot drifts off its circle, ≥180° is
+            // ambiguous and a whole turn maps to the same matrix at both ends. Sampling the
+            // sweep in small steps keeps the trajectory on the circle (B103, B131).
             let keyframe = CAKeyframeAnimation(keyPath: keyPath)
-            keyframe.values = (0...steps).map { step -> NSValue in
-                let angle = a.angle + (b.angle - a.angle) * CGFloat(step) / CGFloat(steps)
-                return NSValue(caTransform3D: Self.rotateTransform(angle: angle, center: a.center))
-            }
+            keyframe.values = sampled.matrices.map { NSValue(caTransform3D: $0) }
+            keyframe.keyTimes = sampled.times.map { NSNumber(value: $0) }
             animation = keyframe
         } else if values.count == 2 {
             let basic = CABasicAnimation(keyPath: keyPath)
@@ -133,8 +131,59 @@ struct SVGAnimation {
         }
         animation.duration = duration
         animation.repeatCount = repeatCount
-        animation.beginTime = CACurrentMediaTime() + begin
+        animation.beginTime = (epoch ?? CACurrentMediaTime()) + begin
         targetLayer.add(animation, forKey: keyPath)
+    }
+
+    /// The largest angular step, in degrees, between two sampled keyframes.
+    static let maxAngleStep: CGFloat = 15
+
+    private static func interpolatesAngle(_ type: String) -> Bool {
+        type == "rotate" || type == "skewX" || type == "skewY"
+    }
+
+    /// Splits an angular animation (`rotate`, `skewX`, `skewY`) into keyframes at most
+    /// `maxAngleStep` degrees apart. Every value contributes its own angle and centre, which
+    /// are interpolated component-wise as SMIL prescribes, honouring `keyTimes`.
+    static func sampledTransformKeyframes(type: String, values: [String], keyTimes: [Double]?)
+        -> (times: [Double], matrices: [CATransform3D])? {
+        let parsed = values.map { parseNumbers($0) }
+        guard parsed.count >= 2, parsed.allSatisfy({ !$0.isEmpty }) else { return nil }
+
+        var segmentTimes = (0..<parsed.count).map { Double($0) / Double(parsed.count - 1) }
+        if let keyTimes = keyTimes, keyTimes.count == parsed.count, keyTimes.first == 0, keyTimes.last == 1,
+           zip(keyTimes, keyTimes.dropFirst()).allSatisfy({ $0 <= $1 }) {
+            segmentTimes = keyTimes
+        }
+
+        func padded(_ numbers: [CGFloat]) -> [CGFloat] {
+            numbers + [CGFloat](repeating: 0, count: max(0, 3 - numbers.count))
+        }
+        func matrix(_ n: [CGFloat]) -> CATransform3D {
+            type == "rotate" ? rotateTransform(angle: n[0], center: CGPoint(x: n[1], y: n[2]))
+                : skewTransform(type: type, angle: n[0])
+        }
+
+        var times = [segmentTimes[0]]
+        var matrices = [matrix(padded(parsed[0]))]
+        for i in 0..<(parsed.count - 1) {
+            let from = padded(parsed[i]), to = padded(parsed[i + 1])
+            let steps = max(1, Int((abs(to[0] - from[0]) / maxAngleStep).rounded(.up)))
+            for step in 1...steps {
+                let f = CGFloat(step) / CGFloat(steps)
+                let n = zip(from, to).map { $0 + ($1 - $0) * f }
+                times.append(segmentTimes[i] + (segmentTimes[i + 1] - segmentTimes[i]) * Double(f))
+                matrices.append(matrix(n))
+            }
+        }
+        return (times, matrices)
+    }
+
+    private static func skewTransform(type: String, angle: CGFloat) -> CATransform3D {
+        var transform = CATransform3DIdentity
+        let shear = tan(angle * .pi / 180)
+        if type == "skewX" { transform.m21 = shear } else { transform.m12 = shear }
+        return transform
     }
 
     private func applySet(to layer: CALayer, pathLayer: CAShapeLayer?, value: String) {
@@ -170,15 +219,6 @@ struct SVGAnimation {
             .map { CGFloat($0) }
     }
 
-    /// A `rotate` value: the angle in degrees plus the optional centre (`angle cx cy`).
-    private static func rotateParameters(_ string: String) -> (angle: CGFloat, center: CGPoint)? {
-        let numbers = parseNumbers(string)
-        guard let angle = numbers.first else { return nil }
-        let cx = numbers.count > 1 ? numbers[1] : 0
-        let cy = numbers.count > 2 ? numbers[2] : 0
-        return (angle, CGPoint(x: cx, y: cy))
-    }
-
     /// The matrix for a `rotate` of `angle` degrees about `center` (its own space).
     private static func rotateTransform(angle: CGFloat, center: CGPoint) -> CATransform3D {
         // The `CATransform3D*` helpers post-multiply, so the last call is applied to the
@@ -206,6 +246,9 @@ struct SVGAnimation {
             let tx = values.count > 0 ? values[0] : 0
             let ty = values.count > 1 ? values[1] : 0
             return CATransform3DMakeTranslation(tx, ty, 0)
+        case "skewX", "skewY":
+            guard let angle = values.first else { return nil }
+            return skewTransform(type: type, angle: angle)
         case "scale":
             let sx = values.count > 0 ? values[0] : 1
             let sy = values.count > 1 ? values[1] : sx

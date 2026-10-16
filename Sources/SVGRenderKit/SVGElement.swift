@@ -116,6 +116,11 @@ open class SVGOptions {
     /// `usesPatterns`: a mask bitmap is stretched by the view transform too (B119-6).
     var usesMasks = false
 
+    /// Host time at which the document's SMIL timeline started; `begin` is relative to it.
+    /// `nil` means "now", i.e. the moment the layers are built. `SVGView` keeps the epoch
+    /// across re-renders of the same source so an animation does not restart on resize (B131).
+    var animationEpoch: CFTimeInterval?
+
     /// The `version` attribute of the root `<svg>` element (e.g. `"1.1"`).
     var version: String?
     /// The `baseProfile` attribute of the root `<svg>` element (e.g. `"tiny"`).

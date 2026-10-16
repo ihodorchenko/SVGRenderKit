@@ -155,8 +155,9 @@ final class SVGAnimationTests: XCTestCase {
         """
         let parser = try SVGParser(svgString: svg, parsedRoot: nil)
         let layer = try parser.getLayer(overrideElements: nil)
-        let basic = try XCTUnwrap(try transformAnimation(in: layer) as? CABasicAnimation)
-        let to = try XCTUnwrap(transformValue(basic.toValue))
+        // Rotations are sampled into small steps (B131), so the end state is the last keyframe.
+        let keyframe = try XCTUnwrap(try transformAnimation(in: layer) as? CAKeyframeAnimation)
+        let to = try XCTUnwrap(transformValue(keyframe.values?.last))
         // 180° about (12, 12): the origin maps to (24, 24).
         let point = CGPoint(x: 0, y: 0).applying(CATransform3DGetAffineTransform(to))
         XCTAssertEqual(point.x, 24, accuracy: 1e-4)
