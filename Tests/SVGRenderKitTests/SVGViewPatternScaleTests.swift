@@ -88,14 +88,16 @@ final class SVGViewPatternScaleTests: XCTestCase {
         window.addSubview(view)
         window.makeKeyAndVisible()
         view.svgString = svg
-        waitUntil { view.renderedScale != nil }
+        // The layers are attached a beat after `renderedScale` is set, so wait for the animation itself
+        // (a slow CI runner read `nil` here).
+        waitUntil { view.renderedScale != nil && view.shapeLayer.flatMap(beginTime) != nil }
         let first = view.shapeLayer.flatMap(beginTime)
         XCTAssertNotNil(first)
         Thread.sleep(forTimeInterval: 0.3)
 
         view.frame = CGRect(x: 0, y: 0, width: 200, height: 200)
         view.layoutIfNeeded()
-        waitUntil { (view.renderedScale ?? 0) >= 19.9 }
+        waitUntil { (view.renderedScale ?? 0) >= 19.9 && view.shapeLayer.flatMap(beginTime) != nil }
         XCTAssertEqual(view.shapeLayer.flatMap(beginTime) ?? 0, first ?? -1, accuracy: 1e-6)
     }
 }
