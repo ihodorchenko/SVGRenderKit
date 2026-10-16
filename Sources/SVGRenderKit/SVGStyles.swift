@@ -598,35 +598,7 @@ extension SVGSourceStyleElement {
             try applyStrokeReference(iri, fallback: fallback, mainLayer: mainLayer, path: path, pathLayer: pathLayer, viewBox: strokeViewBox, group: group, width: resolvedStrokeWidth, opacity: strokeOpacity)
         }
 
-        if let strokeLinecap = self.strokeLinecap {
-            switch strokeLinecap {
-            case .butt:
-                pathLayer.lineCap = .butt
-            case .round:
-                pathLayer.lineCap = .round
-            case .square:
-                pathLayer.lineCap = .square
-            }
-        }
-        if let strokeLinejoin = self.strokeLinejoin {
-            switch strokeLinejoin {
-            case .miter:
-                pathLayer.lineJoin = .miter
-            case .round:
-                pathLayer.lineJoin = .round
-            case .bevel:
-                pathLayer.lineJoin = .bevel
-            }
-        }
-        // The SVG default is 4; leaving the attribute unset must not keep CALayer's own default
-        // (10) in place, or sharp corners grow miter spikes that browsers cut off (B123).
-        pathLayer.miterLimit = strokeMiterlimit ?? 4
-        if let strokeDasharray = self.strokeDasharray {
-            pathLayer.lineDashPattern = strokeDasharray.map { NSNumber(value: Double($0)) }
-        }
-        if let strokeDashoffset = self.strokeDashoffset {
-            pathLayer.lineDashPhase = strokeDashoffset
-        }
+        applyStrokeGeometry(to: pathLayer)
 
         var clipMaskLayer: CALayer?
         if let clipPath = clipPath {
@@ -764,6 +736,70 @@ extension SVGSourceStyleElement {
         } else {
             pathLayer.fillColor = color.cgColor
         }
+    }
+
+    /// `stroke-linecap`/`-linejoin`/`-miterlimit`/`-dasharray`/`-dashoffset` of a stroked layer.
+    private func applyStrokeGeometry(to pathLayer: CAShapeLayer) {
+        if let strokeLinecap = self.strokeLinecap {
+            switch strokeLinecap {
+            case .butt:
+                pathLayer.lineCap = .butt
+            case .round:
+                pathLayer.lineCap = .round
+            case .square:
+                pathLayer.lineCap = .square
+            }
+        }
+        if let strokeLinejoin = self.strokeLinejoin {
+            switch strokeLinejoin {
+            case .miter:
+                pathLayer.lineJoin = .miter
+            case .round:
+                pathLayer.lineJoin = .round
+            case .bevel:
+                pathLayer.lineJoin = .bevel
+            }
+        }
+        // The SVG default is 4; leaving the attribute unset must not keep CALayer's own default
+        // (10) in place, or sharp corners grow miter spikes that browsers cut off (B123).
+        pathLayer.miterLimit = strokeMiterlimit ?? 4
+        if let strokeDasharray = self.strokeDasharray {
+            pathLayer.lineDashPattern = strokeDasharray.map { NSNumber(value: Double($0)) }
+        }
+        if let strokeDashoffset = self.strokeDashoffset {
+            pathLayer.lineDashPhase = strokeDashoffset
+        }
+    }
+
+    /// Whether `stroke` is set to anything but `none`.
+    var hasStrokePaint: Bool {
+        guard let stroke = stroke else { return false }
+        if case .none = stroke { return false }
+        return true
+    }
+
+    /// Strokes a glyph-outline layer of `<text>` with this style: solid colors only, so a
+    /// gradient or pattern `stroke` degrades to its fallback color (or no stroke). Returns
+    /// whether anything is stroked.
+    func applyTextStroke(to pathLayer: CAShapeLayer, viewBox: CGRect) -> Bool {
+        let width = strokeWidthPixels(viewBox: viewBox)
+        let opacity = min(max(strokeOpacity ?? 1, 0), 1)
+        pathLayer.fillColor = nil
+        switch stroke ?? .none {
+        case .none:
+            return false
+        case .currentColor:
+            applyStrokeColor(color ?? .black, to: pathLayer, width: width, opacity: opacity)
+        case .color(let color):
+            applyStrokeColor(color, to: pathLayer, width: width, opacity: opacity)
+        case .funcIRI:
+            applyStrokeFallback(nil, to: pathLayer, width: width, opacity: opacity)
+        case .funcIRIWithFallback(_, let fallback):
+            applyStrokeFallback(fallback, to: pathLayer, width: width, opacity: opacity)
+        }
+        guard pathLayer.strokeColor != nil, width > 0 else { return false }
+        applyStrokeGeometry(to: pathLayer)
+        return true
     }
 
     /// Paints the stroke with a solid color, honouring `stroke-opacity`.

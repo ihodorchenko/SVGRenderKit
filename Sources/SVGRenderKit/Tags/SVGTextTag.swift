@@ -83,10 +83,6 @@ open class SVGTextTag: SVGShapeObject {
         // The glyph bitmap is rasterized at `renderScale`, so a resize must rebuild the layers.
         parent.getSvgOptions().usesMasks = true
 
-        if let opacity = sourceStyle.opacity {
-            container.opacity = opacity
-        }
-
         // Current text position: each run continues where the previous one ended, so a
         // `<tspan>` with only `dx`/`dy` follows the preceding text (start-anchored text only).
         var cursorX = x
@@ -98,16 +94,32 @@ open class SVGTextTag: SVGShapeObject {
         for (span, text) in zip(tspans, texts) {
             guard !text.isEmpty else { continue }
             let runStyle = span.style.map { sourceStyle.combine(child: $0) } ?? sourceStyle
-            guard let color = textColor(of: runStyle) else { continue }
+            let hasStroke = runStyle.hasStrokePaint
+            // `fill="none"` hides the fill, but a stroked run must still be drawn.
+            guard let color = textColor(of: runStyle) ?? (hasStroke ? .clear : nil) else { continue }
             let font = makeFont(from: runStyle)
             let runX = span.x ?? (cursorX + span.dx)
             let runY = span.y ?? (cursorY + span.dy)
-            let layer = makeTextLayer(text: text, font: font, color: color, x: runX, y: runY, anchor: anchor)
+            let layer = makeTextLayer(text: text, font: font, color: color, x: runX, y: runY, anchor: anchor, stroke: runStyle)
             // A whitespace-only run draws nothing: keep it out of the tree but still advance.
             if !text.allSatisfy({ $0.isWhitespace }) { container.addSublayer(layer) }
             cursorX = advances ? runX + layer.bounds.width : runX
             cursorY = runY
         }
+
+        // `opacity`, `clip-path`, `mask` and `filter` composite the whole text (B136).
+        let maskScale = (transform?.svgScaleFactor ?? 1) * ((parent as? SVGGroupObject)?.accumulatedScale() ?? 1)
+        let bbox = (container.sublayers ?? []).reduce(CGRect.null) { $0.union($1.frame) }
+        if sourceStyle.clipPath != nil || sourceStyle.mask != nil || sourceStyle.filter != nil {
+            // A bare container has zero bounds, and a mask or filter renders into a buffer of
+            // that size — everything would vanish. Cover the viewport and the text, keeping the
+            // children's coordinates (bounds origin = layer position, anchor top-left).
+            let area = bbox.isNull ? parent.getSvgOptions().viewBox : bbox.union(parent.getSvgOptions().viewBox)
+            container.anchorPoint = .zero
+            container.bounds = area
+            container.position = area.origin
+        }
+        try sourceStyle.applyGroupComposite(to: container, bbox: bbox.isNull ? .zero : bbox, container: parent, overrideElements: overrideElements, maskScale: maskScale)
 
         return container
     }
@@ -162,7 +174,7 @@ open class SVGTextTag: SVGShapeObject {
     }
 
     /// Builds a positioned `CATextLayer` for a single text run, applying `text-anchor` alignment.
-    private func makeTextLayer(text: String, font: UIFont, color: UIColor, x: CGFloat, y: CGFloat, anchor: String) -> CATextLayer {
+    private func makeTextLayer(text: String, font: UIFont, color: UIColor, x: CGFloat, y: CGFloat, anchor: String, stroke: SVGSourceStyleElement) -> CATextLayer {
         let textLayer = CATextLayer()
         let attributedString = NSAttributedString(string: text, attributes: [
             .font: font,
@@ -181,6 +193,8 @@ open class SVGTextTag: SVGShapeObject {
         // Anchor at the top-left so the `transform` translation below places the
         // text origin (and its baseline) precisely, instead of its center.
         textLayer.anchorPoint = CGPoint(x: 0, y: 0)
+
+        addStrokeLayer(to: textLayer, text: attributedString, ascender: font.ascender, style: stroke)
 
         var offsetX: CGFloat = 0
         switch anchor {
@@ -208,6 +222,34 @@ open class SVGTextTag: SVGShapeObject {
         }
 
         return textLayer
+    }
+
+    /// `CATextLayer` cannot stroke, so a stroked run gets a sublayer carrying the glyph outlines
+    /// (laid out by the same Core Text line, baseline `ascender` below the layer's top) on top
+    /// of the fill. Width and dashes live in the layer's own space, so they scale with it.
+    private func addStrokeLayer(to textLayer: CATextLayer, text: NSAttributedString, ascender: CGFloat, style: SVGSourceStyleElement) {
+        guard style.hasStrokePaint else { return }
+        let outline = CGMutablePath()
+        let line = CTLineCreateWithAttributedString(text)
+        for run in CTLineGetGlyphRuns(line) as? [CTRun] ?? [] {
+            let attributes = CTRunGetAttributes(run) as NSDictionary
+            guard let runFont = attributes[kCTFontAttributeName as String] else { continue }
+            let font = runFont as! CTFont
+            let count = CTRunGetGlyphCount(run)
+            var glyphs = [CGGlyph](repeating: 0, count: count)
+            var positions = [CGPoint](repeating: .zero, count: count)
+            CTRunGetGlyphs(run, CFRange(location: 0, length: count), &glyphs)
+            CTRunGetPositions(run, CFRange(location: 0, length: count), &positions)
+            for (glyph, position) in zip(glyphs, positions) {
+                guard let path = CTFontCreatePathForGlyph(font, glyph, nil) else { continue }
+                outline.addPath(path, transform: CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: position.x, ty: ascender - position.y))
+            }
+        }
+        let strokeLayer = CAShapeLayer()
+        guard style.applyTextStroke(to: strokeLayer, viewBox: parent.getSvgOptions().viewBox) else { return }
+        strokeLayer.path = outline
+        strokeLayer.frame = textLayer.bounds
+        textLayer.addSublayer(strokeLayer)
     }
 
     private struct FontKey: Hashable {

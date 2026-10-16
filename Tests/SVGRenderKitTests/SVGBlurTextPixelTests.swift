@@ -75,21 +75,124 @@ final class SVGBlurTextPixelTests: XCTestCase {
         return n
     }
 
-    // FINDING (B117): `<text>` has no stroke support at all — stroke attributes are ignored.
-    // Recorded as an expected failure so the suite documents it; remove the wrapper when fixed.
+    // B136: `<text>` stroke (solid colours; gradient/pattern stroke degrades to its fallback).
     func testTextStrokeAttributesPaintAnOutline() throws {
-        XCTExpectFailure("text stroke is not implemented")
         let d = try render("<text x=\"10\" y=\"70\" font-size=\"60\" font-family=\"Helvetica\" fill=\"none\" stroke=\"#f00\" stroke-width=\"3\">H</text>")
         XCTAssertGreaterThan(redPixels(d), 40, "stroke on <text> must be painted")
     }
 
     func testTextFillStillPaintedWithStroke() throws {
-        XCTExpectFailure("text stroke is not implemented (the fill assertion below still holds)", strict: false)
         let d = try render("<text x=\"10\" y=\"70\" font-size=\"60\" font-family=\"Helvetica\" fill=\"#00f\" stroke=\"#f00\" stroke-width=\"2\">H</text>")
         var blue = 0
         for y in 0..<size { for x in 0..<size { let p = px(d, x, y); if p.b > 180 && p.r < 80 && p.a > 150 { blue += 1 } } }
         XCTAssertGreaterThan(blue, 40, "fill must paint")
         XCTAssertGreaterThan(redPixels(d), 20, "stroke must paint over the glyph edge")
+    }
+
+    // MARK: text stroke / compositing (B136)
+
+    private let H = "x=\"10\" y=\"70\" font-size=\"60\" font-family=\"Helvetica\""
+    private typealias Pixel = (r: Int, g: Int, b: Int, a: Int)
+    private func count(_ d: [UInt8], _ match: (Pixel) -> Bool) -> Int {
+        var n = 0
+        for y in 0..<size { for x in 0..<size where match(px(d, x, y)) { n += 1 } }
+        return n
+    }
+    private let isRed: (Pixel) -> Bool = { $0.r > 180 && $0.g < 80 && $0.b < 80 && $0.a > 150 }
+    private let isBlue: (Pixel) -> Bool = { $0.b > 180 && $0.r < 80 && $0.g < 80 && $0.a > 150 }
+    private let isBlack: (Pixel) -> Bool = { $0.r < 60 && $0.g < 60 && $0.b < 60 && $0.a > 200 }
+
+    func testStrokeLiesOutsideTheFillEdge() throws {
+        let fillOnly = try render("<text \(H) fill=\"#00f\">H</text>")
+        let stroked = try render("<text \(H) fill=\"#00f\" stroke=\"#f00\" stroke-width=\"6\">H</text>")
+        let bounds = try XCTUnwrap(region(fillOnly, where: isBlue))
+        let strokedBounds = try XCTUnwrap(region(stroked, where: { self.isRed($0) || self.isBlue($0) }))
+        // half the stroke width (3px) pokes outside the glyph on every side
+        XCTAssertGreaterThan(strokedBounds.width, bounds.width + 3)
+        XCTAssertGreaterThan(strokedBounds.height, bounds.height + 3)
+        XCTAssertEqual(count(stroked, isRed) > 100, true)
+    }
+
+    func testStrokeWithoutFillPaintsOnlyOutline() throws {
+        let d = try render("<text \(H) fill=\"none\" stroke=\"#f00\" stroke-width=\"2\">H</text>")
+        XCTAssertGreaterThan(count(d, isRed), 40)
+        XCTAssertEqual(count(d, isBlue), 0)
+        // centre of the H's left stem is hollow-ish: far fewer pixels than a filled glyph would give
+        let filled = try render("<text \(H) fill=\"#f00\">H</text>")
+        XCTAssertLessThan(count(d, isRed), count(filled, isRed))
+    }
+
+    func testStrokeOpacityFadesOutline() throws {
+        let d = try render("<text \(H) fill=\"none\" stroke=\"#f00\" stroke-width=\"4\" stroke-opacity=\"0.4\">H</text>")
+        XCTAssertEqual(count(d, isRed), 0, "no fully red pixels at 40% opacity")
+        XCTAssertGreaterThan(count(d, { $0.r > 0 && $0.a > 60 && $0.a < 140 }), 40)
+    }
+
+    func testStrokeDashedOutlineHasLessInkThanSolid() throws {
+        let solid = try render("<text \(H) fill=\"none\" stroke=\"#f00\" stroke-width=\"3\">H</text>")
+        let dashed = try render("<text \(H) fill=\"none\" stroke=\"#f00\" stroke-width=\"3\" stroke-dasharray=\"6 6\">H</text>")
+        XCTAssertGreaterThan(count(dashed, isRed), 20)
+        XCTAssertLessThan(count(dashed, isRed), count(solid, isRed) * 3 / 4)
+    }
+
+    func testStrokeLinejoinChangesCornerShape() throws {
+        let miter = try render("<text \(H) fill=\"none\" stroke=\"#f00\" stroke-width=\"10\" stroke-linejoin=\"miter\">H</text>")
+        let round = try render("<text \(H) fill=\"none\" stroke=\"#f00\" stroke-width=\"10\" stroke-linejoin=\"round\">H</text>")
+        XCTAssertGreaterThan(count(miter, isRed), count(round, isRed), "round joins cut off the miter corners")
+    }
+
+    func testTspanOverridesAndInheritsStroke() throws {
+        let d = try render("<text x=\"5\" y=\"60\" font-size=\"40\" font-family=\"Helvetica\" fill=\"none\" stroke=\"#f00\" stroke-width=\"2\">A<tspan stroke=\"#00f\" dx=\"10\">B</tspan></text>")
+        let red = try XCTUnwrap(region(d, where: isRed), "text stroke inherited by the plain run")
+        let blue = try XCTUnwrap(region(d, where: isBlue), "tspan overrides the stroke colour")
+        XCTAssertLessThan(red.minX, blue.minX)
+    }
+
+    func testStrokeWidthScalesWithTheViewBox() throws {
+        // the same viewBox rendered into a 2x bitmap: stroke pixels grow ~4x
+        let body = "<text \(H) fill=\"none\" stroke=\"#f00\" stroke-width=\"3\">H</text>"
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\" width=\"200\" height=\"200\">\(body)</svg>"
+        let layer = try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil)
+        let small = try render(body)
+        let big = 200
+        var data = [UInt8](repeating: 0, count: big * big * 4)
+        let ctx = try XCTUnwrap(CGContext(data: &data, width: big, height: big, bitsPerComponent: 8, bytesPerRow: big * 4,
+                                          space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        ctx.translateBy(x: 0, y: CGFloat(big)); ctx.scaleBy(x: 2, y: -2)
+        layer.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
+        layer.render(in: ctx)
+        var n = 0
+        for i in stride(from: 0, to: data.count, by: 4) where data[i] > 180 && data[i + 1] < 80 && data[i + 2] < 80 && data[i + 3] > 150 { n += 1 }
+        let ratio = Double(n) / Double(max(1, count(small, isRed)))
+        XCTAssertEqual(ratio, 4, accuracy: 1.2, "stroke thickens with the glyphs")
+    }
+
+    func testOpacityOnText() throws {
+        let d = try render("<text \(H) fill=\"#000\" opacity=\"0.5\">H</text>")
+        XCTAssertEqual(count(d, isBlack), 0)
+        XCTAssertGreaterThan(count(d, { $0.a > 100 && $0.a < 150 }), 40)
+    }
+
+    func testClipPathOnText() throws {
+        let d = try render("<defs><clipPath id=\"c\"><rect x=\"0\" y=\"0\" width=\"60\" height=\"100\"/></clipPath></defs><text \(H) fill=\"#000\" clip-path=\"url(#c)\">HH</text>")
+        let plain = try render("<text \(H) fill=\"#000\">HH</text>")
+        let r = try XCTUnwrap(region(d, where: { $0.a > 100 }), "clipped text must still paint its visible part")
+        XCTAssertLessThanOrEqual(r.maxX, 61)
+        XCTAssertGreaterThan(try XCTUnwrap(region(plain, where: { $0.a > 100 })).maxX, 70, "unclipped text extends past the clip")
+    }
+
+    func testMaskOnText() throws {
+        let d = try render("<defs><mask id=\"m\"><rect x=\"0\" y=\"0\" width=\"60\" height=\"100\" fill=\"#fff\"/></mask></defs><text \(H) fill=\"#000\" mask=\"url(#m)\">HH</text>")
+        let r = try XCTUnwrap(region(d, where: { $0.a > 100 }), "masked text must still paint its visible part")
+        XCTAssertLessThanOrEqual(r.maxX, 61)
+    }
+
+    func testFilterOnText() throws {
+        let plain = try render("<text \(H) fill=\"#000\">H</text>")
+        let d = try render("<defs><filter id=\"f\" x=\"-50%\" y=\"-50%\" width=\"200%\" height=\"200%\"><feGaussianBlur stdDeviation=\"3\"/></filter></defs><text \(H) fill=\"#000\" filter=\"url(#f)\">H</text>")
+        XCTAssertGreaterThan(count(d, { $0.a > 5 }), 40, "blurred text must still paint")
+        XCTAssertLessThan(count(d, isBlack), count(plain, isBlack) / 2, "blur softens the glyphs")
+        XCTAssertGreaterThan(count(d, { $0.a > 5 }), count(plain, { $0.a > 5 }), "blur bleeds beyond the glyph")
     }
 
     private func region(_ d: [UInt8], where match: ((r: Int, g: Int, b: Int, a: Int)) -> Bool) -> CGRect? {
