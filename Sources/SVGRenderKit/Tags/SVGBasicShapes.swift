@@ -239,23 +239,7 @@ open class SVGShapePolyline: SVGShapeObject {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         if let str = attributeDict["points"] {
-            let charSet = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ","))
-            let arr = SVGUtils.split(string: str, separatorSet: charSet)
-            // SVG 2: an odd trailing coordinate is dropped, the rest of the pairs render (B119-5).
-            var index: Int = 0
-            while index + 1 < arr.count {
-                if let x = Double(arr[index]), let y = Double(arr[index + 1]) {
-                    points.append(CGPoint(x: x, y: y))
-                } else {
-                    throw SVGError.parseError(text: "invalid convert point '\(arr[index]):\(arr[index + 1])' to float in tag 'polyline'")
-                }
-                index += 2
-            }
-            // Fewer than two points is unusable geometry: there is nothing to draw, so the
-            // element is skipped with a log like any other (B85).
-            guard points.count > 1 else {
-                throw SVGError.parseError(text: "'points' has fewer than two complete pairs in tag 'polyline'")
-            }
+            points = try SVGShapePoints.parse(str, tag: "polyline")
         }
 
         if points.count > 1 {
@@ -280,23 +264,7 @@ open class SVGShapePolygon: SVGShapeObject {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         if let str = attributeDict["points"] {
-            let charSet = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ","))
-            let arr = SVGUtils.split(string: str, separatorSet: charSet)
-            // SVG 2: an odd trailing coordinate is dropped, the rest of the pairs render (B119-5).
-            var index: Int = 0
-            while index + 1 < arr.count {
-                if let x = Double(arr[index]), let y = Double(arr[index + 1]) {
-                    points.append(CGPoint(x: x, y: y))
-                } else {
-                    throw SVGError.parseError(text: "invalid convert point '\(arr[index]):\(arr[index + 1])' to float in tag 'polygon'")
-                }
-                index += 2
-            }
-            // Fewer than two points is unusable geometry: there is nothing to draw, so the
-            // element is skipped with a log like any other (B85).
-            guard points.count > 1 else {
-                throw SVGError.parseError(text: "'points' has fewer than two complete pairs in tag 'polygon'")
-            }
+            points = try SVGShapePoints.parse(str, tag: "polygon")
         }
 
         if points.count > 1 {
@@ -310,4 +278,29 @@ open class SVGShapePolygon: SVGShapeObject {
         }
     }
 
+}
+
+/// Parses the `points` attribute shared by `<polyline>` and `<polygon>`.
+enum SVGShapePoints {
+    static func parse(_ string: String, tag: String) throws -> [CGPoint] {
+        let charSet = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ","))
+        let arr = SVGUtils.split(string: string, separatorSet: charSet)
+        var points: [CGPoint] = []
+        // SVG 2: an odd trailing coordinate is dropped, the rest of the pairs render (B119-5).
+        var index: Int = 0
+        while index + 1 < arr.count {
+            if let x = Double(arr[index]), let y = Double(arr[index + 1]) {
+                points.append(CGPoint(x: x, y: y))
+            } else {
+                throw SVGError.parseError(text: "invalid convert point '\(arr[index]):\(arr[index + 1])' to float in tag '\(tag)'")
+            }
+            index += 2
+        }
+        // Fewer than two points is unusable geometry: there is nothing to draw, so the
+        // element is skipped with a log like any other (B85).
+        guard points.count > 1 else {
+            throw SVGError.parseError(text: "'points' has fewer than two complete pairs in tag '\(tag)'")
+        }
+        return points
+    }
 }

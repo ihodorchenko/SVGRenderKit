@@ -30,31 +30,7 @@ open class SVGRadialGradientTag: SVGBaseGradient {
 
     override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, boundingBox: CGRect?, viewBox: CGRect, currentColor: UIColor) -> CALayer? {
         resolveHref()
-        var colors: [CGColor] = []
-        var locations: [CGFloat] = []
-
-        // Sort only when needed: the gradient is shared by cached trees, so an unconditional
-        // in-place sort would both waste work and write shared state on every use.
-        if !stops.isSortedByOffset {
-            stops.sort { (f, s) -> Bool in
-                return f.offset < s.offset
-            }
-        }
-        for stop in stops {
-            // SVG 1.1 clamps stop offsets to [0, 1] rather than failing the gradient.
-            let offset = max(0, min(1, stop.offset))
-            locations.append(CGFloat(offset))
-            colors.append(stop.resolvedColor(currentColor: currentColor).cgColor)
-        }
-        // A single stop renders as a solid color; duplicate it so the gradient
-        // layer has a valid two-stop gradient.
-        if colors.count == 1 {
-            colors.append(colors[0])
-            locations.append(1)
-        }
-        let spread = spreadAdjusted(colors: colors, locations: locations)
-        colors = spread.colors
-        locations = spread.locations
+        let (colors, locations) = renderStops(currentColor: currentColor)
 
         guard colors.count == locations.count, locations.count > 1 else { return nil }
 
