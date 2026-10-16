@@ -7,12 +7,19 @@ open class SVGParser {
 
     private var xmlParser: XMLIndexer?
     
+    private static func checkInputSize(_ bytes: Int) throws {
+        guard bytes <= SVGInputLimits.maxInputBytes else {
+            throw SVGError.content(text: "SVG source is \(bytes) bytes, over the \(SVGInputLimits.maxInputBytes)-byte limit")
+        }
+    }
+
     init(svgURL: URL, parsedRoot: SVGRoot?) throws {
         // A cache hit already holds the parsed tree: skip reading and XML-parsing the source.
         if let parsedRoot = parsedRoot {
             self.root = parsedRoot
         } else {
             let data = try Data(contentsOf: svgURL)
+            try SVGParser.checkInputSize(data.count)
             xmlParser = SWXMLHash.parse(data)
             try parse()
         }
@@ -23,6 +30,7 @@ open class SVGParser {
         if let parsedRoot = parsedRoot {
             self.root = parsedRoot
         } else {
+            try SVGParser.checkInputSize(svgString.utf8.count)
             xmlParser = SWXMLHash.parse(svgString)
             try parse()
         }
@@ -33,6 +41,7 @@ open class SVGParser {
         if let parsedRoot = parsedRoot {
             self.root = parsedRoot
         } else {
+            try SVGParser.checkInputSize(svgData.count)
             xmlParser = SWXMLHash.parse(svgData)
             try parse()
         }

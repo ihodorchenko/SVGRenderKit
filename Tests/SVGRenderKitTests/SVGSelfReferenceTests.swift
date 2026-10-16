@@ -87,4 +87,17 @@ final class SVGSelfReferenceTests: XCTestCase {
         _ = try layer(body)
         XCTAssertLessThan(Date().timeIntervalSince(start), 10, "fan-out DAG must not take 2^n time")
     }
+
+    func testOversizedSourceIsRejected() {
+        let big = "<svg xmlns=\"http://www.w3.org/2000/svg\"><!--" + String(repeating: "a", count: SVGInputLimits.maxInputBytes) + "--></svg>"
+        XCTAssertThrowsError(try SVGParser(svgString: big, parsedRoot: nil))
+    }
+
+    func testGiganticDeclaredImageIsSkipped() {
+        // PNG header declaring 20000×20000 px (400 MP) with no pixel data.
+        var png = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52])
+        png.append(contentsOf: [0, 0, 0x4E, 0x20, 0, 0, 0x4E, 0x20, 8, 6, 0, 0, 0, 0, 0, 0, 0])
+        let uri = "data:image/png;base64," + png.base64EncodedString()
+        XCTAssertNil(SVGImage.decode(dataURI: uri))
+    }
 }

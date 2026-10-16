@@ -31,6 +31,17 @@ enum SVGInputLimits {
     /// renderer throws here, because the caller picks the size and can react.
     static let maxRenderDimension: CGFloat = 8192
 
+    /// Maximum size of an SVG source in bytes; a larger document is rejected with a
+    /// `SVGError.content` before it is XML-parsed.
+    static let maxInputBytes = 32 * 1024 * 1024
+
+    /// Maximum pixel count (width × height) of an embedded `<image>`; a larger bitmap is
+    /// not decoded and the image is skipped.
+    static let maxImagePixels = 64_000_000
+
+    /// Cap on a blur radius in bitmap pixels; the cost of the blur grows with it.
+    static let maxBlurRadius: CGFloat = 500
+
     /// A bitmap with these pixel dimensions fits within `limit` on both sides.
     static func bitmapFits(width: CGFloat, height: CGFloat, limit: CGFloat) -> Bool {
         width <= limit && height <= limit
@@ -43,6 +54,7 @@ enum SVGInputLimits {
         var boundsStack: Set<ObjectIdentifier> = []
         var activeUses: Set<ObjectIdentifier> = []
         var useExpansions = 0
+        var activePatterns: Set<ObjectIdentifier> = []
     }
 
     private static let stateKey = "SVGRenderKit.SVGInputLimits.state"
@@ -83,6 +95,19 @@ enum SVGInputLimits {
 
     static func exitBounds(_ object: ObjectIdentifier) {
         state.boundsStack.remove(object)
+    }
+
+    // MARK: - pattern tiles
+
+    /// Enters a pattern's tile rendering. Returns `false` when this pattern is already
+    /// being rendered further up the stack (its content paints with itself, directly or
+    /// through other patterns), so the tile is skipped instead of recursing forever (B125).
+    static func enterPattern(_ object: ObjectIdentifier) -> Bool {
+        state.activePatterns.insert(object).inserted
+    }
+
+    static func exitPattern(_ object: ObjectIdentifier) {
+        state.activePatterns.remove(object)
     }
 
     // MARK: - <use> expansion

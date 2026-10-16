@@ -175,6 +175,12 @@ extension SVGFilter {
     /// only child. `CALayer.filters` is a no-op on iOS, so the blur must be baked in (B97).
     private func bakeBlur(into layer: CALayer, bbox: CGRect, stdDeviation: CGFloat, scale: CGFloat) {
         guard bbox.width > 0, bbox.height > 0, scale > 0, stdDeviation > 0 else { return }
+        guard SVGInputLimits.bitmapFits(width: Self.filterRegion.width * bbox.width * scale,
+                                        height: Self.filterRegion.height * bbox.height * scale,
+                                        limit: SVGInputLimits.maxPaintBitmapDimension) else {
+            SVGLog.addSLog(errorStr: "skipped blur: the filter region exceeds the \(Int(SVGInputLimits.maxPaintBitmapDimension))px limit")
+            return
+        }
 
         let region = CGRect(
             x: bbox.origin.x + Self.filterRegion.origin.x * bbox.width,
@@ -195,7 +201,7 @@ extension SVGFilter {
         }
         layer.mask = savedMask
 
-        guard let cgImage = image.cgImage, let blurred = Self.blur(cgImage, radius: stdDeviation * scale) else { return }
+        guard let cgImage = image.cgImage, let blurred = Self.blur(cgImage, radius: min(stdDeviation * scale, SVGInputLimits.maxBlurRadius)) else { return }
 
         layer.sublayers?.forEach { $0.removeFromSuperlayer() }
         // The layer's own `contents` (an `<image>`) is replaced by the baked bitmap too,

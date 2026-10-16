@@ -249,6 +249,12 @@ extension SVGPattern {
     /// `patternContentUnits` maps it.
     func tileImage(bbox: CGRect, viewBox viewBoxRect: CGRect, opacity: CGFloat?) -> UIImage? {
         resolveHref()
+        let identity = ObjectIdentifier(self)
+        guard SVGInputLimits.enterPattern(identity) else {
+            SVGLog.addSLog(errorStr: "skipped pattern: it references itself")
+            return nil
+        }
+        defer { SVGInputLimits.exitPattern(identity) }
         let size = tileSize(bbox: bbox, viewBox: viewBoxRect)
         guard size.width > 0, size.height > 0 else { return nil }
         let origin = tileOrigin(bbox: bbox, viewBox: viewBoxRect)

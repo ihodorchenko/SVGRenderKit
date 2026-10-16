@@ -1,4 +1,5 @@
 import UIKit
+import ImageIO
 
 /// Renders an SVG `<image>` element that embeds a raster image via a data URI.
 ///
@@ -147,10 +148,23 @@ open class SVGImage: SVGObject, SVGRendering {
             // A data URI may wrap its base64 payload across lines; ignore the line breaks
             // (and any other stray characters) instead of failing to decode (B99).
             guard let data = Data(base64Encoded: String(payload), options: .ignoreUnknownCharacters) else { return nil }
-            return UIImage(data: data)
+            return image(from: data)
         }
         guard let decoded = String(payload).removingPercentEncoding,
               let data = decoded.data(using: .utf8) else { return nil }
+        return image(from: data)
+    }
+
+    /// Decodes `data`, refusing a bitmap over `SVGInputLimits.maxImagePixels` before it is
+    /// allocated (a tiny PNG can declare gigapixel dimensions).
+    private static func image(from data: Data) -> UIImage? {
+        if let source = CGImageSourceCreateWithData(data as CFData, nil),
+           let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+           let w = props[kCGImagePropertyPixelWidth] as? Int, let h = props[kCGImagePropertyPixelHeight] as? Int,
+           w * h > SVGInputLimits.maxImagePixels {
+            SVGLog.addSLog(errorStr: "skipped <image>: \(w)×\(h) px exceeds the pixel limit")
+            return nil
+        }
         return UIImage(data: data)
     }
 }
