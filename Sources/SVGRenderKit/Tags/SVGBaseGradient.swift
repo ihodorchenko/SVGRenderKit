@@ -119,6 +119,11 @@ open class SVGBaseGradient: SVGChildObject {
     /// so a gradient may reference one defined later in the document (a forward reference)
     /// or one of the other gradient type, neither of which worked when this was resolved
     /// eagerly during parsing. Idempotent; a href cycle stops at the first repeat.
+    ///
+    /// Not synchronised, on purpose: it mutates the (cached, shared) tree, and every path that builds
+    /// layers — `SVGView` loads and `SVGRenderer` — runs on the single serial `SVGWorkQueue.shared`,
+    /// which also guards `SVGOptions.renderScale` and friends. Calling `SVGParser.getLayer` for one
+    /// document from several threads yourself is outside that contract (B124 б).
     func resolveHref() {
         guard !hrefResolved, case .local(let key)? = href else { return }
         hrefResolved = true

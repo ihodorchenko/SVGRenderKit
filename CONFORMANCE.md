@@ -175,17 +175,17 @@ The live corpus summary is reported by CI in the GitHub step summary; see [READM
 
 ## Deliberate divergences from the reference renderers
 
-A few behaviours differ from the reference renderers (CoreSVG on iOS, WebKit). Some follow the
-SVG specification where a reference does not (the focal-point row), others deliberately match
-CoreSVG where the specification and a browser say otherwise (the `spreadMethod` and
-interpolation rows). The policy: CoreSVG parity is the default; a spec/browser rule is adopted
-only when it is cheap and its difference was verified against a browser (WKWebView).
+**Policy.** We follow the SVG specification wherever the specification and the browser (WebKit)
+agree. We keep CoreSVG's behaviour only where it looks better in the app: for example, a trial of
+mixing linear-gradient stops in sRGB, as the spec and browsers do, was dropped because the native
+gradient layer draws noticeably faster on screen. Every remaining difference from a reference
+renderer (CoreSVG on iOS, WebKit) is listed in the table below, together with the reason.
 
 | Behaviour | This kit | CoreSVG / WebKit |
 |---|---|---|
 | A radial gradient's focal point outside its end circle | moved onto the circle (SVG 1.1 §13.2.3), so a `pad` gradient paints its whole area | left where it is: a cone is painted and the area outside it stays transparent (SVG 2 / Canvas semantics) |
-| Stop interpolation within a linear gradient | mixed in the renderer's own space, like CoreSVG | mixed in sRGB, which is what CSS/SVG `color-interpolation` defaults to — not adopted: the native gradient layer is faster on screen and the browser oracle disagrees only at gradient interiors |
-| `spreadMethod="reflect"` / `"repeat"` | rendered as `pad`, like CoreSVG (spec-divergent) | repeat / reflect the gradient vector |
+| Stop interpolation within a linear gradient | mixed in the renderer's own space, like CoreSVG; kept because the native gradient layer is faster on screen and the browser oracle disagrees only at gradient interiors | mixed in sRGB (WebKit; the `color-interpolation` default) — CoreSVG mixes like this kit |
+| `spreadMethod="reflect"` / `"repeat"` | rendered as `pad`, like CoreSVG; not implemented (not needed for icons) | WebKit repeats / reflects the gradient vector; CoreSVG renders `pad` |
 
 `fr` (the focal circle radius, SVG 2) is supported; CoreSVG ignores it, while WebKit and this
 kit agree on it.

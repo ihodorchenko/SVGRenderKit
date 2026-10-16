@@ -171,7 +171,8 @@ name with different markup never returns a stale tree. File URLs are keyed by pa
 file's size and modification date, so a rewritten file is re-parsed. The cache keeps the
 100 most recently used documents (a hit refreshes a document's recency). A cache hit skips
 reading and XML-parsing the source entirely. Derived render data (pattern tiles, mask
-bitmaps, decoded embedded images, fonts) is cached internally per document. Disable parser
+bitmaps, decoded embedded images, fonts) is cached internally per document, with a byte budget for the bitmaps (96 MB each
+for pattern tiles and mask images). Disable parser
 caching per-view or globally:
 
 ```swift
