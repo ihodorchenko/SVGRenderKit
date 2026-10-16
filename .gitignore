@@ -1,8 +1,4 @@
 #####
-# Local task tracking (never commit)
-Task.md
-
-#####
 # Where `Scripts/webkit-parity.sh` recorded the browser oracle's rasters (never commit)
 .webkit-rasters
 

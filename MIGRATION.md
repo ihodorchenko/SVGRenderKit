@@ -1,6 +1,59 @@
 # Migration guide
 
-## `open` → `public` for non-instantiable classes; `SVGBaseGradient` as an extension point (Unreleased)
+## 1.3.x → 1.4.0
+
+Most of 1.4.0 is source compatible: the renamed API keeps working through `@available(*, deprecated,
+renamed:)` shims and the compiler offers a fix-it. The sections below cover everything that can need
+a change. See [CHANGELOG.md](CHANGELOG.md) for the rendering fixes.
+
+### Deprecated renames (fix the spelling)
+
+| Deprecated (still works) | Use instead |
+| --- | --- |
+| `SVGColors.addOvverideColors(colors:)` | `SVGColors.addOverrideColors(colors:)` |
+| `SVGColors.setOvverideColors(colors:)` | `SVGColors.setOverrideColors(colors:)` |
+| `SVGColors.addOvverideUIColors(colors:)` | `SVGColors.addOverrideUIColors(colors:)` |
+| `SVGColors.setOvverideUIColors(colors:)` | `SVGColors.setOverrideUIColors(colors:)` |
+| `SVGView.set(SVGName:fill_colors:)` | `set(SVGName:fillColors:)` |
+| `SVGView.set(svgString:name:fill_colors:)` | `set(svgString:name:fillColors:)` |
+| `SVGView.set(svgData:name:fill_colors:)` | `set(svgData:name:fillColors:)` |
+| global `MD5(_:)` | `SVGUtils.md5(_:)` or CryptoKit |
+
+If you subclass `SVGView` and override a `set(…fill_colors:)` method, override the `fillColors`
+variant instead: the library now calls it.
+
+### Removed
+
+`SVGLinearGradientLayer` (public, never used by the renderer) and `SVGParser.shouldParseSinglePathOnly`
+are gone; drop the references (for a custom gradient, subclass `SVGBaseGradient`, see below).
+
+### `set(svgData:name:overrideElements:)` has no default values
+
+Its trailing parameters no longer have defaults, so `set(svgData: data, name: "icon")` unambiguously
+resolves to the `fillColors` overload. Pass `overrideElements:` explicitly if you want the other one.
+
+### Contract changes: graceful degradation
+
+A single bad value no longer fails the document. Code (and tests) that relied on an error should
+use `SVGView.onLoadError` / `SVGImageView.onLoadError(_:)` for real load failures and expect a partial
+render for the cases below:
+
+- a `<use>` whose `href` is missing, external or part of a cycle used to throw; it is now dropped with
+  a log and the rest of the document renders (a document without any `<svg>` element still throws);
+- `fill="transparent"`/`inherit`, `url(#missing)` paint (becomes `none` or the stated fallback),
+  `opacity="50%"`, odd `points`, geometry without size/radius, an unparsable `d`, a gradient without stops
+  are skipped or clamped instead of throwing;
+- untrusted input is limited (nesting, `<use>` expansion, bitmap and source size); exceeding a limit skips
+  the element. `SVGRenderer` throws for an output side above 8192 px;
+- a failed `SVGView` load clears the previous content (it no longer keeps a stale icon) and reports the
+  error through `onLoadError`.
+
+Rendering results change where the old output was wrong: the SVG transform list is composed left to
+right, arc flags are single characters, `stroke-miterlimit` defaults to 4, `objectBoundingBox` radial
+gradients are ellipses, masks are rasterized at the output scale, text honors stroke/opacity/clip/mask/
+filter. Snapshot tests built on the old (incorrect) output need to be re-recorded.
+
+### `open` → `public` for non-instantiable classes; `SVGBaseGradient` as an extension point
 
 `SVGCache`, `SVGParser`, `SVGUtils` and `SVGTransform` changed from `open` to `public`. Their
 initializers are not accessible outside the module, so an external subclass could never be created or

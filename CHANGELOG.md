@@ -5,9 +5,36 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 1.4.0 - 2026-10-16
+
+An audit-and-hardening release: many rendering fixes against the SVG specification and a browser
+oracle, graceful degradation instead of failing the whole document, limits for untrusted input and
+a cleaned-up public API (deprecations are source compatible; see [MIGRATION.md](MIGRATION.md)).
+
+### Added
+- `SVGView.onLoadError` and `SVGImageView.onLoadError(_:)` report load failures. A failed load now
+  clears the previous content instead of leaving the old image on a reused view, and a later reload
+  (for example after a color-override change) retries the same source.
+- Text: `stroke`/`stroke-width`/`stroke-opacity` on `<text>` and `<tspan>`, `opacity`/`clip-path`/
+  `mask`/`filter` on text, `<tspan>` styles (`fill`, `font-weight`, classes, …), `xml:space`,
+  `text-anchor` from `style`, `<style>` rules on `<text>` and `<image>`.
+- Radial gradients: `fr` (focal radius) and a focal point outside the end circle is clamped onto it
+  (SVG 1.1 §13.2.3).
+- `<pattern>` honors `viewBox` and `href` inheritance; `patternTransform` acts on the pattern grid.
+- Limits on untrusted input (`SVGInputLimits`): nesting depth, `<use>` depth and expansion budget,
+  mask/pattern bitmap size, source size, image pixels, blur radius. Exceeding a limit skips the
+  offending element with a log instead of overflowing the stack or exhausting memory.
+  `SVGRenderer` throws for an output larger than 8192 px per side and an `async` render honors
+  cancellation.
+- Protection against self-references: a `<mask>`, `<pattern>`, `<clipPath>`,
+  `<marker>` or `<filter>` that references itself is skipped, and fan-out `<use>` graphs no longer
+  explode.
+- Test and CI tooling: a second, browser (WebKit) parity oracle (`Scripts/webkit-parity.sh`), a
+  parity gate for both oracles, a perf-regression gate with a CI baseline, `Scripts/run-tests.sh`.
 
 ### Changed
+- `set(svgData:name:overrideElements:)` no longer has default values for its trailing parameters, so a call
+  such as `set(svgData: data, name: "x")` is unambiguous (it resolves to the `fillColors` overload).
 - `SVGCache`, `SVGParser`, `SVGUtils` and `SVGTransform` are now `public` instead of `open`. None of
   them has an initializer reachable from outside the module (`SVGCache` is a singleton with a private
   init, the others have internal or implicit-internal inits), so they could never be instantiated, and
@@ -22,6 +49,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   public: `stops`, `gradientUnits`, `spreadMethod`, `transform` (read-only outside the module), the
   `GradientUnits`/`SVGSpreadMethod` enums, and `SVGGradientStop.offset`/`stop_color`/
   `resolvedColor(currentColor:)`. Covered by a test that builds a subclass without `@testable`.
+- Tag objects hold their `parent` as `unowned` (`public unowned var parent`); `SVGShapesContainer` is
+  class-bound and a new `SVGGroupHosting` protocol shares the child-layer loop between containers.
+- `spreadMethod` stays `pad`-only and linear-gradient stops stay mixed in the renderer's own space, like
+  CoreSVG; both are documented as deliberate divergences in `CONFORMANCE.md`.
+
+### Fixed
+- The SVG `transform` list is composed left to right (`translate(10 0) matrix(2 0 0 2 0 0)` moves
+  `(1, 0)` to `(12, 0)`), including `<use x y>`, `skewX`/`skewY` and `clipPathUnits="objectBoundingBox"`.
+- Elliptical arc flags are read as single characters, so compact SVGO output (`a2 2 0 011 1`) renders.
+- The document no longer fails because of one bad value: `fill="transparent"`/`inherit`, `opacity="50%"`,
+  unknown `display`, odd `points`, a `<rect>` without a size, a circle without a radius, an unparsable
+  `d`, a gradient without stops, a broken `url(#…)` for paint/clip/mask/filter/marker, and a `<use>`
+  whose target is missing, external or part of a cycle are logged and skipped. The `<use>` cases used
+  to throw; they now render the rest of the document. Only a document without an `<svg>` element fails.
+- `<use>`: the composite (`opacity`, `clip-path`, `mask`, `filter`) is applied once on the instance;
+  the referenced element keeps its own `transform`/clip/mask; ancestor styles and class/id selectors
+  reach the content; inline `style` wins over the `fill` attribute; `x`/`y` accept units and percentages.
+- `<image>` and `<g>` work inside `<use>`, `<symbol>`, `<mask>`, `<pattern>` and `<marker>`; children of
+  these containers paint in document order; `<g>` inside `<clipPath>` is ignored (SVG 1.1 §14.3.5).
+  `<image>` honors `clip-path`/`mask`/`filter` and is laid out in user space (`x`/`y`, `transform`).
+  Base64 data with line breaks decodes.
+- `<style>` is an ordered list of rules: later rules win, `.a, .b {}` is deterministic, comments and
+  `@import`/`@charset`/`@media` no longer corrupt neighbours, rules apply in document order and on
+  containers (`<g class="…">`), several `<defs>`/`<style>` blocks are all honored, ids are resolved
+  document-wide (the first definition wins), forward `href` of gradients works and radial gradients
+  inherit stops from linear ones.
+- Inline `style`: the last duplicate wins, `!important` is accepted, `url(data:…;base64,…)` values survive,
+  `style` overrides presentation attributes everywhere, `rgb(100%,0%,0%)`, `rgb(255 0 0 / 50%)` and
+  space-separated `hsl()` parse, an invalid color declaration is ignored instead of becoming clear;
+  `inherit` works for `clip-rule`, `visibility`, `text-anchor`.
+- Masks, patterns and baked blur are rendered at the output scale and re-rendered on resize.
+  `clip-path` and `mask` on one element combine instead of overwriting each other. `clip-path` in
+  `userSpaceOnUse` moves with the element's `transform`.
+- `objectBoundingBox` radial gradients are ellipses (`r·w × r·h`); a linear gradient with a skewed
+  `gradientTransform` places its axis on the transformed level lines; gradient fills honor `evenodd`;
+  a gradient `stroke` is positioned by the geometry bounding box (not the stroked outline) and honors
+  dashes.
+- Groups and `<use>` measure their bounding box on the transformed geometry (rotation and skew no longer
+  inflate it); `visibility` can be overridden by a visible descendant; `fill-rule: inherit` keeps `evenodd`;
+  default `stroke-miterlimit` is 4 (sharp corners no longer produce long spikes); `marker-mid` follows the
+  bisector, curve tangents and sub-paths.
+- `feGaussianBlur` is baked into the layer (`CALayer.filters` does not blur on iOS); the drop-shadow
+  radius follows the CoreGraphics blur scale and a blurred element is not shadowed twice.
+- Root `<svg>` size: a single `width`/`height` is completed from the `viewBox`, percentages resolve
+  against it, `em`/`auto`/unknown units fall back to the `viewBox`, an unresolvable viewport degrades
+  to a default size instead of throwing.
+- `<pattern>` with `objectBoundingBox` units and a `viewBox` keeps a uniform fit; the tile phase is correct.
+- SMIL `animateTransform` `rotate`/`skewX`/`skewY` are sampled in small steps with the centre from every
+  value, comma-separated values and `keyTimes` work, and the animation timeline survives a re-render.
+- `<text>`: default font size 16px, quoted `font-family`, weight/style applied to a named family,
+  whitespace collapsed per SVG, run order and spacing around `<tspan>` kept (`Hello <tspan>world</tspan>` is no longer glued), text scales with the
+  document's render scale.
+- Caches: the parser cache is keyed by a full content digest and reset when override colors change
+  (a parse that started before the reset cannot store a stale tree); tile and mask caches have a 96 MB
+  byte budget; `SVGImageView` reloads when the file changes and stats the file at most every 0.5 s.
+- The parsed object tree no longer leaks: `parent` references are `unowned`, so a document without
+  `name:` and an evicted cache entry are freed.
+### Deprecated
+Each old name still works and forwards to the new one; the compiler offers a fix-it.
+
+| Deprecated | Use instead |
+| --- | --- |
+| `SVGColors.addOvverideColors(colors:)` | `addOverrideColors(colors:)` |
+| `SVGColors.setOvverideColors(colors:)` | `setOverrideColors(colors:)` |
+| `SVGColors.addOvverideUIColors(colors:)` | `addOverrideUIColors(colors:)` |
+| `SVGColors.setOvverideUIColors(colors:)` | `setOverrideUIColors(colors:)` |
+| `SVGView.set(SVGName:fill_colors:)` | `set(SVGName:fillColors:)` |
+| `SVGView.set(svgString:name:fill_colors:)` | `set(svgString:name:fillColors:)` |
+| `SVGView.set(svgData:name:fill_colors:)` | `set(svgData:name:fillColors:)` |
+| global `MD5(_:)` (String and `[UInt8]`) | `SVGUtils.md5(_:)` or CryptoKit |
+
+### Removed
+- Dead public API that was never reachable in a useful way: `SVGLinearGradientLayer` (unused by the
+  renderer), `SVGParser.shouldParseSinglePathOnly`, and the ignored `force` parameter of the internal
+  `set(styleStr:)`.
 
 ## 1.3.1
 

@@ -37,7 +37,7 @@ https://github.com/ihodorchenko/SVGRenderKit.git
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ihodorchenko/SVGRenderKit.git", from: "1.3.1")
+    .package(url: "https://github.com/ihodorchenko/SVGRenderKit.git", from: "1.4.0")
 ]
 ```
 
@@ -92,6 +92,15 @@ Assigning `nil` to `SVGName` or `svgString` clears the view. `SVGView` can also 
 created in a storyboard/XIB (set `SVGName` in Interface Builder). Use it from the main
 thread like any `UIView`; loads requested from other threads are marshalled onto it.
 
+### Load errors
+
+A failed load clears the view and reports the error:
+
+```swift
+svgView.onLoadError = { error in print("SVG failed to load: \(error)") }
+// SwiftUI: SVGImageView(...).onLoadError { error in … }
+```
+
 ### SwiftUI
 
 The `SVGRenderKitSwiftUI` product provides `SVGImageView`, a SwiftUI wrapper around `SVGView`:
@@ -139,8 +148,9 @@ svgView.set(SVGName: "icons/icon.svg", fillColors: [
 
 ### Text and fonts
 
-`<text>` elements are rendered, and `font-family`, `font-style`, `font-weight`,
-and `font-size` (with `px`, `%`, and `em` units) are supported.
+`<text>`/`<tspan>` elements are rendered, with `fill`, `stroke` (solid colors), `opacity`,
+`clip-path`, `mask`, `filter`, `text-anchor`, and `font-family`, `font-style`, `font-weight`,
+and `font-size` (with `px`, `%`, and `em` units). Gradient or pattern strokes on text are not supported.
 
 ### Configuration
 
@@ -198,12 +208,12 @@ SVGLog.logger = MyLogger()
 - Shapes: `<path>`, `<rect>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>`, `<text>`, `<image>` (inline data-URI)
 - Structure: `<g>`, `<defs>`, `<use>`, `<symbol>`, `<switch>` (fallback child)
 - Paint servers: `<linearGradient>`, `<radialGradient>`, `<pattern>`, `<mask>`, `<clipPath>`, `<marker>`
-- Filters: `feGaussianBlur`, `feDropShadow`, and the `feOffset`/`feFlood`/`feColorMatrix` drop-shadow chain (Figma/Sketch)
+- Filters: `feGaussianBlur` (baked into the layer), `feDropShadow`, and the `feOffset`/`feFlood`/`feColorMatrix` drop-shadow chain (Figma/Sketch)
 - Animation: SMIL subset (`<animate>`, `<animateTransform>`, `<set>`)
 
 ### Properties
 
-- `fill`, `stroke`, `fill-rule`, `clip-rule`, `opacity`, `fill-opacity`, `stroke-opacity`
+- `fill`, `stroke` (solid, gradient, pattern; with an optional fallback), `fill-rule`, `clip-rule`, `opacity`, `fill-opacity`, `stroke-opacity`
 - `stroke-width` (`px`/`%`), `stroke-linecap`/`linejoin`/`miterlimit`, `stroke-dasharray`/`dashoffset`
 - `clip-path`, `mask`, `filter` (local `url(#…)`)
 - `transform` (`matrix`, `translate`, `rotate`, `scale`, `skewX`, `skewY`) and `gradientTransform`
@@ -216,11 +226,11 @@ Hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba()`, `argb()`, 
 
 ### CSS
 
-Inline `style="…"`, the `style` attribute, and `<style>` blocks with id / class / tag selectors.
+Inline `style="…"` and `<style>` blocks with id / class / tag selectors, applied in document order to shapes, containers, `<use>`, `<text>` and `<image>`.
 
 ### Fonts
 
-`font-family`, `font-style`, `font-weight`, `font-size` (`px`/`%`/`em`), `text-anchor`, and multi-line `<tspan>`.
+`font-family`, `font-style`, `font-weight`, `font-size` (`px`/`%`/`em`), `text-anchor`, `xml:space`, and multi-line `<tspan>` with its own styles.
 
 ### Convenience
 
@@ -239,8 +249,11 @@ Inline `style="…"`, the `style` attribute, and `<style>` blocks with id / clas
   `alignment-baseline`/`dominant-baseline`.
 - SMIL is a subset: event-based `begin`, `additive`/`accumulate`, `calcMode`, and
   `fill="freeze"` are not supported.
-- Relative length units (`em`/`ex`/`rem`/`ch`/`vw`/`vh`) are not supported
-  (`em` only for `font-size`).
+- Relative length units (`ex`/`rem`/`ch`/`vw`/`vh`) are not supported
+  (`em` only for `font-size`; an `em`/`auto` root size falls back to the `viewBox`).
+- Gradient `spreadMethod` is `pad` only; a `<symbol>` does not clip to its viewport (`overflow`).
+- Untrusted input is limited (nesting depth, `<use>` expansion, bitmap and source size): an element
+  over a limit is skipped with a log.
 - The full filter pipeline (`feMorphology`, `feComposite` operators beyond
   `in`/`out`, `feBlend` modes) is out of scope; Figma/Sketch drop-shadows are
   approximated without the `feMorphology` erosion step.

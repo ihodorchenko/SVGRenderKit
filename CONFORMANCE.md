@@ -32,14 +32,14 @@
 | `<mask>` | ✅ alpha + luminance masking |
 | `<pattern>` | ✅ tiled fill |
 | `<marker>` | ✅ marker-start/mid/end (`auto` orientation) |
-| `<symbol>` | ✅ instantiated via `<use>` |
+| `<symbol>` | ✅ instantiated via `<use>` (no viewport clip: `overflow` is out of scope) |
 | `<path>`, `<rect>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>` | ✅ |
 | `<linearGradient>`, `<radialGradient>`, `<stop>` | ✅ (`stop-color`, `stop-opacity`, `offset`) |
-| `<text>`, `<tspan>` | ✅ `text-anchor`, multi-line `<tspan>` |
-| `<style>` | ✅ id / class / tag selectors (matched on the element itself, including containers such as `<g class="…">`) |
-| `<filter>` | ✅ `feGaussianBlur` (SVG 1.1) + `feDropShadow` (SVG 2.0) + `feOffset`/`feFlood`/`feColorMatrix` drop-shadow chain (Figma/Sketch) |
+| `<text>`, `<tspan>` | ✅ `text-anchor`, multi-line `<tspan>` with its own styles, `xml:space`, solid `stroke`, `opacity`/`clip-path`/`mask`/`filter`; gradient/pattern stroke ❌ |
+| `<style>` | ✅ id / class / tag selectors, applied in document order (matched on the element itself, including containers such as `<g class="…">`, `<use>`, `<text>`, `<image>`) |
+| `<filter>` | ✅ `feGaussianBlur` (SVG 1.1, baked into the layer) + `feDropShadow` (SVG 2.0) + `feOffset`/`feFlood`/`feColorMatrix` drop-shadow chain (Figma/Sketch) |
 | `<animate>`, `<animateTransform>`, `<set>` | ✅ SMIL subset (see below) |
-| `<image>` | ✅ inline data-URI rasters (no external URLs) |
+| `<image>` | ✅ inline data-URI rasters (no external URLs), with `clip-path`/`mask`/`filter` |
 | `<switch>` | ✅ renders first child without `requiredFeatures`/`requiredExtensions`/`systemLanguage` |
 | `<a>`, `<foreignObject>`, `<font>` | ❌ out of scope |
 | `<textPath>`, `<script>`, `<cursor>`, `<solidColor>` | ❌ out of scope |
