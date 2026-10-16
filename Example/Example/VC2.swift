@@ -80,7 +80,114 @@ func applyNavBarAppearance(style: SubstrateStyle, to navigationController: UINav
     navigationController.navigationBar.tintColor = style == .dark ? UIColor.white : UIColor.darkGray
 }
 
-class ViewController2: UIViewController {
+/// Папки с SVG внутри бандла (каждая — отдельная подгалерея).
+let svgFolders = ["svg_0.0", "svg_1.0", "svg_2.0", "svg_3.0", "BookTracker", "hatavik", "mycourse", "petfolio"]
+
+/// Корневой экран: список папок, по тапу открывается галерея папки.
+class ViewController2: UITableViewController {
+
+    static let allTitle = "All"
+    private var folders: [(name: String, count: Int)] = []
+
+    init() {
+        super.init(style: .plain)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        title = "SVG Examples"
+        navigationItem.backButtonTitle = ""
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "folder")
+        let found = svgFolders.map { ($0, svgPaths(inFolder: $0).count) }.filter { $0.1 > 0 }
+        folders = [(ViewController2.allTitle, found.reduce(0) { $0 + $1.1 })] + found
+        refreshSubstrateButton()
+        applyStyle()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        applyStyle()
+    }
+
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        return SubstrateStore.shared.style == .dark ? .lightContent : .default
+    }
+
+    private func refreshSubstrateButton() {
+        navigationItem.rightBarButtonItem = makeSubstrateButton { [weak self] in
+            self?.applyStyle()
+            self?.refreshSubstrateButton()
+        }
+    }
+
+    private func applyStyle() {
+        let style = SubstrateStore.shared.style
+        tableView.backgroundColor = style.screenColor
+        applyNavBarAppearance(style: style, to: navigationController)
+        setNeedsStatusBarAppearanceUpdate()
+        tableView.reloadData()
+    }
+
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return folders.count
+    }
+
+    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "folder", for: indexPath)
+        let style = SubstrateStore.shared.style
+        let folder = folders[indexPath.row]
+        var content = cell.defaultContentConfiguration()
+        content.text = folder.name
+        content.secondaryText = "\(folder.count)"
+        content.textProperties.color = style.textColor
+        content.secondaryTextProperties.color = style.textColor
+        content.image = UIImage(systemName: "folder")
+        content.imageProperties.tintColor = style.textColor
+        cell.contentConfiguration = content
+        cell.backgroundColor = style.substrateColor
+        cell.accessoryType = .disclosureIndicator
+        return cell
+    }
+
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        let name = folders[indexPath.row].name
+        let sources = name == ViewController2.allTitle ? folders.dropFirst().map { $0.name } : [name]
+        navigationController?.pushViewController(SVGGalleryViewController(title: name, folders: sources), animated: true)
+    }
+}
+
+/// Возвращает пути SVG относительно корня бандла внутри папки, включая подпапки
+/// (например `svg_1.0/alert/foo.svg`).
+func svgPaths(inFolder folder: String) -> [String] {
+    guard let resourceURL = Bundle.main.resourceURL else { return [] }
+    let directoryURL = resourceURL.appendingPathComponent(folder)
+    guard let enumerator = FileManager.default.enumerator(atPath: directoryURL.path) else { return [] }
+    var names: [String] = []
+    for case let path as String in enumerator where (path as NSString).pathExtension.lowercased() == "svg" {
+        names.append(folder + "/" + path)
+    }
+    return names.sorted()
+}
+
+class SVGGalleryViewController: UIViewController {
+
+    private let galleryTitle: String
+    private let folders: [String]
+
+    init(title: String, folders: [String]) {
+        self.galleryTitle = title
+        self.folders = folders
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     private let columns = 3
     private let spacing: CGFloat = 8
@@ -91,8 +198,8 @@ class ViewController2: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "SVG Examples"
-        names = svgNames()
+        title = galleryTitle
+        names = folders.flatMap { svgPaths(inFolder: $0) }
         setupCollectionView()
         refreshSubstrateButton()
         applyStyle()
@@ -148,27 +255,9 @@ class ViewController2: UIViewController {
         setNeedsStatusBarAppearanceUpdate()
         collectionView.reloadData()
     }
-
-    /// Возвращает пути SVG относительно корня бандла, включая подпапки
-    /// (например `svg_0.0/Alfach_0.svg`, `svg_1.0/alert/foo.svg`).
-    private func svgNames() -> [String] {
-        guard let resourceURL = Bundle.main.resourceURL else { return [] }
-        let directories = ["svg_0.0", "svg_1.0", "svg_2.0", "svg_3.0"]
-        var names: [String] = []
-        for directory in directories {
-            let directoryURL = resourceURL.appendingPathComponent(directory)
-            guard let enumerator = FileManager.default.enumerator(atPath: directoryURL.path) else { continue }
-            for case let path as String in enumerator {
-                if (path as NSString).pathExtension.lowercased() == "svg" {
-                    names.append(directory + "/" + path)
-                }
-            }
-        }
-        return names.sorted()
-    }
 }
 
-extension ViewController2: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+extension SVGGalleryViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
 
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         return names.count
