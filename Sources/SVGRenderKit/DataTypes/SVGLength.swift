@@ -45,4 +45,21 @@ public enum SVGLength {
         // of failing the whole document.
         return .px(value: 0)
     }
+
+    /// Parses a root `width`/`height`: a number, a percentage or an absolute unit. Anything
+    /// else — a relative unit (`em`, `rem`, …), `auto`, garbage — is `nil`, so the caller can
+    /// fall back to the `viewBox` instead of collapsing to a zero size (B128).
+    internal static func getSupported(string: String) -> SVGLength? {
+        let trimmed = string.trimmed
+        if let f = Double(trimmed), f.isFinite { return .px(value: CGFloat(f)) }
+        if trimmed.hasSuffix("%") {
+            guard let f = Double(String(trimmed.dropLast()).trimmed), f.isFinite else { return nil }
+            return .percent(value: CGFloat(f / 100.0))
+        }
+        for (unit, factor) in unitFactors where trimmed.hasSuffix(unit) {
+            guard let f = Double(String(trimmed.dropLast(unit.count)).trimmed), f.isFinite else { return nil }
+            return .px(value: CGFloat(f) * factor)
+        }
+        return nil
+    }
 }

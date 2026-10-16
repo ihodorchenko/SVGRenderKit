@@ -152,3 +152,36 @@ final class SVGRootSizeTests: XCTestCase {
         XCTAssertGreaterThan(options.size.height, 0)
     }
 }
+
+/// B128 — relative units and `auto` on the root fall back to the `viewBox`.
+final class SVGRootRelativeUnitTests: XCTestCase {
+
+    func testEmSizedRootFallsBackToViewBox() throws {
+        // Iconify export: `width="1em" height="1em"`.
+        let options = try SVGOptions(attributeDict: ["width": "1em", "height": "1em", "viewBox": "0 0 24 24"])
+        XCTAssertEqual(options.size, CGSize(width: 24, height: 24))
+    }
+
+    func testAutoSizedRootFallsBackToViewBox() throws {
+        let options = try SVGOptions(attributeDict: ["width": "auto", "height": "auto", "viewBox": "0 0 40 20"])
+        XCTAssertEqual(options.size, CGSize(width: 40, height: 20))
+    }
+
+    func testRelativeWidthWithAbsoluteHeightFollowsViewBoxAspect() throws {
+        let options = try SVGOptions(attributeDict: ["width": "2rem", "height": "50", "viewBox": "0 0 100 50"])
+        XCTAssertEqual(options.size, CGSize(width: 100, height: 50))
+    }
+
+    func testEmWithoutViewBoxDoesNotCollapseToZero() throws {
+        let options = try SVGOptions(attributeDict: ["width": "1em", "height": "1em"])
+        XCTAssertGreaterThan(options.size.width, 0)
+        XCTAssertGreaterThan(options.size.height, 0)
+    }
+
+    func testRendererRendersEmSizedIcon() async throws {
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\"><rect width=\"24\" height=\"24\" fill=\"#f00\"/></svg>"
+        let data = try await SVGRenderer.render(.string(svg), format: .png)
+        let image = try XCTUnwrap(UIImage(data: data))
+        XCTAssertEqual(image.size.width * image.scale, 24, accuracy: 0.5)
+    }
+}

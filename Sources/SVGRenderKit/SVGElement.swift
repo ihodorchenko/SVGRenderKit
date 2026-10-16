@@ -144,11 +144,11 @@ open class SVGOptions {
         }
         var width: SVGLength?
         if let str = attributeDict["width"] {
-            width = try SVGLength.get(string: str)
+            width = SVGLength.getSupported(string: str)
         }
         var height: SVGLength?
         if let str = attributeDict["height"] {
-            height = try SVGLength.get(string: str)
+            height = SVGLength.getSupported(string: str)
         }
 
         // A length in the viewport: a percentage refers to the viewBox dimension.
