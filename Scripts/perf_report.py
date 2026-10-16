@@ -3,13 +3,15 @@
 
 Usage:
     perf_report.py LOG [--json OUT.json] [--baseline BASELINE.json]
-                       [--fail-ratio 2.0] [--min-seconds 0.01]
+                       [--fail-ratio 2.0] [--min-seconds 0.01] [--min-delta 0.05] [--max-rsd 35]
 
 - Parses the XCTest `measured [Clock Monotonic Time, s] average: ...` lines.
 - Prints a Markdown table (suitable for $GITHUB_STEP_SUMMARY), plus the `FEATURE_COST` corpus lines.
 - With --json, writes {"<test>": {"clock": seconds, "rsd": percent}} (use it as the next baseline).
 - With --baseline, adds a ratio column and exits 1 when a test is slower than `fail-ratio` times its
-  baseline. Tests whose baseline is below `min-seconds` are only reported: they are dominated by noise.
+  baseline AND by at least `min-delta` seconds in absolute terms. Tests whose baseline is below
+  `min-seconds`, or whose relative standard deviation (baseline or current run) is above `max-rsd`
+  percent, are only reported (marked `~`): their averages are dominated by runner noise.
 
 Baseline numbers must come from the same kind of machine (CI runner), not a developer laptop: download
 `perf.json` from a successful run on main and commit it as `.github/perf-baseline.json`.
@@ -47,6 +49,8 @@ def main():
     parser.add_argument("--baseline")
     parser.add_argument("--fail-ratio", type=float, default=2.0)
     parser.add_argument("--min-seconds", type=float, default=0.01)
+    parser.add_argument("--min-delta", type=float, default=0.05)
+    parser.add_argument("--max-rsd", type=float, default=35.0)
     args = parser.parse_args()
 
     results, features = parse(args.log)
@@ -73,9 +77,14 @@ def main():
             if base:
                 ratio = current["clock"] / base
                 flag = ""
-                if base >= args.min_seconds and ratio > args.fail_ratio:
-                    regressions.append((name, base, current["clock"], ratio))
-                    flag = " ⚠️"
+                slower = ratio > args.fail_ratio and current["clock"] - base >= args.min_delta
+                noisy = max(current["rsd"], baseline[name].get("rsd", 0.0)) > args.max_rsd
+                if base >= args.min_seconds and slower:
+                    if noisy:
+                        flag = " ~noisy"
+                    else:
+                        regressions.append((name, base, current["clock"], ratio))
+                        flag = " ⚠️"
                 row += f" {base:.4f} | {ratio:.2f}x{flag} |"
             else:
                 row += " – | – |"

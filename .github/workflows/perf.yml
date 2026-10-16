@@ -7,7 +7,8 @@ name: Performance
 # Results go to the job summary and to the `perf-results` artifact (perf.json).
 #
 # Regression gate: if `.github/perf-baseline.json` exists, a test slower than 3x its baseline fails the
-# job (baselines under 50 ms are only reported; CI runner noise reached 2.2x on a 7%-RSD test, hence 3x). Create it from a green main run: download `perf.json`
+# job and by at least 50 ms (baselines under 50 ms, and tests whose relative standard deviation is above 35%, are only
+# reported: CI runner noise reached 2.2x on a 7%-RSD test and 3.6x on an 80%-RSD one). Create it from a green main run: download `perf.json`
 # from the `perf-results` artifact and commit it as `.github/perf-baseline.json`. Do not take baseline
 # numbers from a laptop; use the same kind of runner.
 on:
@@ -45,7 +46,7 @@ jobs:
           {
             echo '## Performance (Release, macos-26)'
             python3 -I Scripts/perf_report.py perf.log --json perf.json \
-              --baseline .github/perf-baseline.json --fail-ratio 3.0 --min-seconds 0.05
+              --baseline .github/perf-baseline.json --fail-ratio 3.0 --min-seconds 0.05 --min-delta 0.05 --max-rsd 35
           } | tee -a "$GITHUB_STEP_SUMMARY"
           exit "${PIPESTATUS[0]}"
 
