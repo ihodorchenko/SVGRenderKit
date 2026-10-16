@@ -674,30 +674,26 @@ extension SVGSourceStyleElement {
         mainLayer.mask = combineClipAndMask(clip: clipMaskLayer, mask: appliedMaskLayer)
 
         // Walking the whole path is only needed when a vertex-based marker is set.
-        let vertices = (self.markerStart != nil || self.markerMid != nil) ? SVGUtils.pathVertices(path: path) : []
+        let vertices = (self.markerStart != nil || self.markerMid != nil) ? SVGUtils.markerVertices(path: path) : []
 
         // marker-start
-        if let markerStart = self.markerStart {
-            let info: (point: CGPoint, tangent: CGPoint)?
-            if vertices.count >= 2 {
-                info = (vertices[0], CGPoint(x: vertices[1].x - vertices[0].x, y: vertices[1].y - vertices[0].y))
-            } else {
-                info = vertices.first.map { ($0, CGPoint.zero) }
-            }
-            if let info = info {
-                try applyMarker(iri: markerStart, at: info, mainLayer: mainLayer, group: group, strokeWidth: resolvedStrokeWidth, overrideElements: overrideElements)
-            }
+        if let markerStart = self.markerStart, let first = vertices.first {
+            try applyMarker(iri: markerStart, at: (first.point, first.outgoing ?? .zero), mainLayer: mainLayer, group: group, strokeWidth: resolvedStrokeWidth, overrideElements: overrideElements)
         }
 
-        // marker-mid (all vertices except the start and end)
+        // marker-mid (all vertices except the start and end of the whole path). `orient="auto"`
+        // bisects the incoming and outgoing tangents at the vertex (B107); a vertex where only
+        // one segment meets (the ends of a subpath) follows that segment.
         if let markerMid = self.markerMid, vertices.count >= 3 {
-            for i in 1..<(vertices.count - 1) {
-                // `orient="auto"` bisects the incoming and outgoing directions at the
-                // vertex, not just the outgoing one (B107).
-                let incoming = CGPoint(x: vertices[i].x - vertices[i - 1].x, y: vertices[i].y - vertices[i - 1].y)
-                let outgoing = CGPoint(x: vertices[i + 1].x - vertices[i].x, y: vertices[i + 1].y - vertices[i].y)
-                let tangent = SVGUtils.bisector(incoming, outgoing)
-                try applyMarker(iri: markerMid, at: (vertices[i], tangent), mainLayer: mainLayer, group: group, strokeWidth: resolvedStrokeWidth, overrideElements: overrideElements)
+            for vertex in vertices[1..<(vertices.count - 1)] {
+                let tangent: CGPoint
+                switch (vertex.incoming, vertex.outgoing) {
+                case let (incoming?, outgoing?): tangent = SVGUtils.bisector(incoming, outgoing)
+                case let (incoming?, nil): tangent = incoming
+                case let (nil, outgoing?): tangent = outgoing
+                case (nil, nil): tangent = .zero
+                }
+                try applyMarker(iri: markerMid, at: (vertex.point, tangent), mainLayer: mainLayer, group: group, strokeWidth: resolvedStrokeWidth, overrideElements: overrideElements)
             }
         }
 

@@ -96,6 +96,74 @@ open class SVGUtils {
         return vertices
     }
 
+    /// A path vertex with the directions of the segments meeting there. `incoming` is the
+    /// direction the previous segment arrives with, `outgoing` the one the next leaves with — for
+    /// a curve its end tangent (from the control point), not the chord. `nil` where no segment
+    /// arrives or leaves (the start of a subpath, its last vertex).
+    struct MarkerVertex {
+        var point: CGPoint
+        var incoming: CGPoint?
+        var outgoing: CGPoint?
+    }
+
+    /// The vertices of a path with their tangents, in drawing order; every subpath contributes its
+    /// own start and end, so a joint between two subpaths is two vertices (B133 в).
+    class func markerVertices(path: UIBezierPath) -> [MarkerVertex] {
+        var vertices: [MarkerVertex] = []
+        var current = CGPoint.zero
+        var subpathStart = CGPoint.zero
+
+        // Direction from `from` towards the first of the points that differs from it.
+        func direction(from: CGPoint, towards candidates: [CGPoint]) -> CGPoint {
+            for c in candidates where c != from { return CGPoint(x: c.x - from.x, y: c.y - from.y) }
+            return .zero
+        }
+        // Direction arriving at `to` from the first of the points that differs from it.
+        func direction(to: CGPoint, from candidates: [CGPoint]) -> CGPoint {
+            for c in candidates where c != to { return CGPoint(x: to.x - c.x, y: to.y - c.y) }
+            return .zero
+        }
+        func segment(startTangent: CGPoint, endTangent: CGPoint, end: CGPoint) {
+            vertices[vertices.count - 1].outgoing = startTangent
+            vertices.append(MarkerVertex(point: end, incoming: endTangent, outgoing: nil))
+            current = end
+        }
+
+        path.cgPath.applyWithBlock { element in
+            let pts = element.pointee.points
+            switch element.pointee.type {
+            case .moveToPoint:
+                vertices.append(MarkerVertex(point: pts[0], incoming: nil, outgoing: nil))
+                current = pts[0]
+                subpathStart = pts[0]
+            case .addLineToPoint:
+                guard !vertices.isEmpty else { break }
+                let d = CGPoint(x: pts[0].x - current.x, y: pts[0].y - current.y)
+                segment(startTangent: d, endTangent: d, end: pts[0])
+            case .addQuadCurveToPoint:
+                guard !vertices.isEmpty else { break }
+                let end = pts[1]
+                segment(startTangent: direction(from: current, towards: [pts[0], end]),
+                        endTangent: direction(to: end, from: [pts[0], current]),
+                        end: end)
+            case .addCurveToPoint:
+                guard !vertices.isEmpty else { break }
+                // A control point coinciding with an end falls back to the next one (SVG 1.1 §11.6.2).
+                let end = pts[2]
+                segment(startTangent: direction(from: current, towards: [pts[0], pts[1], end]),
+                        endTangent: direction(to: end, from: [pts[1], pts[0], current]),
+                        end: end)
+            case .closeSubpath:
+                guard !vertices.isEmpty else { break }
+                let d = CGPoint(x: subpathStart.x - current.x, y: subpathStart.y - current.y)
+                segment(startTangent: d, endTangent: d, end: subpathStart)
+            default:
+                break
+            }
+        }
+        return vertices
+    }
+
     /// The direction bisecting `incoming` and `outgoing` (both non-normalised). Falls
     /// back to `outgoing` when they cancel (a 180° turn). Used for `marker-mid` (B107).
     open class func bisector(_ incoming: CGPoint, _ outgoing: CGPoint) -> CGPoint {
