@@ -946,7 +946,7 @@ extension SVGSourceStyleElement {
         let stroked = strokedPath(from: path, viewBox: options.viewBox)
         let maskLayer = CAShapeLayer()
         maskLayer.path = stroked
-        if let gradLayer = gradient.getGradientLayer(maskLayer: maskLayer, path: UIBezierPath(cgPath: stroked), viewBox: options.viewBox, currentColor: self.color ?? .black) {
+        if let gradLayer = gradient.getGradientLayer(maskLayer: maskLayer, path: UIBezierPath(cgPath: stroked), boundingBox: path.svgBounds(transformedBy: nil), viewBox: options.viewBox, currentColor: self.color ?? .black) {
             gradLayer.opacity = Float(min(max(opacity, 0), 1))
             mainLayer.insertSublayer(gradLayer, at: 0)
         }

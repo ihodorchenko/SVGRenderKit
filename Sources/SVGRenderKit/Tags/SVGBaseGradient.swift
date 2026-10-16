@@ -144,6 +144,15 @@ open class SVGBaseGradient: SVGChildObject {
     open func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
         return nil
     }
+
+    /// Like `getGradientLayer(maskLayer:path:viewBox:currentColor:)`, but `path` only supplies the
+    /// area the gradient layer covers (the stroked outline for a stroke) while `boundingBox` is the
+    /// box an `objectBoundingBox` gradient resolves against — the geometry without its stroke
+    /// (SVG 1.1 §13.2, B135). The built-in gradients override this; a subclass that only overrides
+    /// the public method keeps resolving against `path`.
+    func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, boundingBox: CGRect?, viewBox: CGRect, currentColor: UIColor) -> CALayer? {
+        getGradientLayer(maskLayer: maskLayer, path: path, viewBox: viewBox, currentColor: currentColor)
+    }
 }
 
 /// A CALayer that draws a radial gradient from its start point outward to its radius.

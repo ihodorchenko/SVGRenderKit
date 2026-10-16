@@ -25,6 +25,10 @@ open class SVGRadialGradientTag: SVGBaseGradient {
 
     /// Builds a masked layer that draws this radial gradient.
     open override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
+        getGradientLayer(maskLayer: maskLayer, path: path, boundingBox: nil, viewBox: viewBox, currentColor: currentColor)
+    }
+
+    override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, boundingBox: CGRect?, viewBox: CGRect, currentColor: UIColor) -> CALayer? {
         resolveHref()
         var colors: [CGColor] = []
         var locations: [CGFloat] = []
@@ -56,7 +60,7 @@ open class SVGRadialGradientTag: SVGBaseGradient {
 
         switch gradientUnits {
         case .objectBoundingBox:
-            return boundingBoxLayer(path: path, maskLayer: maskLayer, colors: colors, locations: locations)
+            return boundingBoxLayer(path: path, boundingBox: boundingBox, maskLayer: maskLayer, colors: colors, locations: locations)
         case .userSpaceOnUse:
             return userSpaceLayer(viewBox: viewBox, maskLayer: maskLayer, colors: colors, locations: locations)
         }
@@ -67,9 +71,13 @@ open class SVGRadialGradientTag: SVGBaseGradient {
     /// so a radius fraction `r` becomes the ellipse `r·w` by `r·h` — not a circle.
     /// `gradientTransform` applies in the unit square, before that mapping (SVG 1.1
     /// §13.2.2).
-    private func boundingBoxLayer(path: UIBezierPath, maskLayer: CALayer, colors: [CGColor], locations: [CGFloat]) -> CALayer? {
-        let bbox = path.bounds
-        guard bbox.width > 0, bbox.height > 0 else { return nil }
+    private func boundingBoxLayer(path: UIBezierPath, boundingBox: CGRect?, maskLayer: CALayer, colors: [CGColor], locations: [CGFloat]) -> CALayer? {
+        // The layer covers the path's bounds; the gradient itself resolves against the geometry's
+        // box when one is given (a stroke, B135) — a degenerate box falls back to the layer's.
+        let frame = path.bounds
+        guard frame.width > 0, frame.height > 0 else { return nil }
+        var bbox = frame
+        if let box = boundingBox, box.width > 0, box.height > 0 { bbox = box }
 
         let center = CGPoint(x: unitFraction(cx), y: unitFraction(cy))
         // The focal point defaults to the center when fx/fy are not specified.
@@ -83,7 +91,10 @@ open class SVGRadialGradientTag: SVGBaseGradient {
         if let transform = transform {
             gradientToLocal = CATransform3DGetAffineTransform(transform).concatenating(gradientToLocal)
         }
-        return makeRadialLayer(frame: bbox, maskLayer: maskLayer, center: center, focal: focal,
+        if bbox != frame {
+            gradientToLocal = gradientToLocal.concatenating(CGAffineTransform(translationX: bbox.minX - frame.minX, y: bbox.minY - frame.minY))
+        }
+        return makeRadialLayer(frame: frame, maskLayer: maskLayer, center: center, focal: focal,
                                radius: radius, focalRadius: focalRadius, gradientTransform: gradientToLocal,
                                colors: colors, locations: locations)
     }
