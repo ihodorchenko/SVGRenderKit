@@ -35,10 +35,10 @@ final class SVGPatternBBoxTests: XCTestCase {
     }
 
     func testPatternTransformActsInUserSpaceForBoundingBoxUnits() throws {
-        // Tile 50×50 (0.5 × 1 of the 100×50 box), black square 0…25. translate(10 0) shifts
+        // Tile 50×50 (0.5 × 1 of the 100×50 box), black bar 0…25 (patternContentUnits=objectBoundingBox). translate(10 0) shifts
         // the grid by 10 user units: the square covers x 10…35 (not a bbox-scaled 1000 units).
         let d = try alphaMap("""
-        <defs><pattern id="p" width="0.5" height="1" patternTransform="translate(10 0)"><rect width="0.25" height="1" fill="#000"/></pattern></defs>
+        <defs><pattern id="p" width="0.5" height="1" patternContentUnits="objectBoundingBox" patternTransform="translate(10 0)"><rect width="0.25" height="1" fill="#000"/></pattern></defs>
         <rect width="100" height="50" fill="url(#p)"/>
         """)
         XCTAssertEqual(a(d, 5, 25), 0)

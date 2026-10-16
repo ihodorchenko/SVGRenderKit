@@ -189,20 +189,11 @@ extension SVGPattern {
         }
     }
 
-    /// `patternTransform` re-expressed in user space (it acts in bounding-box units for
-    /// `objectBoundingBox`), applied to the grid together with the tile phase.
+    /// `patternTransform` maps the pattern coordinate system onto user space whatever the
+    /// units, so it is applied as is, together with the tile phase (B132).
     private func gridTransform(bbox: CGRect) -> CGAffineTransform {
         guard let transform = transform else { return .identity }
-        let m = CATransform3DGetAffineTransform(transform)
-        switch patternUnits {
-        case .userSpaceOnUse:
-            return m
-        case .objectBoundingBox:
-            guard bbox.width > 0, bbox.height > 0 else { return m }
-            let toUser = CGAffineTransform(scaleX: bbox.width, y: bbox.height)
-            let fromUser = CGAffineTransform(scaleX: 1 / bbox.width, y: 1 / bbox.height)
-            return fromUser.concatenating(m).concatenating(toUser)
-        }
+        return CATransform3DGetAffineTransform(transform)
     }
 
     private func makePattern(image: UIImage, bbox: CGRect, viewBox viewBoxRect: CGRect) -> CGPattern? {
@@ -283,14 +274,10 @@ extension SVGPattern {
                     layer.opacity = Float(fillOpacity)
                     let cg = context.cgContext
                     if let viewBox = viewBox, viewBox.width > 0, viewBox.height > 0 {
-                        // A `viewBox` fits the content into the tile's own box, whose size
-                        // in tile units is then scaled up to the image (user) size.
-                        let wP = tileValue(self.width, viewBoxDimension: viewBoxRect.width)
-                        let hP = tileValue(self.height, viewBoxDimension: viewBoxRect.height)
-                        let unitX = wP != 0 ? size.width / wP : 1
-                        let unitY = hP != 0 ? size.height / hP : 1
-                        let fit = preserveAspectRatio.resolve(viewBox: viewBox, containerSize: CGSize(width: wP, height: hP))
-                        cg.scaleBy(x: unitX, y: unitY)
+                        // A `viewBox` fits the content into the tile box, in user units — for
+                        // `objectBoundingBox` that is the bounding-box-scaled size, so the fit
+                        // stays uniform on a non-square box.
+                        let fit = preserveAspectRatio.resolve(viewBox: viewBox, containerSize: size)
                         cg.translateBy(x: fit.translateX, y: fit.translateY)
                         cg.scaleBy(x: fit.scaleX, y: fit.scaleY)
                         cg.translateBy(x: -viewBox.origin.x, y: -viewBox.origin.y)
