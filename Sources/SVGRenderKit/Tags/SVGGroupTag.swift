@@ -28,23 +28,7 @@ extension SVGGTag: SVGRendering {
             }
         }
 
-        for layerElement in layerElements.array {
-            if let group = layerElement as? SVGGTag {
-                let layer = try group.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-                if layer.sublayers?.count ?? 0 > 0 {
-                    mainLayer.addSublayer(layer)
-                }
-            } else if let path = layerElement as? SVGShapeObject {
-                let layer = try path.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-                mainLayer.addSublayer(layer)
-            } else if let path = layerElement as? SVGUseTag {
-                let layer = try path.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-                mainLayer.addSublayer(layer)
-            } else if let image = layerElement as? SVGImage {
-                let layer = try image.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-                mainLayer.addSublayer(layer)
-            }
-        }
+        try appendChildLayers(layerElements.array, to: mainLayer, addStyle: addStyle, overrideElements: overrideElements, skipEmptyGroups: true)
 
         if let transform = transform {
             mainLayer.transform = transform
@@ -63,4 +47,59 @@ extension SVGGTag: SVGRendering {
 /// A container group for reusable `<defs>` definitions that are not rendered directly.
 open class SVGDefsGroupTag: SVGGroupObject {
     class override var key: String { get { return "defs" }}
+}
+
+/// Renders every drawable child of a container, in document order, into `mainLayer`
+/// (shared by `<g>`, `<svg>`, `<symbol>` and `<pattern>`). A `<g>` that produced no sublayers
+/// is dropped unless `skipEmptyGroups` is false.
+func appendChildLayers(_ elements: [SVGObject], to mainLayer: CALayer, addStyle: SVGSourceStyleElement?,
+                       overrideElements: [String: SVGSourceStyleElement]?, skipEmptyGroups: Bool) throws {
+    for element in elements {
+        let layer: CALayer
+        if let group = element as? SVGGTag {
+            layer = try group.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+            if skipEmptyGroups, (layer.sublayers?.count ?? 0) == 0 { continue }
+        } else if let shape = element as? SVGShapeObject {
+            layer = try shape.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+        } else if let use = element as? SVGUseTag {
+            layer = try use.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+        } else if let image = element as? SVGImage {
+            layer = try image.createLayer(addStyle: addStyle, overrideElements: overrideElements)
+        } else {
+            continue
+        }
+        mainLayer.addSublayer(layer)
+    }
+}
+
+/// A `<mask>`, `<pattern>` or `<marker>`: a container whose children (shapes, `<use>`, `<g>`,
+/// `<image>`) are parsed and stored the same way.
+protocol SVGContentHosting: SVGGroupHosting {
+    var all: SVGTags<SVGObject> { get }
+    var groups: SVGTags<SVGGTag> { get }
+    var images: SVGTags<SVGImage> { get }
+    func add(uses: [SVGUseTag]) throws
+    func add(shapes: [SVGShapeObject]) throws
+}
+
+extension SVGContentHosting {
+    func parse(children: XMLElement) throws {
+        switch children.name {
+        case SVGUseTag.key:
+            let use: SVGUseTag = try SVGUseTag(xmlElement: children, parent: self)
+            try self.add(uses: [use])
+        case SVGGTag.key:
+            let group: SVGGTag = try SVGGTag(xmlElement: children, parent: self)
+            self.groups.add(item: group)
+            self.all.add(item: group)
+        case SVGImage.key:
+            let image: SVGImage = try SVGImage(xmlElement: children, parent: self)
+            self.images.add(item: image)
+            self.all.add(item: image)
+        default:
+            if let shapeTag = try SVGShapeObject.create(xml: children, parent: self) {
+                try self.add(shapes: [shapeTag])
+            }
+        }
+    }
 }

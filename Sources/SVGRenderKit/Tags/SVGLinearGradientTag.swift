@@ -17,32 +17,12 @@ open class SVGLinearGradientTag: SVGBaseGradient {
 
     /// Builds a masked layer that draws this linear gradient along its axis.
     open override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
-        resolveHref()
-        var colors: [CGColor] = []
-        var locations: [CGFloat] = []
+        getGradientLayer(maskLayer: maskLayer, path: path, boundingBox: nil, viewBox: viewBox, currentColor: currentColor)
+    }
 
-        // Sort only when needed: the gradient is shared by cached trees, so an unconditional
-        // in-place sort would both waste work and write shared state on every use.
-        if !stops.isSortedByOffset {
-            stops.sort { (f, s) -> Bool in
-                return f.offset < s.offset
-            }
-        }
-        for stop in stops {
-            // SVG 1.1 clamps stop offsets to [0, 1] rather than failing the gradient.
-            let offset = max(0, min(1, stop.offset))
-            locations.append(CGFloat(offset))
-            colors.append(stop.resolvedColor(currentColor: currentColor).cgColor)
-        }
-        // A single stop renders as a solid color; duplicate it so CAGradientLayer
-        // has a valid two-stop gradient.
-        if colors.count == 1 {
-            colors.append(colors[0])
-            locations.append(1)
-        }
-        let spread = spreadAdjusted(colors: colors, locations: locations)
-        colors = spread.colors
-        locations = spread.locations
+    override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, boundingBox: CGRect?, viewBox: CGRect, currentColor: UIColor) -> CALayer? {
+        resolveHref()
+        let (colors, locations) = renderStops(currentColor: currentColor)
 
         if colors.count == locations.count && locations.count > 1 {
             let newLayer: CALayer = CALayer()
@@ -55,6 +35,12 @@ open class SVGLinearGradientTag: SVGBaseGradient {
                 boundsToPoints = path.bounds
                 break
             }
+            // The box the axis is resolved against, when it is not the layer's own frame (B135).
+            let axisBox: CGRect? = {
+                guard gradientUnits == .objectBoundingBox, let box = boundingBox,
+                      box.width > 0, box.height > 0, box != boundsToPoints else { return nil }
+                return box
+            }()
             let gradLayer = CAGradientLayer()
             newLayer.addSublayer(gradLayer)
 
@@ -144,9 +130,15 @@ open class SVGLinearGradientTag: SVGBaseGradient {
                 let points = LinearGradientFixer.fixPoints(
                     start: _startPoint,
                     end: _endPoint,
-                    bounds: boundsToPoints.size)
-                let fStartPoint: CGPoint = points.0
-                let fEndPoint: CGPoint = points.1
+                    bounds: (axisBox ?? boundsToPoints).size)
+                var fStartPoint: CGPoint = points.0
+                var fEndPoint: CGPoint = points.1
+
+                // The axis above is expressed against the geometry box; the layer covers the
+                // (larger) stroked outline, so re-express it against the layer's own frame.
+                if let box = axisBox {
+                    (fStartPoint, fEndPoint) = Self.remap(start: fStartPoint, end: fEndPoint, from: box, to: boundsToPoints)
+                }
 
                 gradLayer.startPoint = fStartPoint
                 gradLayer.endPoint = fEndPoint
@@ -158,6 +150,27 @@ open class SVGLinearGradientTag: SVGBaseGradient {
             return newLayer
         }
         return nil
+    }
+
+    /// Re-expresses a gradient axis given in `from`-relative unit coordinates in the unit
+    /// coordinates of `to`. `CAGradientLayer` projects in its own unit space, so the *direction*
+    /// is mapped through the transpose of the scale, not as two points: the colour field stays
+    /// the same linear function of the absolute position.
+    static func remap(start: CGPoint, end: CGPoint, from: CGRect, to: CGRect) -> (CGPoint, CGPoint) {
+        let sx = to.width / from.width, sy = to.height / from.height
+        func toFrame(_ p: CGPoint) -> CGPoint {
+            CGPoint(x: (from.minX + p.x * from.width - to.minX) / to.width,
+                    y: (from.minY + p.y * from.height - to.minY) / to.height)
+        }
+        let newStart = toFrame(start)
+        let d = CGPoint(x: end.x - start.x, y: end.y - start.y)
+        let lenSq = d.x * d.x + d.y * d.y
+        guard lenSq > 0 else { return (newStart, toFrame(end)) }
+        // ∇t' = S·d / |d|², S = to-size / from-size; the layer interpolates (p − A)·(B − A) / |B − A|², so B − A = g / |g|².
+        let g = CGPoint(x: sx * d.x / lenSq, y: sy * d.y / lenSq)
+        let gSq = g.x * g.x + g.y * g.y
+        guard gSq > 0 else { return (newStart, toFrame(end)) }
+        return (newStart, CGPoint(x: newStart.x + g.x / gSq, y: newStart.y + g.y / gSq))
     }
 
     /// Creates a linear gradient by parsing attributes and color stops.

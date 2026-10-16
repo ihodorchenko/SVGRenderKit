@@ -62,25 +62,6 @@ open class SVGMarker: SVGChildObject {
         }
     }
 
-    internal func parse(children: XMLElement) throws {
-        switch children.name {
-        case SVGUseTag.key:
-            let use: SVGUseTag = try SVGUseTag(xmlElement: children, parent: self)
-            try self.add(uses: [use])
-        case SVGGTag.key:
-            let group: SVGGTag = try SVGGTag(xmlElement: children, parent: self)
-            self.groups.add(item: group)
-            self.all.add(item: group)
-        case SVGImage.key:
-            let image: SVGImage = try SVGImage(xmlElement: children, parent: self)
-            self.images.add(item: image)
-            self.all.add(item: image)
-        default:
-            if let shapeTag = try SVGShapeObject.create(xml: children, parent: self) {
-                try self.add(shapes: [shapeTag])
-            }
-        }
-    }
 }
 
 extension SVGMarker {
@@ -103,7 +84,7 @@ extension SVGMarker {
     }
 }
 
-extension SVGMarker: SVGGroupHosting {}
+extension SVGMarker: SVGContentHosting {}
 
 extension SVGMarker: SVGRendering {
     /// Builds a layer containing the marker's children.
@@ -112,21 +93,7 @@ extension SVGMarker: SVGRendering {
 
         // Children paint in document order, so a later child covers an earlier one whatever
         // their types are (B119-5b).
-        for element in all.array {
-            if let group = element as? SVGGTag {
-                let layer = try group.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-                mainLayer.addSublayer(layer)
-            } else if let use = element as? SVGUseTag {
-                let layer = try use.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-                mainLayer.addSublayer(layer)
-            } else if let path = element as? SVGShapeObject {
-                let layer = try path.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-                mainLayer.addSublayer(layer)
-            } else if let image = element as? SVGImage {
-                let layer = try image.createLayer(addStyle: addStyle, overrideElements: overrideElements)
-                mainLayer.addSublayer(layer)
-            }
-        }
+        try appendChildLayers(all.array, to: mainLayer, addStyle: addStyle, overrideElements: overrideElements, skipEmptyGroups: false)
 
         return mainLayer
     }
