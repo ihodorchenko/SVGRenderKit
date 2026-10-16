@@ -46,7 +46,7 @@ open class SVGPattern: SVGChildObject {
 
     /// Tiles are identical for every shape that shares the same region and scale, so a hatch fill used by
     /// hundreds of shapes is rasterized once instead of once per shape.
-    private let tileCache = SVGBoundedCache<TileKey, UIImage>(limit: 16)
+    private let tileCache = SVGBoundedCache<TileKey, UIImage>(limit: 16, costLimit: SVGBitmapCost.budget, cost: SVGBitmapCost.bytes)
 
     /// Initializes a pattern by parsing its geometry attributes and child elements.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {

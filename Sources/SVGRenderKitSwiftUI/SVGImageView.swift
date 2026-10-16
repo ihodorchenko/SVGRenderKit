@@ -135,20 +135,32 @@ public struct SVGImageView: UIViewRepresentable {
         /// The file's size/mtime at load time, so a changed file at the same URL reloads (B114).
         private var loadedFileStamp: String?
 
+        /// `updateUIView` runs on every SwiftUI redraw on the main thread, and a `stat` per call adds
+        /// up: the file is inspected at most once per `statInterval` (B133 е). `stamp` and `now` are
+        /// seams for tests.
+        var statInterval: TimeInterval = 0.5
+        var now: () -> Date = { Date() }
+        var stamp: (URL) -> String? = Coordinator.fileStamp
+        private var lastStatCheck: Date?
+
         func needsLoad(source: Source, fillColors: [String: UIColor]?, overrides: [String: SVGSourceStyleElement]?) -> Bool {
             guard let loaded else { return true }
             guard loaded.source == source,
                   loaded.fillColors == fillColors,
                   Self.sameInstances(loaded.overrides, overrides) else { return true }
             // The docs promise a re-parse when the file changes.
-            if case .url(let url) = source { return Self.fileStamp(url) != loadedFileStamp }
-            return false
+            guard case .url(let url) = source else { return false }
+            let current = now()
+            if let last = lastStatCheck, current.timeIntervalSince(last) < statInterval { return false }
+            lastStatCheck = current
+            return stamp(url) != loadedFileStamp
         }
 
         func record(source: Source, fillColors: [String: UIColor]?, overrides: [String: SVGSourceStyleElement]?) {
             loaded = (source, fillColors, overrides)
             if case .url(let url) = source {
-                loadedFileStamp = Self.fileStamp(url)
+                loadedFileStamp = stamp(url)
+                lastStatCheck = now()
             } else {
                 loadedFileStamp = nil
             }

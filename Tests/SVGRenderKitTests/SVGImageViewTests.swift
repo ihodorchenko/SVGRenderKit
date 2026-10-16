@@ -103,6 +103,7 @@ final class SVGImageViewTests: XCTestCase {
 
         let source = SVGImageView.Source.url(url)
         let coordinator = SVGImageView.Coordinator()
+        coordinator.statInterval = 0   // B133 е: by default the file is stat'ed at most every 0.5 s
         XCTAssertTrue(coordinator.needsLoad(source: source, fillColors: nil, overrides: nil))
         coordinator.record(source: source, fillColors: nil, overrides: nil)
         // An unchanged URL with an unchanged file must not reload.
@@ -113,5 +114,26 @@ final class SVGImageViewTests: XCTestCase {
             .write(to: url, atomically: true, encoding: .utf8)
         XCTAssertTrue(coordinator.needsLoad(source: source, fillColors: nil, overrides: nil),
                       "a changed file at the same URL must reload")
+    }
+
+    // B133 е: a redraw storm must not stat the file on every call.
+    func testCoordinatorThrottlesFileStats() {
+        let url = URL(fileURLWithPath: "/tmp/throttle.svg")
+        let source = SVGImageView.Source.url(url)
+        var clock = Date(timeIntervalSince1970: 1000)
+        var stats = 0
+        var stamp = "a"
+        let coordinator = SVGImageView.Coordinator()
+        coordinator.now = { clock }
+        coordinator.stamp = { _ in stats += 1; return stamp }
+
+        coordinator.record(source: source, fillColors: nil, overrides: nil)
+        for _ in 0..<200 { XCTAssertFalse(coordinator.needsLoad(source: source, fillColors: nil, overrides: nil)) }
+        XCTAssertEqual(stats, 1, "only the stat at record time")
+
+        stamp = "b"
+        clock = clock.addingTimeInterval(1)
+        XCTAssertTrue(coordinator.needsLoad(source: source, fillColors: nil, overrides: nil), "a change is seen after the interval")
+        XCTAssertEqual(stats, 2)
     }
 }

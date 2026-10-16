@@ -25,6 +25,16 @@ open class SVGCache: @unchecked Sendable {
     }
     private var entries: [String: Entry] = [:]
     private var tick: UInt64 = 0
+    private var _generation: UInt64 = 0
+
+    /// Bumped by every `resetCache()`. A parse snapshots it before it starts and hands it to
+    /// `set(md5:object:generation:)`, so a tree parsed against stale state (override colors that
+    /// changed mid-parse) is not stored after the reset that invalidated it (B133 д).
+    var generation: UInt64 {
+        lock.lock()
+        defer { lock.unlock() }
+        return _generation
+    }
 
     private init() {
     }
@@ -34,6 +44,7 @@ open class SVGCache: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         entries.removeAll()
+        _generation &+= 1
     }
 
     func get(md5: String) -> SVGRoot? {
@@ -48,10 +59,13 @@ open class SVGCache: @unchecked Sendable {
         return entry.root
     }
 
-    func set(md5: String, object: SVGRoot) {
+    /// Stores `object`; a `generation` older than the current one means `resetCache()` ran while the
+    /// tree was being parsed, so it is dropped.
+    func set(md5: String, object: SVGRoot, generation: UInt64? = nil) {
         guard isSVGParserUseCache else { return }
         lock.lock()
         defer { lock.unlock() }
+        if let generation, generation != _generation { return }
         if entries[md5] == nil, entries.count >= maxCount,
            let oldest = entries.min(by: { $0.value.lastUsed < $1.value.lastUsed })?.key {
             entries.removeValue(forKey: oldest)

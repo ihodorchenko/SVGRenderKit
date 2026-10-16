@@ -66,9 +66,10 @@ open class SVGParser {
             let parser = try SVGParser(svgData: svgData, parsedRoot: parsedRoot)
             return parser
         }
+        let generation = SVGCache.s.generation
         let parser = try SVGParser(svgData: svgData, parsedRoot: nil)
         if SVGCache.s.isSVGParserUseCache == true, let key = key {
-            SVGCache.s.set(md5: key, object: parser.root)
+            SVGCache.s.set(md5: key, object: parser.root, generation: generation)
         }
         return parser
     }
@@ -79,9 +80,10 @@ open class SVGParser {
             let parser = try SVGParser(svgString: svgString, parsedRoot: parsedRoot)
             return parser
         }
+        let generation = SVGCache.s.generation
         let parser = try SVGParser(svgString: svgString, parsedRoot: nil)
         if SVGCache.s.isSVGParserUseCache == true, let key = key {
-            SVGCache.s.set(md5: key, object: parser.root)
+            SVGCache.s.set(md5: key, object: parser.root, generation: generation)
         }
         return parser
     }
@@ -105,9 +107,10 @@ open class SVGParser {
         if SVGCache.s.isSVGParserUseCache == true, let parsedRoot = SVGCache.s.get(md5: key) {
             return try SVGParser(svgURL: svgURL, parsedRoot: parsedRoot)
         }
+        let generation = SVGCache.s.generation
         let parser = try SVGParser(svgURL: svgURL, parsedRoot: nil)
         if SVGCache.s.isSVGParserUseCache == true {
-            SVGCache.s.set(md5: key, object: parser.root)
+            SVGCache.s.set(md5: key, object: parser.root, generation: generation)
         }
         return parser
     }

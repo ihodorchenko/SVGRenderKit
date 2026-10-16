@@ -38,7 +38,7 @@ open class SVGMask: SVGChildObject {
     }
 
     /// The bitmap is identical for every element that shares the mask, so it is rendered once per key.
-    private let maskImageCache = SVGBoundedCache<MaskKey, CGImage>(limit: 16)
+    private let maskImageCache = SVGBoundedCache<MaskKey, CGImage>(limit: 16, costLimit: SVGBitmapCost.budget, cost: SVGBitmapCost.bytes)
 
     /// The mask region, defaulting to -10%/-10%/120%/120% (object-bounding-box units).
     var x: SVGLength = SVGLength.percent(value: -0.1)
