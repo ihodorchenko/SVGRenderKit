@@ -53,10 +53,7 @@ open class SVGPattern: SVGChildObject {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         let tsStyle: SVGSourceStyleElement = SVGSourceStyleElement()
-        if let str = attributeDict["style"] {
-            try tsStyle.set(styleStr: str, force: false)
-        }
-        try tsStyle.set(attributeDict: attributeDict)
+        try tsStyle.set(attributesAndInlineStyle: attributeDict)
         sourceStyle = tsStyle
 
         if let str = attributeDict["patternUnits"], let f = PatternUnits(rawValue: str) { patternUnits = f }

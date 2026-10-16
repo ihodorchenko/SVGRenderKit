@@ -14,10 +14,25 @@ open class SVGUseTag: SVGObject, SVGRendering {
 
     var transform: CATransform3D?
 
-    var x: CGFloat = 0
-    var y: CGFloat = 0
-    var width: CGFloat?
-    var height: CGFloat?
+    private var xLength: SVGLength?
+    private var yLength: SVGLength?
+    private var widthLength: SVGLength?
+    private var heightLength: SVGLength?
+
+    /// Resolves a length against the viewport: a percentage is relative to the `viewBox`
+    /// dimension (B129). Needs the parent chain, so it is evaluated when used, not parsed.
+    private func resolve(_ length: SVGLength?, reference: (CGRect) -> CGFloat) -> CGFloat? {
+        switch length {
+        case .px(let value)?: return value
+        case .percent(let value)?: return reference(parent.getSvgOptions().viewBox) * value
+        case nil: return nil
+        }
+    }
+
+    var x: CGFloat { resolve(xLength) { $0.width } ?? 0 }
+    var y: CGFloat { resolve(yLength) { $0.height } ?? 0 }
+    var width: CGFloat? { resolve(widthLength) { $0.width } }
+    var height: CGFloat? { resolve(heightLength) { $0.height } }
 
     /// Initializes a `<use>` tag by parsing its `href`, `x`, `y`, and `transform` attributes.
     public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
@@ -36,17 +51,12 @@ open class SVGUseTag: SVGObject, SVGRendering {
         }
         inlineStyle = inline
 
-        // `x`/`y` are lengths in the current user space; a unit suffix or a percentage
-        // must not fail the document (B108). A percentage has no resolvable viewport
-        // here, so it degrades to 0.
-        if let str = attributeDict["x"] { x = SVGUseTag.offset(str) }
-        if let str = attributeDict["y"] { y = SVGUseTag.offset(str) }
-        if let str = attributeDict["width"], let f = Float(str.trimmed) {
-            width = CGFloat(f)
-        }
-        if let str = attributeDict["height"], let f = Float(str.trimmed) {
-            height = CGFloat(f)
-        }
+        // `x`/`y`/`width`/`height` are lengths (units and percentages allowed); a malformed
+        // value is treated as absent rather than failing the document (B108, B129).
+        if let str = attributeDict["x"] { xLength = SVGLength.getSupported(string: str) }
+        if let str = attributeDict["y"] { yLength = SVGLength.getSupported(string: str) }
+        if let str = attributeDict["width"] { widthLength = SVGLength.getSupported(string: str) }
+        if let str = attributeDict["height"] { heightLength = SVGLength.getSupported(string: str) }
 
         if let str = attributeDict["transform"] {
             transform = try SVGTransform.get(string: str)
@@ -81,15 +91,6 @@ open class SVGUseTag: SVGObject, SVGRendering {
             }
         }
         return style
-    }
-
-    /// An `x`/`y` offset in user units, degrading a percentage or a malformed value to 0.
-    private static func offset(_ string: String) -> CGFloat {
-        guard let length = try? SVGLength.get(string: string) else { return 0 }
-        switch length {
-        case .px(let value): return value
-        case .percent: return 0
-        }
     }
 
     /// Bounds of the referenced content in the `<use>`'s own user space — the space in

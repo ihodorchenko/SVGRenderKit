@@ -44,6 +44,12 @@ public class SVGColors {
     /// - parameter alpha: An optional alpha value that overrides any alpha encoded in the string.
     /// - returns: The resolved color, or `UIColor.clear` if the string cannot be parsed.
     public class func getColor(string: String, alpha: CGFloat? = nil) -> UIColor {
+        return parse(string: string, alpha: alpha) ?? UIColor.clear
+    }
+
+    /// Like `getColor(string:alpha:)`, but `nil` when the string is not a valid colour, so a
+    /// caller can ignore the declaration instead of painting it transparent (B129).
+    static func parse(string: String, alpha: CGFloat? = nil) -> UIColor? {
         var string: String = string
         if let color = getOvverideUIColor(byString: string) {
             return color
@@ -74,11 +80,7 @@ public class SVGColors {
             }
             color = nil
         }
-        if let color = color {
-            return color
-        } else {
-            return UIColor.clear
-        }
+        return color
     }
 
     /// Parses an `rgb(r, g, b)` string into a `UIColor`.
@@ -88,9 +90,15 @@ public class SVGColors {
     public class func getColor(rgbString: String, alpha: CGFloat? = nil) -> UIColor? {
         guard let body = functionBody(of: rgbString, name: "rgb") else { return nil }
         let parts = components(body)
-        guard parts.count == 3,
+        // CSS Color 4: `rgb(r g b)`, `rgb(r g b / a)` and the legacy `rgb(r, g, b, a)`.
+        guard parts.count == 3 || parts.count == 4,
               let r = channel(parts[0]), let g = channel(parts[1]), let b = channel(parts[2]) else { return nil }
-        return UIColor(red: r, green: g, blue: b, alpha: alpha.map(clamp01) ?? 1)
+        var a: CGFloat = 1
+        if parts.count == 4 {
+            guard let parsed = alphaValue(parts[3]) else { return nil }
+            a = parsed
+        }
+        return UIColor(red: r, green: g, blue: b, alpha: alpha.map(clamp01) ?? a)
     }
 
     /// Parses an `rgba(r, g, b, a)` string into a `UIColor`.
@@ -99,9 +107,13 @@ public class SVGColors {
     public class func getColor(rgbaString: String, alpha _alpha: CGFloat? = nil) -> UIColor? {
         guard let body = functionBody(of: rgbaString, name: "rgba") else { return nil }
         let parts = components(body)
-        guard parts.count == 4,
-              let r = channel(parts[0]), let g = channel(parts[1]), let b = channel(parts[2]),
-              let a = alphaValue(parts[3]) else { return nil }
+        guard parts.count == 3 || parts.count == 4,
+              let r = channel(parts[0]), let g = channel(parts[1]), let b = channel(parts[2]) else { return nil }
+        var a: CGFloat = 1
+        if parts.count == 4 {
+            guard let parsed = alphaValue(parts[3]) else { return nil }
+            a = parsed
+        }
         return UIColor(red: r, green: g, blue: b, alpha: _alpha.map(clamp01) ?? a)
     }
 
@@ -130,7 +142,7 @@ public class SVGColors {
 
     /// The numeric arguments of a color function, split on commas and/or whitespace.
     private static func components(_ body: String) -> [Substring] {
-        body.replacingOccurrences(of: ",", with: " ")
+        body.replacingOccurrences(of: ",", with: " ").replacingOccurrences(of: "/", with: " ")
             .split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\n" || $0 == "\r" })
     }
 
@@ -159,33 +171,28 @@ public class SVGColors {
     /// - parameter alpha: An optional alpha value that overrides the default of `1.0`.
     /// - returns: The parsed color, or `nil` if the string is malformed.
     public class func getColor(hslString: String, alpha: CGFloat? = nil) -> UIColor? {
-        var _hslString = hslString.removeSpaces()
-        guard _hslString.hasPrefix("hsl("), _hslString.hasSuffix(")"), _hslString.count >= 5 else { return nil }
-        _hslString.removeFirst("hsl(".count)
-        _hslString.removeLast()
-        let arr = _hslString.split(separator: ",")
-        guard arr.count == 3,
-              let h = parseHue(arr[0]),
-              let s = parsePercent(arr[1]),
-              let l = parsePercent(arr[2]) else { return nil }
-        return color(h: h, s: s, l: l, alpha: alpha ?? 1)
+        return hsl(hslString, name: "hsl", alpha: alpha)
     }
 
     /// Parses an `hsla(h, s%, l%, a)` string into a `UIColor`.
     /// - parameter _alpha: An optional alpha value that overrides the alpha encoded in the string.
     /// - returns: The parsed color, or `nil` if the string is malformed.
     public class func getColor(hslaString: String, alpha _alpha: CGFloat? = nil) -> UIColor? {
-        var _hslString = hslaString.removeSpaces()
-        guard _hslString.hasPrefix("hsla("), _hslString.hasSuffix(")"), _hslString.count >= 6 else { return nil }
-        _hslString.removeFirst("hsla(".count)
-        _hslString.removeLast()
-        let arr = _hslString.split(separator: ",")
-        guard arr.count == 4,
-              let h = parseHue(arr[0]),
-              let s = parsePercent(arr[1]),
-              let l = parsePercent(arr[2]),
-              let a = Double(arr[3]) else { return nil }
-        return color(h: h, s: s, l: l, alpha: (_alpha ?? CGFloat(a)).clamped01)
+        return hsl(hslaString, name: "hsla", alpha: _alpha)
+    }
+
+    /// `hsl(h, s%, l%)`, `hsl(h s% l% / a)` and the `hsla` spelling of both (CSS Color 4).
+    private static func hsl(_ string: String, name: String, alpha override: CGFloat?) -> UIColor? {
+        guard let body = functionBody(of: string, name: name) else { return nil }
+        let parts = components(body)
+        guard parts.count == 3 || parts.count == 4,
+              let h = parseHue(parts[0]), let s = parsePercent(parts[1]), let l = parsePercent(parts[2]) else { return nil }
+        var a: CGFloat = 1
+        if parts.count == 4 {
+            guard let parsed = alphaValue(parts[3]) else { return nil }
+            a = parsed
+        }
+        return color(h: h, s: s, l: l, alpha: (override ?? a).clamped01)
     }
 
     private static func clamp01(_ value: Double) -> CGFloat {

@@ -35,10 +35,7 @@ open class SVGImage: SVGObject, SVGRendering {
         try super.init(xmlElement: xmlElement, addDict: addDict)
 
         let tsStyle: SVGSourceStyleElement = SVGSourceStyleElement()
-        if let str = attributeDict["style"] {
-            try tsStyle.set(styleStr: str, force: false)
-        }
-        try tsStyle.set(attributeDict: attributeDict)
+        try tsStyle.set(attributesAndInlineStyle: attributeDict)
         sourceStyle = tsStyle
 
         if let str = attributeDict["x"] {

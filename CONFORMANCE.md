@@ -106,8 +106,10 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 - `<a>`, `<foreignObject>`, `<font>`, `<solidColor>`, `<cursor>` (conditional-processing attributes on `<switch>` are not evaluated; the first child without them is rendered).
 - Full text model: `textPath`, per-glyph `x`/`y` lists,
   `alignment-baseline`/`dominant-baseline`, `textLength`/`lengthAdjust`.
-- CSS cascade: specificity, `inherit` resolution, combinators, `!important`,
-  `@media`, `@font-face`.
+- CSS cascade: specificity, combinators, `@media`, `@font-face`. `inherit` is honoured for
+  `visibility`, `clip-rule`, `fill-rule` and `text-anchor` (the inherited value stays); an
+  `!important` flag is accepted but carries no priority — the value applies as an ordinary
+  declaration.
 - Nested `<svg>` viewports.
 - `paint-order`, `vector-effect`.
 - Full SMIL engine (event `begin`, `additive`/`accumulate`, `calcMode`, `fill="freeze"`).
@@ -173,14 +175,17 @@ The live corpus summary is reported by CI in the GitHub step summary; see [READM
 
 ## Deliberate divergences from the reference renderers
 
-A few behaviours are intentionally not copied from the reference renderers (CoreSVG on iOS,
-WebKit). Each one follows an SVG 1.1 rule, and the difference was verified against a browser
-(WKWebView) while it was added:
+A few behaviours differ from the reference renderers (CoreSVG on iOS, WebKit). Some follow the
+SVG specification where a reference does not (the focal-point row), others deliberately match
+CoreSVG where the specification and a browser say otherwise (the `spreadMethod` and
+interpolation rows). The policy: CoreSVG parity is the default; a spec/browser rule is adopted
+only when it is cheap and its difference was verified against a browser (WKWebView).
 
 | Behaviour | This kit | CoreSVG / WebKit |
 |---|---|---|
 | A radial gradient's focal point outside its end circle | moved onto the circle (SVG 1.1 §13.2.3), so a `pad` gradient paints its whole area | left where it is: a cone is painted and the area outside it stays transparent (SVG 2 / Canvas semantics) |
-| Stop interpolation within a linear gradient | mixed in the renderer's own space, like CoreSVG | mixed in sRGB, which is what CSS/SVG `color-interpolation` defaults to — tracked as B121 in `Task.md` |
+| Stop interpolation within a linear gradient | mixed in the renderer's own space, like CoreSVG | mixed in sRGB, which is what CSS/SVG `color-interpolation` defaults to — not adopted: the native gradient layer is faster on screen and the browser oracle disagrees only at gradient interiors |
+| `spreadMethod="reflect"` / `"repeat"` | rendered as `pad`, like CoreSVG (spec-divergent) | repeat / reflect the gradient vector |
 
 `fr` (the focal circle radius, SVG 2) is supported; CoreSVG ignores it, while WebKit and this
 kit agree on it.

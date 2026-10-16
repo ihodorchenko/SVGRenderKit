@@ -25,10 +25,12 @@ public enum SVGPaint {
             return (.none)
         } else if lowered == "currentcolor" {
             return .currentColor
-        } else if string.hasPrefix("#") {
-            return SVGPaint.color(color: SVGColors.getColor(string: string))
-        } else if lowered.hasPrefix("argb") || lowered.hasPrefix("rgb") || lowered.hasPrefix("hsl") {
-            return SVGPaint.color(color: SVGColors.getColor(string: string))
+        } else if string.hasPrefix("#") || lowered.hasPrefix("argb") || lowered.hasPrefix("rgb") || lowered.hasPrefix("hsl") {
+            // An invalid colour makes the declaration invalid: it is ignored, not painted clear (B129).
+            guard let color = SVGColors.parse(string: string) else {
+                throw SVGError.parseError(text: "invalid color: \(string)")
+            }
+            return SVGPaint.color(color: color)
         } else if string.hasPrefix("url") {
             return try reference(in: string)
         } else if let hexCod = HTMLColors.colors[lowered] {

@@ -101,7 +101,7 @@ open class SVGSourceStyleElement {
         newElem.set(element: self)
         if let display = child.display { newElem.display = display }
         if let visibility = child.visibility { newElem.visibility = visibility }
-        if let textAnchor = child.textAnchor { newElem.textAnchor = textAnchor }
+        if let textAnchor = child.textAnchor, textAnchor != "inherit" { newElem.textAnchor = textAnchor }
         if let fill = child.fill { newElem.fill = fill }
         if let color = child.color { newElem.color = color }
         if let fillOpacity = child.fillOpacity { newElem.fillOpacity = fillOpacity }
@@ -116,7 +116,7 @@ open class SVGSourceStyleElement {
         if let strokeDasharray = child.strokeDasharray { newElem.strokeDasharray = strokeDasharray }
         if let strokeDashoffset = child.strokeDashoffset { newElem.strokeDashoffset = strokeDashoffset }
         if let clipPath = child.clipPath { newElem.clipPath = clipPath }
-        if let clipRule = child.clipRule { newElem.clipRule = clipRule }
+        if let clipRule = child.clipRule, clipRule != .inherit { newElem.clipRule = clipRule }
         if let mask = child.mask { newElem.mask = mask }
         if let markerStart = child.markerStart { newElem.markerStart = markerStart }
         if let markerMid = child.markerMid { newElem.markerMid = markerMid }
@@ -190,12 +190,19 @@ open class SVGSourceStyleElement {
         try set(attributeDict: SVGSourceStyleElement.declarations(from: styleStr))
     }
 
+    /// Applies an element's presentation attributes and then its inline `style`, which
+    /// outranks them (B129).
+    func set(attributesAndInlineStyle attributeDict: [String: String]) throws {
+        try set(attributeDict: attributeDict)
+        if let str = attributeDict["style"] { try set(styleStr: str) }
+    }
+
     /// Parses an inline `style` or a CSS declaration block into a property dictionary.
     /// Per CSS: a value may itself contain `:`, a trailing `!important` is not part of the
     /// value, and the last declaration of a property wins (B109).
     static func declarations(from styleStr: String) -> [String: String] {
         var result: [String: String] = [:]
-        for declaration in SVGUtils.split(string: styleStr, separator: ";") {
+        for declaration in splitDeclarations(stripComments(styleStr)) {
             let parts = declaration.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
             guard parts.count == 2 else { continue }
             let key = SVGUtils.trimmed(string: String(parts[0])).lowercased()
@@ -207,6 +214,45 @@ open class SVGSourceStyleElement {
             result[key] = value
         }
         return result
+    }
+
+    /// Removes CSS `/* … */` comments (an unterminated one runs to the end).
+    private static func stripComments(_ text: String) -> String {
+        guard text.contains("/*") else { return text }
+        var out = ""
+        var rest = Substring(text)
+        while let open = rest.range(of: "/*") {
+            out += rest[..<open.lowerBound]
+            guard let close = rest[open.upperBound...].range(of: "*/") else { return out }
+            rest = rest[close.upperBound...]
+        }
+        return out + rest
+    }
+
+    /// Splits on `;` outside parentheses and quotes, so `url(data:image/png;base64,…)` stays whole.
+    private static func splitDeclarations(_ text: String) -> [String] {
+        var parts: [String] = []
+        var current = ""
+        var depth = 0
+        var quote: Character?
+        for character in text {
+            if let q = quote {
+                if character == q { quote = nil }
+            } else if character == "\"" || character == "'" {
+                quote = character
+            } else if character == "(" {
+                depth += 1
+            } else if character == ")" {
+                depth = max(0, depth - 1)
+            } else if character == ";" && depth == 0 {
+                parts.append(current)
+                current = ""
+                continue
+            }
+            current.append(character)
+        }
+        parts.append(current)
+        return parts.filter { !SVGUtils.trimmed(string: $0).isEmpty }
     }
 
     /// Applies a set of properties. A malformed value is logged and ignored rather
@@ -258,8 +304,9 @@ open class SVGSourceStyleElement {
     }
 
     func setVisibility(str: String) {
-        // Unknown values degrade to visible rather than failing the document.
-        visibility = SVGVisibility(rawValue: str) ?? .visible
+        // `inherit` and unknown values leave the property unset, so the inherited value
+        // stays; forcing `visible` would un-hide a child of a hidden parent (B129).
+        visibility = SVGVisibility(rawValue: SVGUtils.trimmed(string: str).lowercased())
     }
 
     func setFill(str: String) throws {
@@ -272,7 +319,8 @@ open class SVGSourceStyleElement {
             color = nil
             return
         }
-        color = SVGColors.getColor(string: trimmed)
+        // An invalid colour is an invalid declaration: the previous value stays.
+        if let parsed = SVGColors.parse(string: trimmed) { color = parsed }
     }
 
     /// An alpha value: a plain number or a percentage (`"50%"` means 0.5), clamped

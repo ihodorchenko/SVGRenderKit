@@ -247,10 +247,11 @@ open class SVGGradientStop: SVGObject {
     public override init(xmlElement: XMLElement, addDict: [String: String]? = nil) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict)
 
+        // Presentation attributes first, then the inline `style`, which outranks them (B129).
+        try set(attributeDict: attributeDict)
         if let str = attributeDict["style"] {
             try set(styleStr: str)
         }
-        try set(attributeDict: attributeDict)
     }
 
     func set(styleStr: String, force: Bool = false) throws {
@@ -268,7 +269,7 @@ open class SVGGradientStop: SVGObject {
         }
         if let str = attributeDict["stop-color"] {
             stopColorString = str
-            stop_color = SVGColors.getColor(string: str)
+            if let color = SVGColors.parse(string: str) { stop_color = color }
         }
         if let str = attributeDict["stop-opacity"], let f: Float = Float(str.trimmed) {
             stopOpacity = CGFloat(f)
