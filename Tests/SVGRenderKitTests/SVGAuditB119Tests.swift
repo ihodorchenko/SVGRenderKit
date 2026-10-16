@@ -820,7 +820,8 @@ final class SVGAuditB119Tests: XCTestCase {
 
     func testB119_12_classSelectorAppliesToImageOpacity() throws {
         // 1×1 red PNG
-        let png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+        // 1×1 *opaque* red PNG, so the pixel alpha comes from the selector alone (the earlier PNG was already half-transparent)
+        let png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=="
         let l = try layer("""
         <style>.a{opacity:0.5}</style>
         <image class="a" width="100" height="100" xlink:href="data:image/png;base64,\(png)"/>

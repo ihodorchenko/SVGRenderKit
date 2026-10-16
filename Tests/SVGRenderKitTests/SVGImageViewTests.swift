@@ -50,6 +50,13 @@ final class SVGImageViewTests: XCTestCase {
         wait(for: [expectation(for: NSPredicate { _, _ in condition() }, evaluatedWith: nil)], timeout: timeout)
     }
 
+    func testOnLoadErrorReportsBrokenDocument() {
+        var received: Error?
+        _ = show(SVGImageView(svgString: "this is not svg").onLoadError { received = $0 })
+        waitUntil { received != nil }
+        XCTAssertNotNil(received)
+    }
+
     func testRendersSvgString() {
         let view = show(SVGImageView(svgString: markup))
 

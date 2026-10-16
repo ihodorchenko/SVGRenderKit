@@ -12,6 +12,17 @@ open class SVGImage: SVGObject, SVGRendering {
     unowned var parent: SVGShapesContainer
 
     var sourceStyle: SVGSourceStyleElement?
+    private let presentationStyle = SVGSourceStyleElement()
+    private let inlineStyle = SVGSourceStyleElement()
+
+    /// Presentation attributes → `<style>`-block rules matching this element → inline `style`.
+    private func effectiveStyle() -> SVGSourceStyleElement {
+        var style = presentationStyle
+        if let selectorStyle = (parent as? SVGGroupObject)?.selectorStyle(for: self) {
+            style = style.combine(child: selectorStyle)
+        }
+        return style.combine(child: inlineStyle)
+    }
     var transform: CATransform3D?
     /// How the raster is fitted into the `x`/`y`/`width`/`height` box (default `xMidYMid meet`).
     var preserveAspectRatio = SVGPreserveAspectRatio()
@@ -34,9 +45,11 @@ open class SVGImage: SVGObject, SVGRendering {
         self.parent = parent
         try super.init(xmlElement: xmlElement, addDict: addDict)
 
-        let tsStyle: SVGSourceStyleElement = SVGSourceStyleElement()
-        try tsStyle.set(attributesAndInlineStyle: attributeDict)
-        sourceStyle = tsStyle
+        // Presentation attributes, then `<style>`-block rules (resolved at render time), then
+        // the inline `style`, which outranks both (B124).
+        try presentationStyle.set(attributeDict: attributeDict)
+        if let str = attributeDict["style"] { try inlineStyle.set(styleStr: str) }
+        sourceStyle = presentationStyle.combine(child: inlineStyle)
 
         if let str = attributeDict["x"] {
             x = try SVGLength.get(string: str)
@@ -89,6 +102,7 @@ open class SVGImage: SVGObject, SVGRendering {
         // `layer` is a zero-sized container whose origin is the user-space origin (like a
         // group's layer), so `clip-path`/`mask`/`filter`/`transform` act in user space; the
         // picture lives in `content`, placed at (x, y) (B126).
+        let style = effectiveStyle()
         let layer = CALayer()
         let content = CALayer()
         content.frame = CGRect(x: resolvedX, y: resolvedY, width: resolvedWidth, height: resolvedHeight)
@@ -114,25 +128,25 @@ open class SVGImage: SVGObject, SVGRendering {
                 content.masksToBounds = true
             }
         }
-        if let display = sourceStyle?.display, display == .none {
+        if let display = style.display, display == .none {
             layer.isHidden = true
         }
-        if let visibility = sourceStyle?.visibility, visibility != .visible {
+        if let visibility = style.visibility, visibility != .visible {
             layer.isHidden = true
         }
 
         // `clip-path` / `mask` / `filter` composite the image like any other element (B111).
         // The `objectBoundingBox` base is the image's own box.
-        if let sourceStyle = sourceStyle {
+        do {
             let box = CGRect(x: resolvedX, y: resolvedY, width: resolvedWidth, height: resolvedHeight)
             let maskScale = (transform?.svgScaleFactor ?? 1) * ((parent as? SVGGroupObject)?.accumulatedScale() ?? 1)
-            try sourceStyle.applyGroupComposite(to: layer, bbox: box, container: parent, overrideElements: overrideElements, maskScale: maskScale)
+            try style.applyGroupComposite(to: layer, bbox: box, container: parent, overrideElements: overrideElements, maskScale: maskScale)
         }
 
         if let transform = transform {
             layer.transform = transform
         }
-        if let opacity = sourceStyle?.opacity {
+        if let opacity = style.opacity {
             layer.opacity = (opacity >= 0 && opacity <= 1) ? opacity : 1
         }
 

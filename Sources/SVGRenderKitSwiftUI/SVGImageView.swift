@@ -28,6 +28,15 @@ public struct SVGImageView: UIViewRepresentable {
     private let source: Source
     private let fillColors: [String: UIColor]?
     private let overrideElements: [String: SVGSourceStyleElement]?
+    private var loadErrorHandler: ((Error) -> Void)?
+
+    /// Registers a handler called, on the main thread, when the document cannot be loaded or
+    /// parsed — the SwiftUI counterpart of `SVGView.onLoadError` (B96/B124).
+    public func onLoadError(_ handler: @escaping (Error) -> Void) -> SVGImageView {
+        var copy = self
+        copy.loadErrorHandler = handler
+        return copy
+    }
 
     /// Renders the bundled SVG resource with the given name.
     /// - parameter name: The name of the SVG resource.
@@ -96,6 +105,7 @@ public struct SVGImageView: UIViewRepresentable {
 
     public func updateUIView(_ view: SVGView, context: Context) {
         let coordinator = context.coordinator
+        view.onLoadError = loadErrorHandler
         guard coordinator.needsLoad(source: source, fillColors: fillColors, overrides: overrideElements) else { return }
         let overrides = resolvedOverrides()
         coordinator.record(source: source, fillColors: fillColors, overrides: overrideElements)
