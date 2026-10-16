@@ -41,7 +41,7 @@ final class SVGStyleClassB129Tests: XCTestCase {
 
     func testStopInlineStyleBeatsPresentationAttribute() throws {
         let parser = try parse("<defs><linearGradient id=\"g\"><stop offset=\"0\" stop-color=\"#0000ff\" style=\"stop-color:#ff0000\"/></linearGradient></defs><rect width=\"10\" height=\"10\" fill=\"url(#g)\"/>")
-        let gradient = try XCTUnwrap((try XCTUnwrap(parser.root.svgElement)).getGradient(byKey: "g", fromParents: false) as? SVGLinearGradientTag)
+        let gradient = try XCTUnwrap((try XCTUnwrap(parser.root.svgElement)).getGradient(byKey: "#g", fromParents: false) as? SVGLinearGradientTag)
         let stop = try XCTUnwrap(gradient.stops.first)
         XCTAssertEqual(rgba(stop.stop_color), [1, 0, 0, 1])
     }
@@ -68,10 +68,10 @@ final class SVGStyleClassB129Tests: XCTestCase {
         </defs>
         """)
         let svg = try XCTUnwrap(parser.root.svgElement)
-        XCTAssertEqual(svg.getClipPath(byKey: "c", fromParents: false)?.sourceStyle?.display, SVGDisplaytype.none)
-        XCTAssertEqual(svg.getMask(byKey: "m", fromParents: false)?.sourceStyle?.display, SVGDisplaytype.none)
-        XCTAssertEqual(svg.getPattern(byKey: "p", fromParents: false)?.sourceStyle?.display, SVGDisplaytype.none)
-        XCTAssertEqual(svg.getMarker(byKey: "k", fromParents: false)?.sourceStyle?.display, SVGDisplaytype.none)
+        XCTAssertEqual(svg.getClipPath(byKey: "#c", fromParents: false)?.sourceStyle?.display, SVGDisplaytype.none)
+        XCTAssertEqual(svg.getMask(byKey: "#m", fromParents: false)?.sourceStyle?.display, SVGDisplaytype.none)
+        XCTAssertEqual(svg.getPattern(byKey: "#p", fromParents: false)?.sourceStyle?.display, SVGDisplaytype.none)
+        XCTAssertEqual(svg.getMarker(byKey: "#k", fromParents: false)?.sourceStyle?.display, SVGDisplaytype.none)
     }
 
     // MARK: colours
