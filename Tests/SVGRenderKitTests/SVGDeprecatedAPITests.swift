@@ -19,6 +19,7 @@ final class SVGDeprecatedAPITests: XCTestCase {
         view.set(svgString: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1 1\"/>", name: nil, fill_colors: nil)
     }
 
+    @available(*, deprecated)
     func testOldColorOverrideNamesStillWork() {
         defer { SVGColors.setOverrideColors(colors: [:]); SVGColors.setOverrideUIColors(colors: [:]) }
         useOldNames()
@@ -34,6 +35,7 @@ final class SVGDeprecatedAPITests: XCTestCase {
         XCTAssertEqual(r, 1, accuracy: 0.01)
     }
 
+    @available(*, deprecated)
     func testOldFillColorsParameterStillCompiles() {
         useOldViewNames(SVGView())
     }
