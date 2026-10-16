@@ -61,7 +61,7 @@ open class SVGView: UIView {
     /// The last requested source, replayed when the update notification fires.
     private var currentSource: LoadSource?
     /// Host time the current source's SMIL timeline started; survives re-renders of the same source (B131).
-    private var animationEpoch: CFTimeInterval = CACurrentMediaTime()
+    private(set) var animationEpoch: CFTimeInterval = CACurrentMediaTime()
 
     /// The name of a bundled SVG resource to render. Setting this property triggers parsing.
     @IBInspectable open var SVGName: String? {

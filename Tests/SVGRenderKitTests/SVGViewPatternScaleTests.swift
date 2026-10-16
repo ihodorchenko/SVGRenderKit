@@ -70,7 +70,9 @@ final class SVGViewPatternScaleTests: XCTestCase {
         waitUntil(10) { views.allSatisfy { $0.shapeLayer != nil } }
     }
 
-    // B131: a re-render of the same source (resize) must not restart the SMIL timeline.
+    // B131: a re-render of the same source (resize) must not restart the SMIL timeline, while loading a
+    // new source must. Checked on the view's timeline epoch: the layer animation itself is not a reliable
+    // probe, a headless CI simulator drops it from a layer that is not on screen.
     func testReRenderKeepsAnimationBeginTime() {
         let svg = """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">
@@ -78,26 +80,22 @@ final class SVGViewPatternScaleTests: XCTestCase {
           <rect width="10" height="10" fill="url(#p)"><animate attributeName="opacity" from="0" to="1" dur="5s"/></rect>
         </svg>
         """
-        func beginTime(_ layer: CALayer) -> CFTimeInterval? {
-            if let t = layer.animation(forKey: "opacity")?.beginTime { return t }
-            for sub in layer.sublayers ?? [] { if let t = beginTime(sub) { return t } }
-            return nil
-        }
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 300, height: 300))
         let view = SVGView(frame: CGRect(x: 0, y: 0, width: 20, height: 20))
         window.addSubview(view)
         window.makeKeyAndVisible()
         view.svgString = svg
-        // The layers are attached a beat after `renderedScale` is set, so wait for the animation itself
-        // (a slow CI runner read `nil` here).
-        waitUntil { view.renderedScale != nil && view.shapeLayer.flatMap(beginTime) != nil }
-        let first = view.shapeLayer.flatMap(beginTime)
-        XCTAssertNotNil(first)
+        waitUntil { view.renderedScale != nil }
+        let first = view.animationEpoch
         Thread.sleep(forTimeInterval: 0.3)
 
         view.frame = CGRect(x: 0, y: 0, width: 200, height: 200)
         view.layoutIfNeeded()
-        waitUntil { (view.renderedScale ?? 0) >= 19.9 && view.shapeLayer.flatMap(beginTime) != nil }
-        XCTAssertEqual(view.shapeLayer.flatMap(beginTime) ?? 0, first ?? -1, accuracy: 1e-6)
+        waitUntil { (view.renderedScale ?? 0) >= 19.9 }
+        XCTAssertEqual(view.animationEpoch, first, accuracy: 1e-9, "a resize re-render restarted the timeline")
+
+        view.svgString = svg + " "
+        waitUntil { view.animationEpoch > first }
+        XCTAssertGreaterThan(view.animationEpoch, first, "loading a new source must restart the timeline")
     }
 }
