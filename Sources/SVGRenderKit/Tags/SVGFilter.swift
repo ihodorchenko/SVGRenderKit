@@ -141,6 +141,9 @@ open class SVGFilter: SVGChildObject {
 }
 
 extension SVGFilter {
+    /// Whether applying the filter bakes a bitmap whose resolution depends on the render scale.
+    var bakesBitmap: Bool { blurStdDeviation != nil || layerBlur != nil }
+
     /// Applies the parsed filter effects to the given layer.
     /// - Parameters:
     ///   - layer: the layer whose content is filtered.
@@ -148,6 +151,9 @@ extension SVGFilter {
     ///   - scale: pixels per user unit, so the blur is rasterized at the output resolution.
     func apply(to layer: CALayer, bbox: CGRect, scale: CGFloat) {
         if let shadow = dropShadow {
+            // Bake the separate blur first: rasterizing a layer draws its shadow too, which
+            // would then show twice — baked into the bitmap and again by the layer (B130).
+            if let blur = layerBlur { bakeBlur(into: layer, bbox: bbox, stdDeviation: blur, scale: scale) }
             layer.shadowColor = shadow.color.cgColor
             layer.shadowOpacity = Float(shadow.opacity)
             // `CALayer.shadowRadius` is the CoreGraphics blur radius, which is about
@@ -155,8 +161,6 @@ extension SVGFilter {
             // `2s`, otherwise the shadow is twice as sharp as the SVG asks for (B110).
             layer.shadowRadius = shadow.stdDeviation * 2
             layer.shadowOffset = CGSize(width: shadow.dx, height: shadow.dy)
-            // The blur is folded into the shadow; only an explicit, separate blur applies too.
-            if let blur = layerBlur { bakeBlur(into: layer, bbox: bbox, stdDeviation: blur, scale: scale) }
             return
         }
         if let blur = blurStdDeviation {
@@ -175,12 +179,11 @@ extension SVGFilter {
     /// only child. `CALayer.filters` is a no-op on iOS, so the blur must be baked in (B97).
     private func bakeBlur(into layer: CALayer, bbox: CGRect, stdDeviation: CGFloat, scale: CGFloat) {
         guard bbox.width > 0, bbox.height > 0, scale > 0, stdDeviation > 0 else { return }
-        guard SVGInputLimits.bitmapFits(width: Self.filterRegion.width * bbox.width * scale,
-                                        height: Self.filterRegion.height * bbox.height * scale,
-                                        limit: SVGInputLimits.maxPaintBitmapDimension) else {
-            SVGLog.addSLog(errorStr: "skipped blur: the filter region exceeds the \(Int(SVGInputLimits.maxPaintBitmapDimension))px limit")
-            return
-        }
+        // A region past the bitmap cap is rasterized at a lower resolution rather than dropped.
+        let side = max(Self.filterRegion.width * bbox.width, Self.filterRegion.height * bbox.height) * scale
+        let scale = side > SVGInputLimits.maxPaintBitmapDimension
+            ? scale * SVGInputLimits.maxPaintBitmapDimension / side : scale
+        guard scale > 0 else { return }
 
         let region = CGRect(
             x: bbox.origin.x + Self.filterRegion.origin.x * bbox.width,
