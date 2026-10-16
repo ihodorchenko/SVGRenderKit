@@ -641,7 +641,7 @@ extension SVGSourceStyleElement {
                         // applies in those units — before the mapping — so it goes on the
                         // left of `CATransform3DConcat`, whose first argument is applied
                         // first (B119-12).
-                        let bbox = path.bounds
+                        let bbox = path.svgBounds(transformedBy: nil)
                         var t = CATransform3DIdentity
                         t = CATransform3DTranslate(t, bbox.origin.x, bbox.origin.y, 0)
                         t = CATransform3DScale(t, bbox.width, bbox.height, 1)
@@ -662,7 +662,7 @@ extension SVGSourceStyleElement {
             case .local(let key):
                 if let maskObj = group.getMask(byKey: key, fromParents: true) {
                     let options = group.getSvgOptions()
-                    appliedMaskLayer = try maskObj.maskLayer(bbox: path.bounds, viewBox: options.viewBox, overrideElements: overrideElements, elementScale: maskScale)
+                    appliedMaskLayer = try maskObj.maskLayer(bbox: path.svgBounds(transformedBy: nil), viewBox: options.viewBox, overrideElements: overrideElements, elementScale: maskScale)
                 } else {
                     SVGLog.addSLog(errorStr: "skipped mask: url(#\(key)) not found")
                 }
@@ -713,7 +713,7 @@ extension SVGSourceStyleElement {
                 if let filter = group.getFilter(byKey: key, fromParents: true) {
                     let options = group.getSvgOptions()
                     if filter.bakesBitmap { options.usesMasks = true }
-                    filter.apply(to: mainLayer, bbox: path.bounds, scale: options.renderScale * maskScale)
+                    filter.apply(to: mainLayer, bbox: path.svgBounds(transformedBy: nil), scale: options.renderScale * maskScale)
                 } else {
                     SVGLog.addSLog(errorStr: "skipped filter: url(#\(key)) not found")
                 }
@@ -897,7 +897,7 @@ extension SVGSourceStyleElement {
     }
 
     private func applyPattern(pathLayer: CAShapeLayer, pattern: SVGPattern, group: SVGShapesContainer, path: UIBezierPath, opacity: CGFloat?) {
-        if let color = pattern.fillColor(bbox: path.bounds, viewBox: group.getSvgOptions().viewBox, opacity: opacity) {
+        if let color = pattern.fillColor(bbox: path.svgBounds(transformedBy: nil), viewBox: group.getSvgOptions().viewBox, opacity: opacity) {
             pathLayer.fillColor = color
         }
     }
@@ -957,7 +957,7 @@ extension SVGSourceStyleElement {
     }
 
     private func applyStrokePattern(mainLayer: CAShapeLayer, path: UIBezierPath, pattern: SVGPattern, viewBox: CGRect, opacity: CGFloat) {
-        guard let color = pattern.fillColor(bbox: path.bounds, viewBox: viewBox, opacity: opacity) else { return }
+        guard let color = pattern.fillColor(bbox: path.svgBounds(transformedBy: nil), viewBox: viewBox, opacity: opacity) else { return }
         let stroked = strokedPath(from: path, viewBox: viewBox)
         let patternLayer = CAShapeLayer()
         patternLayer.path = stroked

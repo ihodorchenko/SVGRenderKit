@@ -650,7 +650,10 @@ extension UIBezierPath {
     /// and measuring the result stays tight for rotated and skewed shapes, where mapping
     /// the bounding *rectangle* would inflate the box (AABB of an AABB, B119-8).
     func svgBounds(transformedBy transform: CATransform3D?) -> CGRect {
-        guard let transform = transform else { return bounds }
+        // `boundingBoxOfPath` is the geometric extent; `UIBezierPath.bounds` (and
+        // `CGPath.boundingBox`) also count Bézier control points, which inflates the box of
+        // any curved shape (B133).
+        guard let transform = transform else { return cgPath.boundingBoxOfPath }
         let affine = CATransform3DGetAffineTransform(transform)
         return cgPath.copy(using: [affine])?.boundingBoxOfPath ?? bounds.applying(affine)
     }
