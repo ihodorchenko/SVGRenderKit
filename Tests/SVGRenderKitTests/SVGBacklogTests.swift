@@ -347,9 +347,9 @@ final class SVGBacklogTests: XCTestCase {
     // MARK: B66 — a set override is visible to an immediately following read (verified)
 
     func testB66OverrideIsVisibleImmediately() {
-        defer { SVGColors.setOvverideColors(colors: [:]) }
+        defer { SVGColors.setOverrideColors(colors: [:]) }
         for i in 0..<200 {
-            SVGColors.setOvverideColors(colors: ["#abc": i % 2 == 0 ? "#ff0000" : "#0000ff"])
+            SVGColors.setOverrideColors(colors: ["#abc": i % 2 == 0 ? "#ff0000" : "#0000ff"])
             var r: CGFloat = 0
             SVGColors.getColor(string: "#abc").getRed(&r, green: nil, blue: nil, alpha: nil)
             XCTAssertEqual(r, i % 2 == 0 ? 1 : 0, accuracy: 0.01, "iteration \(i)")
@@ -412,7 +412,7 @@ final class SVGBacklogTests: XCTestCase {
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><filter id="f">
         <feDropShadow dx="5" dy="5" stdDeviation="2"/></filter></defs>
         <rect width="50" height="50" filter="url(#f)"/></svg>
-        """.utf8), name: "b71-\(UUID().uuidString)", fill_colors: nil)
+        """.utf8), name: "b71-\(UUID().uuidString)", fillColors: nil)
         let exp = expectation(description: "render")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { exp.fulfill() }
         wait(for: [exp], timeout: 5)

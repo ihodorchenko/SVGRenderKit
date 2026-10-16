@@ -254,7 +254,7 @@ open class SVGGradientStop: SVGObject {
         }
     }
 
-    func set(styleStr: String, force: Bool = false) throws {
+    func set(styleStr: String) throws {
         try set(attributeDict: SVGSourceStyleElement.declarations(from: styleStr))
     }
 

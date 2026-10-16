@@ -82,9 +82,15 @@ open class SVGView: UIView {
 
     /// Renders the bundled SVG resource with the given name, overriding fill colors by element name.
     /// - parameter SVGName: The name of the bundled SVG resource to render.
-    /// - parameter fill_colors: A dictionary mapping SVG element names to fill colors.
+    /// - parameter fillColors: A dictionary mapping SVG element names to fill colors.
+    open func set(SVGName: String, fillColors: [String: UIColor]?) {
+        self.set(SVGName: SVGName, overrideElements: overrideElements(from: fillColors))
+    }
+
+    /// Former spelling of `set(SVGName:fillColors:)`.
+    @available(*, deprecated, renamed: "set(SVGName:fillColors:)")
     open func set(SVGName: String, fill_colors: [String: UIColor]?) {
-        self.set(SVGName: SVGName, overrideElements: overrideElements(from: fill_colors))
+        set(SVGName: SVGName, fillColors: fill_colors)
     }
 
     /// Renders the bundled SVG resource with the given name, overriding the style of specific elements.
@@ -142,9 +148,16 @@ open class SVGView: UIView {
     /// Renders the given SVG markup, overriding fill colors by element name.
     /// - parameter svgString: The raw SVG markup to render.
     /// - parameter name: An optional identifier used for caching.
-    /// - parameter fill_colors: A dictionary mapping element names to fill colors.
-    open func set(svgString: String, name: String? = nil, fill_colors: [String: UIColor]? = nil) {
-        self.set(svgString: svgString, name: name, overrideElements: overrideElements(from: fill_colors))
+    /// - parameter fillColors: A dictionary mapping element names to fill colors.
+    open func set(svgString: String, name: String? = nil, fillColors: [String: UIColor]? = nil) {
+        self.set(svgString: svgString, name: name, overrideElements: overrideElements(from: fillColors))
+    }
+
+    /// Former spelling of `set(svgString:name:fillColors:)`. No defaults, so a call without
+    /// colors resolves to the new overload.
+    @available(*, deprecated, renamed: "set(svgString:name:fillColors:)")
+    open func set(svgString: String, name: String?, fill_colors: [String: UIColor]?) {
+        set(svgString: svgString, name: name, fillColors: fill_colors)
     }
 
     /// Renders the given SVG markup, overriding the style of specific elements.
@@ -161,9 +174,16 @@ open class SVGView: UIView {
     /// Renders the given SVG data, overriding fill colors by element name.
     /// - parameter svgData: The raw SVG data to render.
     /// - parameter name: An optional identifier used for caching.
-    /// - parameter fill_colors: A dictionary mapping element names to fill colors.
-    open func set(svgData: Data, name: String? = nil, fill_colors: [String: UIColor]? = nil) {
-        self.set(svgData: svgData, name: name, overrideElements: overrideElements(from: fill_colors))
+    /// - parameter fillColors: A dictionary mapping element names to fill colors.
+    open func set(svgData: Data, name: String? = nil, fillColors: [String: UIColor]? = nil) {
+        self.set(svgData: svgData, name: name, overrideElements: overrideElements(from: fillColors))
+    }
+
+    /// Former spelling of `set(svgData:name:fillColors:)`. No defaults, so a call without
+    /// colors resolves to the new overload.
+    @available(*, deprecated, renamed: "set(svgData:name:fillColors:)")
+    open func set(svgData: Data, name: String?, fill_colors: [String: UIColor]?) {
+        set(svgData: svgData, name: name, fillColors: fill_colors)
     }
 
     /// Renders the given SVG data, overriding the style of specific elements.
@@ -171,7 +191,7 @@ open class SVGView: UIView {
     /// - parameter name: An optional identifier used for caching.
     /// - parameter overrideElements: A dictionary mapping element names to their override styles.
     ///
-    /// Unlike the `fill_colors` overload, `overrideElements` has no default: with one, a call
+    /// Unlike the `fillColors` overload, `overrideElements` has no default: with one, a call
     /// that passes only `name` (`set(svgData:name:)`) would be ambiguous between the two (B105).
     open func set(svgData: Data, name: String? = nil, overrideElements: [String: SVGSourceStyleElement]?) {
         _SVGName = nil

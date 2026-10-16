@@ -131,7 +131,7 @@ Without `size` the document's own size is used; `scale` sets pixels per point fo
 Recolor individual elements by their `id` or `class`:
 
 ```swift
-svgView.set(SVGName: "icons/icon.svg", fill_colors: [
+svgView.set(SVGName: "icons/icon.svg", fillColors: [
     "#main": .red,
     ".accent": .blue
 ])
@@ -160,7 +160,7 @@ NotificationCenter.default.post(name: NSNotification.Name("themeChanged"), objec
 Override a color across all parsed SVGs (e.g. for theming):
 
 ```swift
-SVGColors.addOvverideUIColors(colors: ["#243B55": UIColor.label])
+SVGColors.addOverrideUIColors(colors: ["#243B55": UIColor.label])
 ```
 
 ### Caching

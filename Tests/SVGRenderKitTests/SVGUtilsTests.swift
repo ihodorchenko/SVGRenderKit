@@ -81,8 +81,8 @@ final class SVGUtilsTests: XCTestCase {
 final class MD5Tests: XCTestCase {
 
     func testKnownVectors() {
-        XCTAssertEqual(MD5(""), "D41D8CD98F00B204E9800998ECF8427E")
-        XCTAssertEqual(MD5("abc"), "900150983CD24FB0D6963F7D28E17F72")
-        XCTAssertEqual(MD5("The quick brown fox jumps over the lazy dog"), "9E107D9D372BB6826BD81D3542A419D6")
+        XCTAssertEqual(md5Hex(""), "D41D8CD98F00B204E9800998ECF8427E")
+        XCTAssertEqual(md5Hex("abc"), "900150983CD24FB0D6963F7D28E17F72")
+        XCTAssertEqual(md5Hex("The quick brown fox jumps over the lazy dog"), "9E107D9D372BB6826BD81D3542A419D6")
     }
 }

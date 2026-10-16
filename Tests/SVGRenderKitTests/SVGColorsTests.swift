@@ -112,10 +112,10 @@ final class SVGColorsTests: XCTestCase {
     }
 
     func testOverrideIsCaseInsensitive() {
-        SVGColors.setOvverideColors(colors: ["Brand": "#00ff00"])
+        SVGColors.setOverrideColors(colors: ["Brand": "#00ff00"])
         assertColor(SVGColors.getColor(string: "brand"), red: 0, green: 1, blue: 0, alpha: 1)
         assertColor(SVGColors.getColor(string: "BRAND"), red: 0, green: 1, blue: 0, alpha: 1)
-        SVGColors.setOvverideColors(colors: [:])
+        SVGColors.setOverrideColors(colors: [:])
     }
 
     func testMalformedRGBADoesNotCrash() {
@@ -195,15 +195,15 @@ final class SVGColorsTests: XCTestCase {
     // MARK: - Overrides
 
     func testColorStringOverride() {
-        SVGColors.setOvverideColors(colors: ["brand" : "#00ff00"])
+        SVGColors.setOverrideColors(colors: ["brand" : "#00ff00"])
         assertColor(SVGColors.getColor(string: "brand"), red: 0, green: 1, blue: 0, alpha: 1)
-        SVGColors.setOvverideColors(colors: [:])
+        SVGColors.setOverrideColors(colors: [:])
     }
 
     func testUIColorOverride() {
-        SVGColors.setOvverideUIColors(colors: ["brand" : UIColor(red: 1, green: 0, blue: 0, alpha: 1)])
+        SVGColors.setOverrideUIColors(colors: ["brand" : UIColor(red: 1, green: 0, blue: 0, alpha: 1)])
         assertColor(SVGColors.getColor(string: "brand"), red: 1, green: 0, blue: 0, alpha: 1)
-        SVGColors.setOvverideUIColors(colors: [:])
+        SVGColors.setOverrideUIColors(colors: [:])
     }
 
     // MARK: - HTMLColors lookup table

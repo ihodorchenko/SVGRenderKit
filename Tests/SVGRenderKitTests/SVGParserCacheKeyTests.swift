@@ -36,11 +36,11 @@ final class SVGParserCacheKeyTests: XCTestCase {
     func testColorOverrideChangeInvalidatesTheParserCache() throws {
         let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><rect width=\"10\" height=\"10\" fill=\"#ff0000\"/></svg>"
         let name = "override-\(UUID().uuidString)"
-        SVGColors.setOvverideColors(colors: [:])
-        defer { SVGColors.setOvverideColors(colors: [:]) }
+        SVGColors.setOverrideColors(colors: [:])
+        defer { SVGColors.setOverrideColors(colors: [:]) }
         _ = try SVGParser.getParser(svgString: svg, name: name).getLayer(overrideElements: nil)
 
-        SVGColors.setOvverideColors(colors: ["#ff0000": "#00ff00"])
+        SVGColors.setOverrideColors(colors: ["#ff0000": "#00ff00"])
         let layer = try SVGParser.getParser(svgString: svg, name: name).getLayer(overrideElements: nil)
 
         let color = UIColor(cgColor: try XCTUnwrap(firstShape(in: layer)?.fillColor))

@@ -47,7 +47,7 @@ open class SVGUseTag: SVGObject, SVGRendering {
 
         let inline: SVGSourceStyleElement = SVGSourceStyleElement()
         if let str = attributeDict["style"] {
-            try inline.set(styleStr: str, force: false)
+            try inline.set(styleStr: str)
         }
         inlineStyle = inline
 

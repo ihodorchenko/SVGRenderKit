@@ -33,7 +33,7 @@ open class SVGGroupObject: SVGChildObject, SVGGroupProtocol {
 
         let inline: SVGSourceStyleElement = SVGSourceStyleElement()
         if let str = attributeDict["style"] {
-            try inline.set(styleStr: str, force: false)
+            try inline.set(styleStr: str)
         }
         inlineStyle = inline
 

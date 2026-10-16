@@ -65,7 +65,7 @@ open class SVGImage: SVGObject, SVGRendering {
         }
         if let str = attributeDict["xlink:href"] ?? attributeDict["href"] {
             imageHref = str
-            imageHrefDigest = MD5(str)
+            imageHrefDigest = md5Hex(str)
         }
         if let str = attributeDict["transform"] {
             transform = try SVGTransform.get(string: str)

@@ -25,12 +25,12 @@ open class SVGUtils {
     /// Computes the MD5 hash of the given string.
     /// - returns: The MD5 digest as a hexadecimal string.
     open class func md5(_ string: String) -> String {
-        return MD5(string)
+        return md5Hex(string)
     }
 
     /// Returns the MD5 digest of raw bytes (e.g. an SVG's `Data`), as a hexadecimal string.
     open class func md5(_ data: Data) -> String {
-        return MD5([UInt8](data))
+        return md5Hex([UInt8](data))
     }
 
     /// Returns the end point and the tangent direction of the last segment of a path.

@@ -57,8 +57,8 @@ final class SVGViewPatternScaleTests: XCTestCase {
         SVGCache.s.resetCache()
         let small = SVGView(frame: CGRect(x: 0, y: 0, width: 20, height: 20))
         let large = SVGView(frame: CGRect(x: 0, y: 0, width: 200, height: 200))
-        small.set(svgString: patternSVG, name: "shared", fill_colors: nil)
-        large.set(svgString: patternSVG, name: "shared", fill_colors: nil)
+        small.set(svgString: patternSVG, name: "shared", fillColors: nil)
+        large.set(svgString: patternSVG, name: "shared", fillColors: nil)
         waitUntil { small.renderedScale != nil && large.renderedScale != nil }
         XCTAssertEqual(small.renderedScale ?? 0, 2, accuracy: 0.01)
         XCTAssertEqual(large.renderedScale ?? 0, 20, accuracy: 0.01)

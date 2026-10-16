@@ -29,7 +29,7 @@ open class SVGShapeObject: SVGObject, SVGRendering {
 
         let inline = SVGSourceStyleElement()
         if let str = attributeDict["style"] {
-            try inline.set(styleStr: str, force: false)
+            try inline.set(styleStr: str)
         }
         self.inlineStyle = inline
 

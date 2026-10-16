@@ -115,9 +115,9 @@ final class SVGViewLifecycleTests: XCTestCase {
         let circle = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><circle r=\"3\"/></svg>"
         // All calls run on the main thread before the work queue reaches the first job.
         for index in 0..<20 {
-            view.set(svgString: circle, name: "p11-stale-\(index)", fill_colors: nil)
+            view.set(svgString: circle, name: "p11-stale-\(index)", fillColors: nil)
         }
-        view.set(svgString: markup, name: "p11-latest", fill_colors: nil)
+        view.set(svgString: markup, name: "p11-latest", fillColors: nil)
         waitUntil { view.shapeLayer != nil }
         RunLoop.current.run(until: Date().addingTimeInterval(0.3))
 

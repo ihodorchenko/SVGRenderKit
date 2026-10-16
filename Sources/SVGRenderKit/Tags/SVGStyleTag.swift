@@ -66,7 +66,7 @@ open class SVGStyleTag: SVGChildObject {
                 continue
             }
             let element = SVGSourceStyleElement()
-            try element.set(styleStr: declarations, force: true)
+            try element.set(styleStr: declarations)
             let rule = Rule(key: target.key, declarations: element)
             switch target.kind {
             case .tagSelector: tagRules.append(rule)

@@ -11,31 +11,55 @@ public class SVGColors {
 
     /// Adds name-to-color-string overrides that take precedence when resolving colors.
     /// - parameter colors: A dictionary mapping color names to replacement color strings.
-    public static func addOvverideColors(colors: [String: String]) {
+    public static func addOverrideColors(colors: [String: String]) {
         SVGConfiguration.shared.addColorOverrides(colors)
     }
 
+    /// Misspelled former name of `addOverrideColors(colors:)`.
+    @available(*, deprecated, renamed: "addOverrideColors(colors:)")
+    public static func addOvverideColors(colors: [String: String]) {
+        addOverrideColors(colors: colors)
+    }
+
     /// Replaces all name-to-color-string overrides with the given dictionary.
-    public static func setOvverideColors(colors: [String: String]) {
+    public static func setOverrideColors(colors: [String: String]) {
         SVGConfiguration.shared.setColorOverrides(colors)
+    }
+
+    /// Misspelled former name of `setOverrideColors(colors:)`.
+    @available(*, deprecated, renamed: "setOverrideColors(colors:)")
+    public static func setOvverideColors(colors: [String: String]) {
+        setOverrideColors(colors: colors)
     }
 
     /// Adds name-to-`UIColor` overrides that take precedence when resolving colors.
     /// - parameter colors: A dictionary mapping color names to `UIColor` values.
-    public static func addOvverideUIColors(colors: [String: UIColor]) {
+    public static func addOverrideUIColors(colors: [String: UIColor]) {
         SVGConfiguration.shared.addUIColorOverrides(colors)
     }
 
+    /// Misspelled former name of `addOverrideUIColors(colors:)`.
+    @available(*, deprecated, renamed: "addOverrideUIColors(colors:)")
+    public static func addOvverideUIColors(colors: [String: UIColor]) {
+        addOverrideUIColors(colors: colors)
+    }
+
     /// Replaces all name-to-`UIColor` overrides with the given dictionary.
-    public static func setOvverideUIColors(colors: [String: UIColor]) {
+    public static func setOverrideUIColors(colors: [String: UIColor]) {
         SVGConfiguration.shared.setUIColorOverrides(colors)
     }
 
-    static private func getOvverideColor(byString: String) -> String? {
+    /// Misspelled former name of `setOverrideUIColors(colors:)`.
+    @available(*, deprecated, renamed: "setOverrideUIColors(colors:)")
+    public static func setOvverideUIColors(colors: [String: UIColor]) {
+        setOverrideUIColors(colors: colors)
+    }
+
+    static private func getOverrideColor(byString: String) -> String? {
         return SVGConfiguration.shared.colorOverride(byString: byString)
     }
 
-    static private func getOvverideUIColor(byString: String) -> UIColor? {
+    static private func getOverrideUIColor(byString: String) -> UIColor? {
         return SVGConfiguration.shared.uiColorOverride(byString: byString)
     }
 
@@ -51,10 +75,10 @@ public class SVGColors {
     /// caller can ignore the declaration instead of painting it transparent (B129).
     static func parse(string: String, alpha: CGFloat? = nil) -> UIColor? {
         var string: String = string
-        if let color = getOvverideUIColor(byString: string) {
+        if let color = getOverrideUIColor(byString: string) {
             return color
         }
-        if let newString = getOvverideColor(byString: string) {
+        if let newString = getOverrideColor(byString: string) {
             string = newString
         }
         // CSS color keywords and functions are case-insensitive and tolerate surrounding whitespace.
