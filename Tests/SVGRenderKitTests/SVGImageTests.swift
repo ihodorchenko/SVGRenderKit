@@ -21,13 +21,15 @@ final class SVGImageTests: XCTestCase {
         return nil
     }
 
-    /// The `<image>` element's own layer, identified by its frame (its content may be a sublayer).
-    private func imageElementLayer(x: CGFloat, width: CGFloat, in layer: CALayer) -> CALayer? {
-        if abs(layer.frame.minX - x) < 0.01, abs(layer.frame.width - width) < 0.01, layer.frame.height > 0 {
-            return layer
+    /// The `<image>` element's container layer (B126): a zero-sized layer in user space that
+    /// carries clip/mask/filter/transform; the picture is a descendant. The nearest zero-sized
+    /// ancestor of the first layer holding bitmap contents.
+    private func imageElementLayer(in layer: CALayer, ancestors: [CALayer] = []) -> CALayer? {
+        if layer.contents != nil {
+            return ancestors.last { $0.frame.size == .zero }
         }
         for sublayer in layer.sublayers ?? [] {
-            if let found = imageElementLayer(x: x, width: width, in: sublayer) { return found }
+            if let found = imageElementLayer(in: sublayer, ancestors: ancestors + [layer]) { return found }
         }
         return nil
     }
@@ -39,7 +41,7 @@ final class SVGImageTests: XCTestCase {
         </svg>
         """
         let layer = try SVGParser(svgString: svg, parsedRoot: nil).getLayer(overrideElements: nil)
-        return try XCTUnwrap(imageElementLayer(x: 10, width: 40, in: layer))
+        return try XCTUnwrap(imageElementLayer(in: layer))
     }
 
     // MARK: B111 — clip-path / mask / filter on <image>
@@ -68,6 +70,7 @@ final class SVGImageTests: XCTestCase {
         // The blur is baked: the original image is replaced by the rasterized bitmap.
         XCTAssertNil(layer.contents)
         XCTAssertTrue((layer.sublayers ?? []).contains { $0.contents != nil })
+        XCTAssertGreaterThan(layer.sublayers?.first?.frame.width ?? 0, 40, "the baked region is larger than the image box")
     }
 
     func testDecodeBase64DataURI() {

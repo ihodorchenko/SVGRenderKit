@@ -89,27 +89,32 @@ open class SVGImage: SVGObject, SVGRendering {
         let resolvedWidth = resolve(width, reference: viewBox.width)
         let resolvedHeight = resolve(height, reference: viewBox.height)
 
+        // `layer` is a zero-sized container whose origin is the user-space origin (like a
+        // group's layer), so `clip-path`/`mask`/`filter`/`transform` act in user space; the
+        // picture lives in `content`, placed at (x, y) (B126).
         let layer = CALayer()
-        layer.frame = CGRect(x: resolvedX, y: resolvedY, width: resolvedWidth, height: resolvedHeight)
+        let content = CALayer()
+        content.frame = CGRect(x: resolvedX, y: resolvedY, width: resolvedWidth, height: resolvedHeight)
+        layer.addSublayer(content)
 
         if let href = imageHref, let digest = imageHrefDigest,
            let image = decodedImageCache.value(for: digest, make: { SVGImage.decode(dataURI: href) }) {
             let imageSize = image.size
             if preserveAspectRatio.align == .none || imageSize.width <= 0 || imageSize.height <= 0 {
-                layer.contents = image.cgImage
-                layer.contentsGravity = .resize
+                content.contents = image.cgImage
+                content.contentsGravity = .resize
             } else {
                 // Fit the raster per `preserveAspectRatio`; `slice` overflows, so clip to the box.
                 let fit = preserveAspectRatio.resolve(
                     viewBox: CGRect(origin: .zero, size: imageSize),
                     containerSize: CGSize(width: resolvedWidth, height: resolvedHeight))
-                let content = CALayer()
-                content.contents = image.cgImage
-                content.contentsGravity = .resize
-                content.frame = CGRect(x: fit.translateX, y: fit.translateY,
+                let picture = CALayer()
+                picture.contents = image.cgImage
+                picture.contentsGravity = .resize
+                picture.frame = CGRect(x: fit.translateX, y: fit.translateY,
                                        width: imageSize.width * fit.scaleX, height: imageSize.height * fit.scaleY)
-                layer.addSublayer(content)
-                layer.masksToBounds = true
+                content.addSublayer(picture)
+                content.masksToBounds = true
             }
         }
         if let display = sourceStyle?.display, display == .none {
