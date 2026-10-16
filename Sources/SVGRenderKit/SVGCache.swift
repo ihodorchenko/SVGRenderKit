@@ -1,7 +1,7 @@
 import UIKit
 
 /// A shared cache that stores parsed SVG roots, keyed by an opaque string built by `SVGParser`.
-open class SVGCache: @unchecked Sendable {
+public class SVGCache: @unchecked Sendable {
     /// Whether the cache is used when parsing SVGs.
     public var isSVGParserUseCache: Bool {
         get { return SVGConfiguration.shared.isParserCacheEnabled }
@@ -40,7 +40,7 @@ open class SVGCache: @unchecked Sendable {
     }
 
     /// Removes all cached parsed SVG roots.
-    open func resetCache() {
+    public func resetCache() {
         lock.lock()
         defer { lock.unlock() }
         entries.removeAll()

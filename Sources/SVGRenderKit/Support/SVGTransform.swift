@@ -10,7 +10,7 @@ internal enum SVGTransformType: String {
 }
 
 /// Parses an SVG transform string into a CATransform3D.
-open class SVGTransform {
+public class SVGTransform {
     private class TransformElement {
         let type: SVGTransformType
         let values: [CGFloat]

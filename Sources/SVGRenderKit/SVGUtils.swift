@@ -1,22 +1,22 @@
 import UIKit
 
 /// Utility functions for string processing and hashing used throughout the library.
-open class SVGUtils {
+public class SVGUtils {
 
     /// Trims white space and new line characters, returns a new string.
-    open class func trimmed(string: String) -> String {
+    public class func trimmed(string: String) -> String {
         return string.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Splits a string by a substring separator, omitting empty components.
-    open class func split(string: String, separator: String) -> [String] {
+    public class func split(string: String, separator: String) -> [String] {
         return string.components(separatedBy: separator).filter {
             !trimmed(string: $0).isEmpty
         }
     }
 
     /// Splits a string by the characters in a character set, omitting empty components.
-    open class func split(string: String, separatorSet: CharacterSet) -> [String] {
+    public class func split(string: String, separatorSet: CharacterSet) -> [String] {
         return string.components(separatedBy: separatorSet).filter {
             !trimmed(string: $0).isEmpty
         }
@@ -24,17 +24,17 @@ open class SVGUtils {
 
     /// Computes the MD5 hash of the given string.
     /// - returns: The MD5 digest as a hexadecimal string.
-    open class func md5(_ string: String) -> String {
+    public class func md5(_ string: String) -> String {
         return md5Hex(string)
     }
 
     /// Returns the MD5 digest of raw bytes (e.g. an SVG's `Data`), as a hexadecimal string.
-    open class func md5(_ data: Data) -> String {
+    public class func md5(_ data: Data) -> String {
         return md5Hex([UInt8](data))
     }
 
     /// Returns the end point and the tangent direction of the last segment of a path.
-    open class func pathEndInfo(path: UIBezierPath) -> (point: CGPoint, tangent: CGPoint) {
+    public class func pathEndInfo(path: UIBezierPath) -> (point: CGPoint, tangent: CGPoint) {
         var last = CGPoint.zero
         var prev = CGPoint.zero
         var first = CGPoint.zero
@@ -68,7 +68,7 @@ open class SVGUtils {
 
     /// Returns the vertices of a path (move/line/curve endpoints, including the
     /// closing point), in drawing order. Control points are omitted.
-    open class func pathVertices(path: UIBezierPath) -> [CGPoint] {
+    public class func pathVertices(path: UIBezierPath) -> [CGPoint] {
         var vertices: [CGPoint] = []
         var subpathStart: CGPoint?
         path.cgPath.applyWithBlock { element in
@@ -166,7 +166,7 @@ open class SVGUtils {
 
     /// The direction bisecting `incoming` and `outgoing` (both non-normalised). Falls
     /// back to `outgoing` when they cancel (a 180° turn). Used for `marker-mid` (B107).
-    open class func bisector(_ incoming: CGPoint, _ outgoing: CGPoint) -> CGPoint {
+    public class func bisector(_ incoming: CGPoint, _ outgoing: CGPoint) -> CGPoint {
         let a = normalized(incoming)
         let b = normalized(outgoing)
         let sum = CGPoint(x: a.x + b.x, y: a.y + b.y)

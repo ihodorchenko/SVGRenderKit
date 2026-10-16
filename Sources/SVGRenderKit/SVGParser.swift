@@ -1,7 +1,7 @@
 import UIKit
 
 /// Parses an SVG document and produces renderable `CALayer` hierarchies.
-open class SVGParser {
+public class SVGParser {
 
     fileprivate(set) var root: SVGRoot!
 
@@ -146,7 +146,7 @@ open class SVGParser {
     /// Builds and returns the root `CALayer` for the parsed SVG.
     /// - parameter overrideElements: Optional per-element style overrides applied while building the layer.
     /// - returns: The root layer, or throws an `SVGError` if the document cannot be rendered.
-    open func getLayer(overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
+    public func getLayer(overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         return try SVGSignpost.interval("SVGParser.getLayer") {
             try root.createLayer(overrideElements: overrideElements)
         }
