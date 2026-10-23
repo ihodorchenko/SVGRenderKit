@@ -8,6 +8,15 @@ The library originated as a fork of [SwiftSVG](https://github.com/mchoe/SwiftSVG
 and has since been rewritten around an object-tree parser (powered by
 [SWXMLHash](https://github.com/drmohundro/SWXMLHash)).
 
+## Public API
+
+The public surface is deliberately small: `SVGView` (UIKit) and `SVGImageView` (SwiftUI, the
+`SVGRenderKitSwiftUI` product), `SVGRenderer` (offscreen PNG/JPEG/PDF export, `SVGSource`,
+`SVGRenderFormat`), `SVGCache` and `SVGConfiguration` (caching, reload notifications, colour
+overrides), `SVGColors`, `SVGSourceStyleElement` (per-element style overrides) and a few value
+types and helpers (`SVGLength`, `SVGPaint`, `SVGFuncIRI`, `SVGError`, `SVGLog`, `SVGUtils`, `SVGParseString`). The parsed object tree is an
+implementation detail. Upgrading from 1.x: see [MIGRATION.md](MIGRATION.md).
+
 ## Documentation
 
 API documentation is generated with [DocC](https://www.swift.org/documentation/docc/)
@@ -37,7 +46,7 @@ https://github.com/ihodorchenko/SVGRenderKit.git
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ihodorchenko/SVGRenderKit.git", from: "1.4.0")
+    .package(url: "https://github.com/ihodorchenko/SVGRenderKit.git", from: "2.0.0")
 ]
 ```
 
@@ -266,8 +275,8 @@ See [CONFORMANCE.md](CONFORMANCE.md) for the full icon-profile contract.
 
 ## Architecture
 
-1. **XML** — `SVGParser` parses the document with SWXMLHash.
-2. **Object tree** — the result is an object tree (`SVGRoot` → `SVGGroupObject` → shapes/gradients/clip paths), each node holding its attributes and resolved style (`SVGSourceStyleElement`).
+1. **XML** — `SVGParser` parses the document with SWXMLHash (vendored, internal); the DOM is released as soon as the tree is built.
+2. **Object tree** — the result is an internal object tree (`SVGRoot` → `SVGGroupObject` → shapes/gradients/clip paths), each node holding its attributes and resolved style (`SVGSourceStyleElement`).
 3. **Render** — each node builds a `CALayer` (`CAShapeLayer` for shapes, `CAGradientLayer` for gradients, `CATextLayer` for text).
 4. **Layout** — `SVGView` scales and translates the layer to fit the view's bounds.
 5. **Export** — `SVGRenderer` runs steps 1–4 offscreen and encodes the layer to PNG, JPEG or PDF `Data`. Steps 1–3 run on a serial queue; rasterization and encoding run concurrently.
@@ -294,7 +303,9 @@ xcodebuild test \
 ```
 
 (Adjust the `name=` value to a simulator available on your machine. The performance
-benchmarks are skipped here; see [Performance](#performance).)
+benchmarks are skipped here; see [Performance](#performance).) `Scripts/run-tests.sh` wraps
+this command: it also kills an `xcodebuild` that hangs after the result and prints a one-word
+verdict (`PASSED`, `FAILED`, `CRASHED`, `HUNG`, …).
 
 The render-parity test (`SVGRenderParityTests`) renders every icon in the bundled
 corpus against Apple's CoreSVG on the fly (no committed golden images) and
@@ -308,7 +319,9 @@ summary.
 The same rasters can be judged by a second, *browser* oracle: `Scripts/webkit-parity.sh`
 renders the corpus in a `WKWebView` (inside the Example app, because a bare test
 bundle cannot host WebKit's WebContent process), runs the parity test against those
-rasters, and gates both summaries. A behaviour that CoreSVG shares with the kit — or
+rasters, and gates both summaries and — per fixture, with `Scripts/check-fixtures.sh` — the
+differing fraction of every accepted divergence, so a known-bad icon cannot get worse unnoticed.
+CI runs it nightly, manually, and on pull requests labelled `webkit`. A behaviour that CoreSVG shares with the kit — or
 hides — then shows up next to the CoreSVG report in the same run; the browser rasters
 live in a temporary directory (recorded in `.webkit-rasters`, so later test runs pick
 them up too) and nothing is committed.

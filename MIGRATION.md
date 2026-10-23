@@ -87,6 +87,8 @@ Everything else that was `open` is unchanged: `SVGView`, `SVGRoot`, `SVGOptions`
 `SVGSourceStyleElement` and the tag classes (`SVGObject`, `SVGShape*`, `SVGGTag`, …) keep a public
 `init`, so they remain subclassable.
 
+> **Removed again in 2.0.0** (see above): `SVGBaseGradient` is no longer public.
+
 `SVGBaseGradient` is the supported place to plug in a custom gradient. Subclass it, override
 `getGradientLayer(maskLayer:path:viewBox:currentColor:)` and read the now-public `stops`,
 `gradientUnits`, `spreadMethod` and `transform`:

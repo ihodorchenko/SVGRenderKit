@@ -5,9 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 2.0.0 - 2026-10-23
 
-### Changed (breaking, see [MIGRATION.md](MIGRATION.md))
+A major release that narrows the public API to what a client can actually use, removes the 1.4.0
+deprecation shims, and closes the crash and robustness findings of a follow-up audit. Rendering is
+unchanged except where listed under Fixed. See [MIGRATION.md](MIGRATION.md).
+
+### Changed (breaking)
 - The object model (tags, `SVGRoot`, container protocols), the custom-gradient extension point
   (`SVGBaseGradient`, `SVGGradientStop`, `RadialGradientLayer`) and the vendored SWXMLHash are no
   longer public: nothing outside the module could create or plug in any of them. `SVGSourceStyleElement`
@@ -24,7 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (a key-path table instead of the hand-written lists made `getLayer` ~4x slower in a Release A/B).
 - `Scripts/check-fixtures.sh` gates the differing fraction of every failing parity fixture
   (`.github/parity-fixtures.txt`, `.github/webkit-fixtures.txt`); two stale triage entries removed.
-- Latin sub-letters in `B133`/`B124` references.
+- Latin sub-letters in `B133`/`B124` references; source comments, scripts and the demo app are English.
+- `Scripts/run-tests.sh` skips the Debug benchmarks by default (`PERF=1` runs them); the WebKit oracle runs
+  in CI from `webkit-parity.yml` (nightly, manually, or on a PR labelled `webkit`); the release workflow
+  extracts the notes of a `## x.y.z - date` heading.
+- Closed as not reproducible: the claim that `objectBoundingBox` gradients use Bézier control-point
+  bounds (`UIBezierPath.bounds` is the geometric extent; pinned by `SVGGradientFillBBoxTests`).
 
 ### Fixed
 - A very long `xlink:href` chain of gradients or patterns no longer overflows the stack: past
@@ -34,12 +43,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `font-weight` of `inf`/`1e308` all trapped in `Int(_:)`; they now degrade.
 - A `<pattern>` that cannot produce a tile (for example one larger than 4096 px) left the shape filled
   with the default black; the fill is now `none`.
+- A non-finite or negative `font-size` (`nan`, `inf`, `-1`) is ignored instead of leaving a NaN on the
+  text layer. `SVGHostileNumbersTests` now feeds `nan`/`inf`/`1e308`/`1e30`/`-1`/`0`/`1e-320` to every
+  numeric attribute of every supported element (1450 documents) and requires no trap.
 - `SVGConfiguration.updateNotificationName` is now guarded by a lock (it was read from the notification
   thread without one).
 
 ### Removed
-- Internal dead code: write-only `sourceStyle` on `SVGImage`/`SVGPath` and the unused
-  `SVGTags.addRange`/`exist`. No public API changed.
+- Internal dead code: write-only `sourceStyle` on `SVGImage`/`SVGPath`, the unused
+  `SVGTags.addRange`/`exist` and an unreachable font fallback.
 
 ## 1.4.0 - 2026-10-16
 
