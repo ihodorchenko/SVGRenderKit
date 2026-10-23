@@ -162,6 +162,11 @@ open class SVGBaseGradient: SVGChildObject {
         guard !hrefResolved, case .local(let key)? = href else { return }
         hrefResolved = true
         guard let source = parent.getGradient(byKey: key, fromParents: true) else { return }
+        guard SVGInputLimits.enterHref() else {
+            SVGLog.addSLog(errorStr: "skipped gradient href: the chain is longer than \(SVGInputLimits.maxHrefChainDepth)")
+            return
+        }
+        defer { SVGInputLimits.exitHref() }
         source.resolveHref()
         if stops.isEmpty { stops = source.stops }
         if attributeDict["gradientTransform"] == nil, transform == nil { transform = source.transform }

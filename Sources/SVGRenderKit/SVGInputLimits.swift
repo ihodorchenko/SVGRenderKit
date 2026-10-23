@@ -23,6 +23,14 @@ enum SVGInputLimits {
     /// produce 2ⁿ layers; real icons nest a couple of levels at most.
     static let maxUseDepth = 10
 
+    /// Maximum length of an `xlink:href` inheritance chain (`<linearGradient href>` → …,
+    /// `<pattern href>` → …). `resolveHref()` recurses once per link, so an unbounded chain would
+    /// overflow the stack (the work queue's threads have a small stack: a Debug frame of
+    /// `SVGPattern.resolveHref` already overflowed it at ~260 links); real documents chain two or
+    /// three levels. Links past the cap are not
+    /// followed.
+    static let maxHrefChainDepth = 32
+
     /// Maximum side (in px) of a mask or pattern bitmap. A larger region degrades to
     /// no mask / no pattern rather than allocating a huge image.
     static let maxPaintBitmapDimension: CGFloat = 4096
@@ -55,6 +63,7 @@ enum SVGInputLimits {
         var activeUses: Set<ObjectIdentifier> = []
         var useExpansions = 0
         var activePatterns: Set<ObjectIdentifier> = []
+        var hrefChainDepth = 0
     }
 
     private static let stateKey = "SVGRenderKit.SVGInputLimits.state"
@@ -108,6 +117,22 @@ enum SVGInputLimits {
 
     static func exitPattern(_ object: ObjectIdentifier) {
         state.activePatterns.remove(object)
+    }
+
+    // MARK: - href chains
+
+    /// Enters one link of an `xlink:href` inheritance chain. Returns `false` past
+    /// `maxHrefChainDepth`, so the caller stops following the chain instead of overflowing
+    /// the stack. Pair every `true` with `exitHref()`.
+    static func enterHref() -> Bool {
+        let current = state
+        guard current.hrefChainDepth < maxHrefChainDepth else { return false }
+        current.hrefChainDepth += 1
+        return true
+    }
+
+    static func exitHref() {
+        state.hrefChainDepth -= 1
     }
 
     // MARK: - <use> expansion

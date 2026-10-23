@@ -17,18 +17,22 @@ public final class SVGConfiguration: @unchecked Sendable {
 
     /// The notification name that triggers cached SVG views to reload, or `nil` to disable.
     public var updateNotificationName: NSNotification.Name? {
-        willSet {
-            if let name = updateNotificationName {
+        get { notificationNameLock.lock(); defer { notificationNameLock.unlock() }; return _updateNotificationName }
+        set {
+            notificationNameLock.lock(); defer { notificationNameLock.unlock() }
+            if let name = _updateNotificationName {
                 NotificationCenter.default.removeObserver(self, name: name, object: nil)
             }
-        }
-        didSet {
-            if let name = updateNotificationName {
+            _updateNotificationName = newValue
+            if let name = newValue {
                 NotificationCenter.default.addObserver(
                     self, selector: #selector(handleUpdateNotification), name: name, object: nil)
             }
         }
     }
+
+    private let notificationNameLock = NSLock()
+    private var _updateNotificationName: NSNotification.Name?
 
     let updateSvgImagesNotification = NSNotification.Name("SVGView_updateSvgImagesNSNotification")
 

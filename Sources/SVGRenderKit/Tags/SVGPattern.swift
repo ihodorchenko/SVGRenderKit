@@ -97,6 +97,11 @@ extension SVGPattern {
         guard !hrefResolved, case .local(let key)? = href else { return }
         hrefResolved = true
         guard let source = parent.getPattern(byKey: key, fromParents: true), source !== self else { return }
+        guard SVGInputLimits.enterHref() else {
+            SVGLog.addSLog(errorStr: "skipped pattern href: the chain is longer than \(SVGInputLimits.maxHrefChainDepth)")
+            return
+        }
+        defer { SVGInputLimits.exitHref() }
         source.resolveHref()
 
         if attributeDict["x"] == nil { x = source.x }

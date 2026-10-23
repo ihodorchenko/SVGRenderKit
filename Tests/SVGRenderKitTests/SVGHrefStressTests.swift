@@ -37,4 +37,41 @@ final class SVGHrefStressTests: XCTestCase {
             for data in results { XCTAssertEqual(data, reference, "round \(round): render differs from the serial one") }
         }
     }
+    // MARK: - chain depth
+
+    /// A chain of `xlink:href` links tens of thousands long used to recurse once per link in
+    /// `resolveHref()` and overflow the (small) stack of the work queue's thread. Past the cap the
+    /// chain is cut and the render degrades.
+    private func chainSVG(count: Int, element: (Int) -> String, fill: String) -> String {
+        var defs = ""
+        for i in 0..<count { defs += element(i) }
+        return """
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 20 20">
+          <rect width="20" height="20" fill="url(#\(fill)0)"/>
+          <defs>\(defs)</defs>
+        </svg>
+        """
+    }
+
+    func testLongGradientHrefChainDoesNotOverflowTheStack() async throws {
+        let count = 30_000
+        let svg = chainSVG(count: count, element: { i in
+            i == count - 1
+                ? "<linearGradient id=\"g\(i)\"><stop offset=\"0\" stop-color=\"#f00\"/><stop offset=\"1\" stop-color=\"#00f\"/></linearGradient>"
+                : "<linearGradient id=\"g\(i)\" xlink:href=\"#g\(i + 1)\"/>"
+        }, fill: "g")
+        let data = try await SVGRenderer.render(.string(svg, name: "href-chain-gradient"), size: CGSize(width: 20, height: 20), format: .png)
+        XCTAssertGreaterThan(data.count, 100)
+    }
+
+    func testLongPatternHrefChainDoesNotOverflowTheStack() async throws {
+        let count = 30_000
+        let svg = chainSVG(count: count, element: { i in
+            i == count - 1
+                ? "<pattern id=\"p\(i)\" width=\"4\" height=\"4\" patternUnits=\"userSpaceOnUse\"><rect width=\"2\" height=\"2\"/></pattern>"
+                : "<pattern id=\"p\(i)\" xlink:href=\"#p\(i + 1)\"/>"
+        }, fill: "p")
+        let data = try await SVGRenderer.render(.string(svg, name: "href-chain-pattern"), size: CGSize(width: 20, height: 20), format: .png)
+        XCTAssertGreaterThan(data.count, 100)
+    }
 }
