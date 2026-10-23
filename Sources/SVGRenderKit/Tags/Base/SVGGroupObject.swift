@@ -281,6 +281,7 @@ extension SVGGroupObject {
 
     /// The lookup every typed `get…(byKey:)` below shares: this group's `<defs>` first, then its own
     /// children, then — with `fromParents` — the parent chain through `inParent`.
+    @inline(__always)
     private func find<T: SVGObject>(_ type: T.Type, key: String, fromParents: Bool, inParent: (SVGGroupProtocol) -> T?) -> T? {
         for defs in defsList {
             if let found = defs.find(type, key: key, fromParents: false, inParent: inParent) { return found }

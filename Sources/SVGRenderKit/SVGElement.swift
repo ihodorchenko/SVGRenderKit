@@ -346,6 +346,7 @@ class SVGRoot {
 
 extension SVGRoot: SVGGroupProtocol {
     /// Every lookup is document-wide by `id`, whatever `fromParents` says.
+    @inline(__always)
     private func lookup<T>(_ key: String) -> T? { idMap[key] as? T }
 
     /// Returns the clip path with the given `id` from anywhere in the document.
