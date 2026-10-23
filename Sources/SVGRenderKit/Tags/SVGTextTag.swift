@@ -269,7 +269,7 @@ class SVGTextTag: SVGShapeObject {
             size: sourceStyle.fontSize?.resolvedPx(relativeTo: 16.0) ?? 16.0,
             weight: sourceStyle.fontWeight,
             style: sourceStyle.fontStyle)
-        return Self.fontCache.value(for: key) { buildFont(from: sourceStyle) } ?? buildFont(from: sourceStyle)
+        return Self.fontCache.value(for: key) { buildFont(from: sourceStyle) }
     }
 
     /// Builds a `UIFont` from the resolved font-related style values.

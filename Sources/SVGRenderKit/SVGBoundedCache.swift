@@ -42,7 +42,16 @@ final class SVGBoundedCache<Key: Hashable, Value>: @unchecked Sendable {
         totalCost += size
     }
 
-    /// Returns the cached value, computing and storing it with `make` on a miss.
+    /// Returns the cached value, computing and storing it with `make` on a miss. `make` always
+    /// produces a value, so so does this.
+    func value(for key: Key, make: () -> Value) -> Value {
+        if let cached = value(for: key) { return cached }
+        let created = make()
+        set(created, for: key)
+        return created
+    }
+
+    /// Like the overload above, for a `make` that can fail: a `nil` is returned and not cached.
     func value(for key: Key, make: () -> Value?) -> Value? {
         if let cached = value(for: key) { return cached }
         guard let created = make() else { return nil }

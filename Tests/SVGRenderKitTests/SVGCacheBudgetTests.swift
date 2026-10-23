@@ -18,6 +18,22 @@ final class SVGCacheBudgetTests: XCTestCase {
 
     // MARK: d — byte budget
 
+    func testMakeThatAlwaysSucceedsIsCachedAndNonOptional() {
+        let cache = SVGBoundedCache<Int, Int>(limit: 2)
+        var makes = 0
+        let first: Int = cache.value(for: 1) { makes += 1; return 10 }
+        let second: Int = cache.value(for: 1) { makes += 1; return 20 }
+        XCTAssertEqual(first, 10)
+        XCTAssertEqual(second, 10, "a hit must not run `make` again")
+        XCTAssertEqual(makes, 1)
+    }
+
+    func testMakeThatFailsIsNotCached() {
+        let cache = SVGBoundedCache<Int, Int>(limit: 2)
+        XCTAssertNil(cache.value(for: 1) { () -> Int? in nil })
+        XCTAssertEqual(cache.value(for: 1) { () -> Int? in 7 }, 7)
+    }
+
     func testBoundedCacheEvictsWhenTheByteBudgetIsExceeded() {
         let cache = SVGBoundedCache<Int, Int>(limit: 100, costLimit: 100, cost: { $0 })
         cache.set(60, for: 1)
