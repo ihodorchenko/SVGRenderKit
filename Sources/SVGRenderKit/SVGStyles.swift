@@ -496,7 +496,7 @@ open class SVGSourceStyleElement {
             fontWeight = 100
             break
         default:
-            if let f: Float = Float(str), f >= 0 {
+            if let f: Float = Float(str), f.isFinite, f >= 0 {
                 fontWeight = f
             } else {
                 throw SVGError.content(text: "wrong font-weight: \(str)")
@@ -931,6 +931,11 @@ extension SVGSourceStyleElement {
     private func applyPattern(pathLayer: CAShapeLayer, pattern: SVGPattern, group: SVGShapesContainer, path: UIBezierPath, opacity: CGFloat?) {
         if let color = pattern.fillColor(bbox: path.svgBounds(transformedBy: nil), viewBox: group.getSvgOptions().viewBox, opacity: opacity) {
             pathLayer.fillColor = color
+        } else {
+            // No tile (empty, too large, self-referencing): the fill is `none`, and clearing it
+            // is required — CoreAnimation would otherwise paint the default black.
+            pathLayer.fillColor = nil
+            SVGLog.addSLog(errorStr: "skipped fill: pattern without a tile")
         }
     }
 

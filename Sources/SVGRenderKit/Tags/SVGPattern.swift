@@ -238,10 +238,10 @@ extension SVGPattern {
         options.usesPatterns = true
         let scale = max(1, options.renderScale)
         // A document-controlled tile must not allocate an unbounded bitmap (B102);
-        // skip the pattern (the shape keeps its previous fill) past the cap.
+        // skip the pattern past the cap (the caller then clears the fill, see `applyPattern`).
         guard SVGInputLimits.bitmapFits(width: size.width * scale, height: size.height * scale,
                                         limit: SVGInputLimits.maxPaintBitmapDimension) else {
-            SVGLog.addSLog(errorStr: "skipped pattern: \(Int(size.width))×\(Int(size.height))px tile exceeds the \(Int(SVGInputLimits.maxPaintBitmapDimension))px limit")
+            SVGLog.addSLog(errorStr: "skipped pattern: \(size.width)×\(size.height)px tile exceeds the \(Int(SVGInputLimits.maxPaintBitmapDimension))px limit")
             return nil
         }
         let usesBBox = patternContentUnits == .objectBoundingBox && viewBox == nil

@@ -312,7 +312,8 @@ open class SVGTextTag: SVGShapeObject {
     /// Maps an SVG `font-weight` value to a `UIFont.Weight`.
     private func weight(from fontWeight: Float?) -> UIFont.Weight {
         guard let fontWeight = fontWeight else { return .regular }
-        switch Int(fontWeight) {
+        // Clamped before `Int(_:)`, which traps on a huge or non-finite value (CSS weights are 1…1000).
+        switch Int(min(max(fontWeight.isNaN ? 400 : fontWeight, 0), 1000)) {
         case ..<150: return .ultraLight
         case ..<250: return .thin
         case ..<350: return .light

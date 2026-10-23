@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - A very long `xlink:href` chain of gradients or patterns no longer overflows the stack: past
   `SVGInputLimits.maxHrefChainDepth` (32) links the chain is cut and the element degrades.
+- Crashes on hostile numbers: `animateTransform` with `nan` values (and unbounded keyframes for huge
+  angles — capped at 720 samples per segment), a mask or pattern on a shape with a `1e308` extent,
+  and `font-weight` of `inf`/`1e308` all trapped in `Int(_:)`; they now degrade.
+- A `<pattern>` that cannot produce a tile (for example one larger than 4096 px) left the shape filled
+  with the default black; the fill is now `none`.
 - `SVGConfiguration.updateNotificationName` is now guarded by a lock (it was read from the notification
   thread without one).
 

@@ -138,6 +138,16 @@ struct SVGAnimation {
     /// The largest angular step, in degrees, between two sampled keyframes.
     static let maxAngleStep: CGFloat = 15
 
+    /// Cap on the samples of one `values` segment (30 full turns at `maxAngleStep`): a document
+    /// can ask for `values="0;1e9"`, which would otherwise build millions of keyframes.
+    static let maxSamplesPerSegment = 720
+
+    private static func sampleCount(from: CGFloat, to: CGFloat) -> Int {
+        let raw = (abs(to - from) / maxAngleStep).rounded(.up)
+        guard raw.isFinite else { return maxSamplesPerSegment }
+        return max(1, Int(min(raw, CGFloat(maxSamplesPerSegment))))
+    }
+
     private static func interpolatesAngle(_ type: String) -> Bool {
         type == "rotate" || type == "skewX" || type == "skewY"
     }
@@ -168,7 +178,7 @@ struct SVGAnimation {
         var matrices = [matrix(padded(parsed[0]))]
         for i in 0..<(parsed.count - 1) {
             let from = padded(parsed[i]), to = padded(parsed[i + 1])
-            let steps = max(1, Int((abs(to[0] - from[0]) / maxAngleStep).rounded(.up)))
+            let steps = sampleCount(from: from[0], to: to[0])
             for step in 1...steps {
                 let f = CGFloat(step) / CGFloat(steps)
                 let n = zip(from, to).map { $0 + ($1 - $0) * f }
@@ -216,6 +226,7 @@ struct SVGAnimation {
         string
             .components(separatedBy: CharacterSet(charactersIn: ", \t\n\r"))
             .compactMap { Double($0) }
+            .filter { $0.isFinite }
             .map { CGFloat($0) }
     }
 

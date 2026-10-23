@@ -189,16 +189,20 @@ extension SVGMask: SVGRendering {
     }
 
     private func renderMaskImage(contentLayer: CALayer, region: CGRect, bbox: CGRect, scale: CGFloat) -> CGImage? {
-        let width = Int(region.width.rounded(.up))
-        let height = Int(region.height.rounded(.up))
-        guard width > 0, height > 0 else { return nil }
+        // Measured in floating point and converted only after the cap: a document-controlled
+        // region can be huge or non-finite, and `Int(_:)` traps on those.
+        let rawWidth = region.width.rounded(.up)
+        let rawHeight = region.height.rounded(.up)
+        guard rawWidth > 0, rawHeight > 0 else { return nil }
         // A document-controlled region must not allocate an unbounded bitmap (B102);
         // skip the mask (the content then renders unmasked) past the cap.
-        guard SVGInputLimits.bitmapFits(width: CGFloat(width) * scale, height: CGFloat(height) * scale,
+        guard SVGInputLimits.bitmapFits(width: rawWidth * scale, height: rawHeight * scale,
                                         limit: SVGInputLimits.maxPaintBitmapDimension) else {
-            SVGLog.addSLog(errorStr: "skipped mask: \(width)×\(height)px region exceeds the \(Int(SVGInputLimits.maxPaintBitmapDimension))px limit")
+            SVGLog.addSLog(errorStr: "skipped mask: \(rawWidth)×\(rawHeight)px region exceeds the \(Int(SVGInputLimits.maxPaintBitmapDimension))px limit")
             return nil
         }
+        let width = Int(rawWidth)
+        let height = Int(rawHeight)
 
         let format = UIGraphicsImageRendererFormat()
         format.scale = scale
