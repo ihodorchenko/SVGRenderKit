@@ -15,21 +15,9 @@ public class SVGColors {
         SVGConfiguration.shared.addColorOverrides(colors)
     }
 
-    /// Misspelled former name of `addOverrideColors(colors:)`.
-    @available(*, deprecated, renamed: "addOverrideColors(colors:)")
-    public static func addOvverideColors(colors: [String: String]) {
-        addOverrideColors(colors: colors)
-    }
-
     /// Replaces all name-to-color-string overrides with the given dictionary.
     public static func setOverrideColors(colors: [String: String]) {
         SVGConfiguration.shared.setColorOverrides(colors)
-    }
-
-    /// Misspelled former name of `setOverrideColors(colors:)`.
-    @available(*, deprecated, renamed: "setOverrideColors(colors:)")
-    public static func setOvverideColors(colors: [String: String]) {
-        setOverrideColors(colors: colors)
     }
 
     /// Adds name-to-`UIColor` overrides that take precedence when resolving colors.
@@ -38,21 +26,9 @@ public class SVGColors {
         SVGConfiguration.shared.addUIColorOverrides(colors)
     }
 
-    /// Misspelled former name of `addOverrideUIColors(colors:)`.
-    @available(*, deprecated, renamed: "addOverrideUIColors(colors:)")
-    public static func addOvverideUIColors(colors: [String: UIColor]) {
-        addOverrideUIColors(colors: colors)
-    }
-
     /// Replaces all name-to-`UIColor` overrides with the given dictionary.
     public static func setOverrideUIColors(colors: [String: UIColor]) {
         SVGConfiguration.shared.setUIColorOverrides(colors)
-    }
-
-    /// Misspelled former name of `setOverrideUIColors(colors:)`.
-    @available(*, deprecated, renamed: "setOverrideUIColors(colors:)")
-    public static func setOvverideUIColors(colors: [String: UIColor]) {
-        setOverrideUIColors(colors: colors)
     }
 
     static private func getOverrideColor(byString: String) -> String? {

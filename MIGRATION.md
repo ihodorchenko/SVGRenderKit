@@ -14,6 +14,7 @@ nothing outside the module could create or plug in any of it: their initializers
 | `SVGRendering`, `SVGShapesContainer`, `SVGGroupProtocol`, `SVGGroupHosting` | Nothing. |
 | `SWXMLHash`, `XMLElement`, `XMLIndexer` and the rest of the vendored parser | Add SWXMLHash to your own package if you used it. |
 | `SVGParseString.SVGParseStringkCompletion` | Unused; remove the reference. |
+| The 1.4.0 deprecated spellings: `SVGColors.addOvverideColors`/`setOvverideColors`/`addOvverideUIColors`/`setOvverideUIColors`, `SVGView.set(…fill_colors:)` (three overloads), global `MD5(_:)` | Use `addOverrideColors(colors:)`, `setOverrideColors(colors:)`, `addOverrideUIColors(colors:)`, `setOverrideUIColors(colors:)`, `set(…fillColors:)` and `SVGUtils.md5(_:)` (or CryptoKit). |
 
 `SVGSourceStyleElement` is `public` (no longer `open`): create and pass it as before, but it can no
 longer be subclassed. `SVGView` is still `open`.

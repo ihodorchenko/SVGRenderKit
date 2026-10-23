@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`SVGBaseGradient`, `SVGGradientStop`, `RadialGradientLayer`) and the vendored SWXMLHash are no
   longer public: nothing outside the module could create or plug in any of them. `SVGSourceStyleElement`
   is `public`, not `open`.
+- Removed the deprecated 1.4.0 shims (`…Ovveride…` colour overrides, `set(…fill_colors:)`, global `MD5`).
 - Removed the unused `SVGParseString.SVGParseStringkCompletion` and the unused SWXMLHash type-conversion
   extensions (705 lines).
 - The parsed DOM is released as soon as the object tree is built (it used to live as long as the parser
