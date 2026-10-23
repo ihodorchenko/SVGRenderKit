@@ -81,7 +81,7 @@ func applyNavBarAppearance(style: SubstrateStyle, to navigationController: UINav
 }
 
 /// SVG folders inside the bundle (each one is a separate sub-gallery).
-let svgFolders = ["svg_0.0", "svg_1.0", "svg_2.0", "svg_3.0", "BookTracker", "hatavik", "mycourse", "petfolio"]
+let svgFolders = ["folder_1", "folder_2", "folder_3", "folder_4", "folder_5", "folder_6", "folder_7", "folder_8"]
 
 /// Root screen: a list of folders, a tap opens the folder gallery.
 class ViewController2: UITableViewController {
@@ -162,7 +162,7 @@ class ViewController2: UITableViewController {
 }
 
 /// Returns the SVG paths relative to the bundle root inside a folder, including subfolders
-/// (for example `svg_1.0/alert/foo.svg`).
+/// (for example `folder_2/alert/foo.svg`).
 func svgPaths(inFolder folder: String) -> [String] {
     guard let resourceURL = Bundle.main.resourceURL else { return [] }
     let directoryURL = resourceURL.appendingPathComponent(folder)

@@ -284,7 +284,7 @@ See [CONFORMANCE.md](CONFORMANCE.md) for the full icon-profile contract.
 ## Example app
 
 The `Example` project is a gallery that renders every SVG bundled under
-`Example/Example/data` (`svg_0.0` … `svg_3.0`). Open `Example/Example.xcodeproj`
+`Example/Example/data` (`folder_1` … `folder_8`). Open `Example/Example.xcodeproj`
 and run the `Example` scheme — it consumes the library as a local Swift Package.
 The gallery supports a light/dark/gray substrate color picker and a full-screen
 detail view.

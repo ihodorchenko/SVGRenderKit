@@ -15,13 +15,13 @@ final class WebKitReferenceRastersTests: XCTestCase {
     override func setUpWithError() throws {
         directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("webkit-rasters-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: directory.appendingPathComponent("svg_1.0/folder"),
+        try FileManager.default.createDirectory(at: directory.appendingPathComponent("folder_2/folder"),
                                                withIntermediateDirectories: true)
-        try png().write(to: directory.appendingPathComponent("svg_1.0/folder/icon.svg.png"))
+        try png().write(to: directory.appendingPathComponent("folder_2/folder/icon.svg.png"))
         try png().write(to: directory.appendingPathComponent("top.svg.png"))
         // Not a `.png` and not a raster: it must be ignored rather than reported as a fixture.
         try "noise".write(to: directory.appendingPathComponent("notes.txt"), atomically: true, encoding: .utf8)
-        try "svg_2.0/broken.svg\tthe browser did not load the document"
+        try "folder_3/broken.svg\tthe browser did not load the document"
             .write(to: directory.appendingPathComponent("failures.tsv"), atomically: true, encoding: .utf8)
     }
 
@@ -32,10 +32,10 @@ final class WebKitReferenceRastersTests: XCTestCase {
     func testLoadsRastersUnderTheirFixtureNames() throws {
         let loaded = WebKitReferenceRasters.load(from: directory)
 
-        XCTAssertEqual(loaded.images.keys.sorted(), ["svg_1.0/folder/icon.svg", "top.svg"])
-        XCTAssertEqual((loaded.images["svg_1.0/folder/icon.svg"].flatMap { UIImage(data: $0) })?.size,
+        XCTAssertEqual(loaded.images.keys.sorted(), ["folder_2/folder/icon.svg", "top.svg"])
+        XCTAssertEqual((loaded.images["folder_2/folder/icon.svg"].flatMap { UIImage(data: $0) })?.size,
                        CGSize(width: 4, height: 4))
-        XCTAssertEqual(loaded.failures, ["svg_2.0/broken.svg": "the browser did not load the document"])
+        XCTAssertEqual(loaded.failures, ["folder_3/broken.svg": "the browser did not load the document"])
     }
 
     func testMissingDirectoryYieldsNoRasters() throws {
@@ -58,8 +58,8 @@ final class WebKitReferenceRastersTests: XCTestCase {
         try FileManager.default.createDirectory(at: real, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: real) }
         let dump = real.appendingPathComponent("dump", isDirectory: true)
-        try FileManager.default.createDirectory(at: dump.appendingPathComponent("svg_1.0"), withIntermediateDirectories: true)
-        try png().write(to: dump.appendingPathComponent("svg_1.0/icon.svg.png"))
+        try FileManager.default.createDirectory(at: dump.appendingPathComponent("folder_2"), withIntermediateDirectories: true)
+        try png().write(to: dump.appendingPathComponent("folder_2/icon.svg.png"))
 
         // `link/dump` is the same directory as `real/dump`, but only the symlink is announced.
         let link = FileManager.default.temporaryDirectory
@@ -69,7 +69,7 @@ final class WebKitReferenceRastersTests: XCTestCase {
 
         let loaded = WebKitReferenceRasters.load(from: link.appendingPathComponent("dump", isDirectory: true))
 
-        XCTAssertEqual(loaded.images.keys.sorted(), ["svg_1.0/icon.svg"])
+        XCTAssertEqual(loaded.images.keys.sorted(), ["folder_2/icon.svg"])
     }
 
     private func png() -> Data {

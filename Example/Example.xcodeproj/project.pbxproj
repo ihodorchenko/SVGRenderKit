@@ -13,14 +13,14 @@
 		4A2788F61EC71DE900D47036 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2788F51EC71DE900D47036 /* SceneDelegate.swift */; };
 		4A2788F91EC71DE900D47036 /* SVGRenderKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4A2788F81EC71DE900D47036 /* SVGRenderKit */; };
 		4A319DFB1EEE8E3000F84AE3 /* VC2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A319DFA1EEE8E3000F84AE3 /* VC2.swift */; };
-		AB0100000000000000000015 /* BookTracker in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000005 /* BookTracker */; };
-		AB0100000000000000000016 /* hatavik in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000006 /* hatavik */; };
-		AB0100000000000000000017 /* mycourse in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000007 /* mycourse */; };
-		AB0100000000000000000018 /* petfolio in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000008 /* petfolio */; };
-		AB0100000000000000000011 /* svg_0.0 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000001 /* svg_0.0 */; };
-		AB0100000000000000000012 /* svg_1.0 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000002 /* svg_1.0 */; };
-		AB0100000000000000000013 /* svg_2.0 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000003 /* svg_2.0 */; };
-		AB0100000000000000000014 /* svg_3.0 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000004 /* svg_3.0 */; };
+		AB0100000000000000000015 /* folder_5 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000005 /* folder_5 */; };
+		AB0100000000000000000016 /* folder_6 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000006 /* folder_6 */; };
+		AB0100000000000000000017 /* folder_7 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000007 /* folder_7 */; };
+		AB0100000000000000000018 /* folder_8 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000008 /* folder_8 */; };
+		AB0100000000000000000011 /* folder_1 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000001 /* folder_1 */; };
+		AB0100000000000000000012 /* folder_2 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000002 /* folder_2 */; };
+		AB0100000000000000000013 /* folder_3 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000003 /* folder_3 */; };
+		AB0100000000000000000014 /* folder_4 in Resources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000004 /* folder_4 */; };
 		AC6EFEE73081FA7000F7B036 /* WebKitParityRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6EFEE63081FA7000F7B036 /* WebKitParityRunner.swift */; };
 /* End PBXBuildFile section */
 
@@ -33,14 +33,14 @@
 		4A2788F51EC71DE900D47036 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		4A319DFA1EEE8E3000F84AE3 /* VC2.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = VC2.swift; sourceTree = "<group>"; };
 		4AE6111F25666BC800AD1F6A /* Example.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Example.entitlements; sourceTree = "<group>"; };
-		AB0100000000000000000005 /* BookTracker */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BookTracker; sourceTree = "<group>"; };
-		AB0100000000000000000006 /* hatavik */ = {isa = PBXFileReference; lastKnownFileType = folder; path = hatavik; sourceTree = "<group>"; };
-		AB0100000000000000000007 /* mycourse */ = {isa = PBXFileReference; lastKnownFileType = folder; path = mycourse; sourceTree = "<group>"; };
-		AB0100000000000000000008 /* petfolio */ = {isa = PBXFileReference; lastKnownFileType = folder; path = petfolio; sourceTree = "<group>"; };
-		AB0100000000000000000001 /* svg_0.0 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = svg_0.0; sourceTree = "<group>"; };
-		AB0100000000000000000002 /* svg_1.0 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = svg_1.0; sourceTree = "<group>"; };
-		AB0100000000000000000003 /* svg_2.0 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = svg_2.0; sourceTree = "<group>"; };
-		AB0100000000000000000004 /* svg_3.0 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = svg_3.0; sourceTree = "<group>"; };
+		AB0100000000000000000005 /* folder_5 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = folder_5; sourceTree = "<group>"; };
+		AB0100000000000000000006 /* folder_6 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = folder_6; sourceTree = "<group>"; };
+		AB0100000000000000000007 /* folder_7 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = folder_7; sourceTree = "<group>"; };
+		AB0100000000000000000008 /* folder_8 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = folder_8; sourceTree = "<group>"; };
+		AB0100000000000000000001 /* folder_1 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = folder_1; sourceTree = "<group>"; };
+		AB0100000000000000000002 /* folder_2 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = folder_2; sourceTree = "<group>"; };
+		AB0100000000000000000003 /* folder_3 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = folder_3; sourceTree = "<group>"; };
+		AB0100000000000000000004 /* folder_4 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = folder_4; sourceTree = "<group>"; };
 		AC6EFEE63081FA7000F7B036 /* WebKitParityRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebKitParityRunner.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -91,14 +91,14 @@
 		4A2788F21EC71DE900D47036 /* data */ = {
 			isa = PBXGroup;
 			children = (
-				AB0100000000000000000001 /* svg_0.0 */,
-				AB0100000000000000000002 /* svg_1.0 */,
-				AB0100000000000000000003 /* svg_2.0 */,
-				AB0100000000000000000004 /* svg_3.0 */,
-				AB0100000000000000000005 /* BookTracker */,
-				AB0100000000000000000006 /* hatavik */,
-				AB0100000000000000000007 /* mycourse */,
-				AB0100000000000000000008 /* petfolio */,
+				AB0100000000000000000001 /* folder_1 */,
+				AB0100000000000000000002 /* folder_2 */,
+				AB0100000000000000000003 /* folder_3 */,
+				AB0100000000000000000004 /* folder_4 */,
+				AB0100000000000000000005 /* folder_5 */,
+				AB0100000000000000000006 /* folder_6 */,
+				AB0100000000000000000007 /* folder_7 */,
+				AB0100000000000000000008 /* folder_8 */,
 			);
 			path = data;
 			sourceTree = "<group>";
@@ -171,14 +171,14 @@
 			files = (
 				4A2788EB1EC71DCE00D47036 /* LaunchScreen.storyboard in Resources */,
 				4A2788E81EC71DCE00D47036 /* Assets.xcassets in Resources */,
-				AB0100000000000000000011 /* svg_0.0 in Resources */,
-				AB0100000000000000000012 /* svg_1.0 in Resources */,
-				AB0100000000000000000013 /* svg_2.0 in Resources */,
-				AB0100000000000000000014 /* svg_3.0 in Resources */,
-				AB0100000000000000000015 /* BookTracker in Resources */,
-				AB0100000000000000000016 /* hatavik in Resources */,
-				AB0100000000000000000017 /* mycourse in Resources */,
-				AB0100000000000000000018 /* petfolio in Resources */,
+				AB0100000000000000000011 /* folder_1 in Resources */,
+				AB0100000000000000000012 /* folder_2 in Resources */,
+				AB0100000000000000000013 /* folder_3 in Resources */,
+				AB0100000000000000000014 /* folder_4 in Resources */,
+				AB0100000000000000000015 /* folder_5 in Resources */,
+				AB0100000000000000000016 /* folder_6 in Resources */,
+				AB0100000000000000000017 /* folder_7 in Resources */,
+				AB0100000000000000000018 /* folder_8 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
