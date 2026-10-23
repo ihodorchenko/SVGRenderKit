@@ -135,8 +135,6 @@ internal class PathCommand: PathCharacter, Commandable {
 
 /// Parses SVG path data (`d` attribute) strings into `UIBezierPath` objects.
 public class SVGParseString {
-    /// A completion handler that receives an optional error and the resulting path.
-    public typealias SVGParseStringkCompletion = (_ svgError: SVGError?, _ bezierPath: UIBezierPath?) -> Void
 
 
 

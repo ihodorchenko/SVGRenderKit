@@ -130,6 +130,9 @@ public class SVGParser {
             throw SVGError.parseError(text: "no 'svg' tag")
         }
 
+        // The object tree copies everything it needs out of the XML, so the DOM is released as
+        // soon as the tree is built instead of living as long as the parser (and its cache entry).
+        defer { self.xmlParser = nil }
         do {
             root = try SVGRoot(xmlSvgElement: svg)
         } catch let error as SVGError {

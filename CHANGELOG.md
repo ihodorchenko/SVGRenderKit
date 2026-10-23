@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed (breaking, see [MIGRATION.md](MIGRATION.md))
+- The object model (tags, `SVGRoot`, container protocols), the custom-gradient extension point
+  (`SVGBaseGradient`, `SVGGradientStop`, `RadialGradientLayer`) and the vendored SWXMLHash are no
+  longer public: nothing outside the module could create or plug in any of them. `SVGSourceStyleElement`
+  is `public`, not `open`.
+- Removed the unused `SVGParseString.SVGParseStringkCompletion` and the unused SWXMLHash type-conversion
+  extensions (705 lines).
+- The parsed DOM is released as soon as the object tree is built (it used to live as long as the parser
+  and its cache entry), and tags no longer keep their `XMLElement`.
+
+### Internal
+- Typed lookups in `SVGGroupObject`/`SVGRoot` share one generic helper; one `UncheckedSendable`.
+  `SVGStylePropertyCoverageTests` pins that every style property is carried by `combine`/`set(element:)`
+  (a key-path table instead of the hand-written lists made `getLayer` ~4x slower in a Release A/B).
+- `Scripts/check-fixtures.sh` gates the differing fraction of every failing parity fixture
+  (`.github/parity-fixtures.txt`, `.github/webkit-fixtures.txt`); two stale triage entries removed.
+- Latin sub-letters in `B133`/`B124` references.
+
 ### Fixed
 - A very long `xlink:href` chain of gradients or patterns no longer overflows the stack: past
   `SVGInputLimits.maxHrefChainDepth` (32) links the chain is cut and the element degrades.

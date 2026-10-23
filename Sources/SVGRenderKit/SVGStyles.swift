@@ -18,63 +18,63 @@ enum SVGFontSize {
 
 /// Holds parsed style values (fill, stroke, opacity, etc.) read from an SVG element,
 /// and applies them to a rendered layer.
-open class SVGSourceStyleElement {
+public class SVGSourceStyleElement {
 
     /// The display mode (inline, block, or none) controlling whether the element is rendered.
-    open var display: SVGDisplaytype?
+    public var display: SVGDisplaytype?
     /// Whether the element is visible (`visible`, `hidden`, or `collapse`).
-    open var visibility: SVGVisibility?
+    public var visibility: SVGVisibility?
 
     /// The `text-anchor` alignment (`start`, `middle`, or `end`) for `<text>` elements.
-    open var textAnchor: String?
+    public var textAnchor: String?
 
     /// The fill paint applied to the interior of the shape.
-    open var fill: SVGPaint?
+    public var fill: SVGPaint?
     /// The current text color (`color` property), used to resolve `currentColor`.
-    open var color: UIColor?
+    public var color: UIColor?
     /// The opacity of the fill, overriding the fill color's alpha when set.
-    open var fillOpacity: CGFloat?
+    public var fillOpacity: CGFloat?
     /// The rule used to determine which regions are inside the shape for filling.
-    open var fillRule: SVGFillRuleType?
+    public var fillRule: SVGFillRuleType?
     /// The overall opacity applied to the entire element.
-    open var opacity: Float?
+    public var opacity: Float?
 
     /// The paint used to draw the outline of the shape.
-    open var stroke: SVGPaint?
+    public var stroke: SVGPaint?
     /// The opacity of the stroke, overriding the stroke color's alpha when set.
-    open var strokeOpacity: CGFloat?
+    public var strokeOpacity: CGFloat?
     /// The width of the stroke outline.
-    open var strokeWidth: SVGLength?
+    public var strokeWidth: SVGLength?
 
     /// The shape of the stroke line caps.
-    open var strokeLinecap: SVGLineCap?
+    public var strokeLinecap: SVGLineCap?
     /// The shape of the stroke line joins.
-    open var strokeLinejoin: SVGLineJoin?
+    public var strokeLinejoin: SVGLineJoin?
     /// The limit for miter joins.
-    open var strokeMiterlimit: CGFloat?
+    public var strokeMiterlimit: CGFloat?
 
     /// The dash pattern applied to the stroke (`nil` for a solid stroke).
-    open var strokeDasharray: [CGFloat]?
+    public var strokeDasharray: [CGFloat]?
     /// The offset into the dash pattern.
-    open var strokeDashoffset: CGFloat?
+    public var strokeDashoffset: CGFloat?
 
     /// A reference to the clip path that masks the element.
-    open var clipPath: SVGFuncIRI?
+    public var clipPath: SVGFuncIRI?
     /// The rule used to determine which regions are inside the clipping path.
-    open var clipRule: SVGClipRuleType?
+    public var clipRule: SVGClipRuleType?
 
     /// A reference to the mask applied to the element.
-    open var mask: SVGFuncIRI?
+    public var mask: SVGFuncIRI?
 
     /// The marker drawn at the start vertex of the shape.
-    open var markerStart: SVGFuncIRI?
+    public var markerStart: SVGFuncIRI?
     /// The marker drawn at intermediate vertices of the shape.
-    open var markerMid: SVGFuncIRI?
+    public var markerMid: SVGFuncIRI?
     /// The marker drawn at the end vertex of the shape.
-    open var markerEnd: SVGFuncIRI?
+    public var markerEnd: SVGFuncIRI?
 
     /// A reference to the filter applied to the element.
-    open var filter: SVGFuncIRI?
+    public var filter: SVGFuncIRI?
 
     var fontFamily: String?
     var fontStyle: SVGFontStyle?
@@ -96,6 +96,9 @@ open class SVGSourceStyleElement {
         self.strokeWidth = strokeWidth
     }
 
+    // `combine(child:)` and `set(element:)` list every property by hand on purpose: a table of key
+    // paths made `getLayer` 4x slower in a Release A/B (combine runs for every shape);
+    // `SVGStylePropertyCoverageTests` fails when a property is missing from either list.
     func combine(child: SVGSourceStyleElement) -> SVGSourceStyleElement {
         let newElem: SVGSourceStyleElement = SVGSourceStyleElement()
         newElem.set(element: self)

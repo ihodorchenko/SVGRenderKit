@@ -1,5 +1,25 @@
 # Migration guide
 
+## 1.4.x → 2.0.0
+
+2.0 narrows the public API to what a client can actually use. The object model that the parser builds
+(tags, `SVGRoot`, the container protocols) and the vendored SWXMLHash were `public`/`open`, yet
+nothing outside the module could create or plug in any of it: their initializers took a SWXMLHash
+`XMLElement`, and the parser always instantiates the library's own classes. They are now `internal`.
+
+| Removed from the public API | What to do |
+| --- | --- |
+| `SVGRoot`, `SVGSVGTag`, `SVGObject`, `SVGChildObject`, `SVGGroupObject`, `SVGGTag`, `SVGDefsGroupTag`, `SVGSymbol`, `SVGUseTag`, `SVGShapeObject`, `SVGPath`, `SVGShapeRect`/`Circle`/`Ellipse`/`Line`/`Polyline`/`Polygon`, `SVGTextTag`, `SVGImage`, `SVGClipPath`, `SVGMask`, `SVGPattern`, `SVGMarker`, `SVGFilter`, `SVGStyleTag`, `SVGOptions` | Nothing: no public API produced or consumed them. Use `SVGView`, `SVGImageView` or `SVGRenderer`. |
+| `SVGBaseGradient` (and its subclasses `SVGLinearGradientTag`/`SVGRadialGradientTag`), `SVGGradientStop`, `RadialGradientLayer` | The 1.4.0 "custom gradient" extension point is gone: the parser never created a custom subclass, so an override was never called for a parsed document. Draw the gradient yourself and set it as the layer's content. |
+| `SVGRendering`, `SVGShapesContainer`, `SVGGroupProtocol`, `SVGGroupHosting` | Nothing. |
+| `SWXMLHash`, `XMLElement`, `XMLIndexer` and the rest of the vendored parser | Add SWXMLHash to your own package if you used it. |
+| `SVGParseString.SVGParseStringkCompletion` | Unused; remove the reference. |
+
+`SVGSourceStyleElement` is `public` (no longer `open`): create and pass it as before, but it can no
+longer be subclassed. `SVGView` is still `open`.
+
+Rendering changes in 2.0: none intended beyond the 1.4.x fixes listed in [CHANGELOG.md](CHANGELOG.md).
+
 ## 1.3.x → 1.4.0
 
 Most of 1.4.0 is source compatible: the renamed API keeps working through `@available(*, deprecated,

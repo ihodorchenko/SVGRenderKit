@@ -1,7 +1,7 @@
 import UIKit
 
 /// Abstraction for objects that can create a rendered layer.
-public protocol SVGRendering {
+protocol SVGRendering {
     /// Creates a layer for the object using the given style and override elements.
     func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer
     /// Creates a layer for the object using the given override elements.
@@ -10,7 +10,7 @@ public protocol SVGRendering {
 
 extension SVGRendering {
     /// Creates a layer using only the given override elements, with no additional style.
-    public func createLayer(overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
+    func createLayer(overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         return try createLayer(addStyle: nil, overrideElements: overrideElements)
     }
 }
@@ -20,7 +20,7 @@ extension SVGRendering {
 /// Class-bound so child objects can hold their parent as an `unowned` reference
 /// (the parent owns its children and always outlives them): this keeps the parsed
 /// document a plain ownership tree instead of a web of retain cycles.
-public protocol SVGShapesContainer: AnyObject {
+protocol SVGShapesContainer: AnyObject {
     /// Returns the resolved style for a shape, combining inherited and override styles.
     func getStyle(forObject: SVGShapeObject, overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement
     /// Returns only the `<style>`-block rules (tag/class/id selectors) matching a shape.
@@ -56,7 +56,7 @@ extension SVGShapesContainer {
 }
 
 /// Abstraction for group containers that look up their child objects.
-public protocol SVGGroupProtocol: SVGShapesContainer {
+protocol SVGGroupProtocol: SVGShapesContainer {
     /// Returns the child object matching the key, optionally searching parent groups.
     func getObject(byKey: String, fromParents: Bool) -> SVGObject?
 
@@ -82,37 +82,37 @@ public protocol SVGGroupProtocol: SVGShapesContainer {
 /// A rendering container (mask / pattern / marker / clipPath) that can host a `<g>`.
 /// The group lookups are delegated to its parent, so the container can act as the
 /// group's parent without duplicating the whole container protocol.
-public protocol SVGGroupHosting: SVGGroupProtocol {
+protocol SVGGroupHosting: SVGGroupProtocol {
     var parent: SVGGroupProtocol { get }
 }
 
 extension SVGGroupHosting {
-    public func getObject(byKey: String, fromParents: Bool) -> SVGObject? {
+    func getObject(byKey: String, fromParents: Bool) -> SVGObject? {
         return parent.getObject(byKey: byKey, fromParents: true)
     }
-    public func getG(byKey: String, fromParents: Bool) -> SVGGTag? {
+    func getG(byKey: String, fromParents: Bool) -> SVGGTag? {
         return parent.getG(byKey: byKey, fromParents: true)
     }
-    public func getShape(byKey: String, fromParents: Bool) -> SVGShapeObject? {
+    func getShape(byKey: String, fromParents: Bool) -> SVGShapeObject? {
         return parent.getShape(byKey: byKey, fromParents: true)
     }
-    public func getSymbol(byKey: String, fromParents: Bool) -> SVGSymbol? {
+    func getSymbol(byKey: String, fromParents: Bool) -> SVGSymbol? {
         return parent.getSymbol(byKey: byKey, fromParents: true)
     }
-    public func getLinearGradient(byKey: String, fromParents: Bool) -> SVGLinearGradientTag? {
+    func getLinearGradient(byKey: String, fromParents: Bool) -> SVGLinearGradientTag? {
         return parent.getLinearGradient(byKey: byKey, fromParents: true)
     }
-    public func getRadialGradients(byKey: String, fromParents: Bool) -> SVGRadialGradientTag? {
+    func getRadialGradients(byKey: String, fromParents: Bool) -> SVGRadialGradientTag? {
         return parent.getRadialGradients(byKey: byKey, fromParents: true)
     }
-    public func getImage(byKey: String, fromParents: Bool) -> SVGImage? {
+    func getImage(byKey: String, fromParents: Bool) -> SVGImage? {
         return parent.getImage(byKey: byKey, fromParents: true)
     }
 }
 
 extension SVGShapesContainer {
     /// Containers without `<style>` support contribute no selector rules.
-    public func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
+    func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
         return SVGSourceStyleElement()
     }
 }

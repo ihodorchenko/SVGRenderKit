@@ -1,7 +1,7 @@
 import UIKit
 
 /// Resolves and renders an SVG `<use>` element referencing another element by URL.
-open class SVGUseTag: SVGObject, SVGRendering {
+class SVGUseTag: SVGObject, SVGRendering {
     class override var key: String { get { return "use" }}
 
     /// The owning parent. `unowned`: the parent owns this `<use>` and always outlives it.
@@ -35,7 +35,7 @@ open class SVGUseTag: SVGObject, SVGRendering {
     var height: CGFloat? { resolve(heightLength) { $0.height } }
 
     /// Initializes a `<use>` tag by parsing its `href`, `x`, `y`, and `transform` attributes.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         self.parent = parent
         try super.init(xmlElement: xmlElement, addDict: addDict)
 
@@ -137,7 +137,7 @@ open class SVGUseTag: SVGObject, SVGRendering {
     }
 
     /// Resolves the referenced element and returns its layer, applying any `x`, `y`, and transform offsets.
-    public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
+    func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         if let href = href {
             switch href {
             case .local(let key):

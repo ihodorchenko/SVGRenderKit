@@ -1,7 +1,7 @@
 import UIKit
 
 /// Base class for drawable SVG shapes that own a `UIBezierPath` and can render it to a layer.
-open class SVGShapeObject: SVGObject, SVGRendering {
+class SVGShapeObject: SVGObject, SVGRendering {
     /// Presentation attributes only (no inline `style`); these rank below `<style>` rules.
     var presentationStyle: SVGSourceStyleElement!
     /// Inline `style` attribute only; ranks above `<style>` rules.
@@ -17,7 +17,7 @@ open class SVGShapeObject: SVGObject, SVGRendering {
     var animations: [SVGAnimation] = []
 
     /// Initializes a shape object from an XML element and its parent shapes container.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         self.parent = parent
         try super.init(xmlElement: xmlElement, addDict: addDict)
 
@@ -56,7 +56,7 @@ open class SVGShapeObject: SVGObject, SVGRendering {
     }
 
     /// Builds and returns the `CALayer` that renders this shape's path with the combined styles applied.
-    public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
+    func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CAShapeLayer = CAShapeLayer()
         let pathLayer: CAShapeLayer = CAShapeLayer()
         pathLayer.path = self.path.cgPath
@@ -145,11 +145,11 @@ open class SVGShapeObject: SVGObject, SVGRendering {
 }
 
 /// A drawable shape that renders an SVG `<path>` element's `d` attribute.
-open class SVGPath: SVGShapeObject {
+class SVGPath: SVGShapeObject {
     class override var key: String { get { return "path" }}
 
     /// Initializes a path by parsing its `d` attribute into a `UIBezierPath`.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         if let str = attributeDict["d"] {

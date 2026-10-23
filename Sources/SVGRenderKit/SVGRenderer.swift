@@ -231,8 +231,3 @@ public enum SVGRenderer {
         for sublayer in layer.sublayers ?? [] { forceDisplay(sublayer) }
     }
 }
-
-private struct UncheckedSendable<T>: @unchecked Sendable {
-    let value: T
-    init(_ value: T) { self.value = value }
-}

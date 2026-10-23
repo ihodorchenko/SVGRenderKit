@@ -2,7 +2,7 @@ import UIKit
 
 /// Parses an SVG `<style>` block into ordered rules, resolved against an element's tag,
 /// classes and id.
-open class SVGStyleTag: SVGChildObject {
+class SVGStyleTag: SVGChildObject {
     class override var key: String { get { return "style" }}
 
     /// One parsed rule: the simple selector it matches (`.a`, `#u`, `rect` — the same form
@@ -39,7 +39,7 @@ open class SVGStyleTag: SVGChildObject {
     }
 
     /// Initializes a style tag by parsing the text content of the `<style>` element.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         try parseStyle(styleStr: xmlElement.text)

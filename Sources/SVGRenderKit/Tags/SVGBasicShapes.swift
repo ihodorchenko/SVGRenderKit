@@ -1,7 +1,7 @@
 import UIKit
 
 /// A drawable rectangle shape that renders an SVG `<rect>` element.
-open class SVGShapeRect: SVGShapeObject {
+class SVGShapeRect: SVGShapeObject {
     class override var key: String { get { return "rect" }}
 
     var x: CGFloat = 0
@@ -12,7 +12,7 @@ open class SVGShapeRect: SVGShapeObject {
     var ry: CGFloat?
 
     /// Initializes a rectangle by parsing its `x`, `y`, `width`, `height`, and corner-radius attributes.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         let viewBox = parent.getSvgOptions().viewBox
@@ -111,7 +111,7 @@ open class SVGShapeRect: SVGShapeObject {
 }
 
 /// A drawable circle shape that renders an SVG `<circle>` element.
-open class SVGShapeCircle: SVGShapeObject {
+class SVGShapeCircle: SVGShapeObject {
     class override var key: String { get { return "circle" }}
 
     var cx: CGFloat = 0
@@ -119,7 +119,7 @@ open class SVGShapeCircle: SVGShapeObject {
     var r: CGFloat?
 
     /// Initializes a circle by parsing its `cx`, `cy`, and `r` attributes.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         let viewBox = parent.getSvgOptions().viewBox
@@ -149,7 +149,7 @@ open class SVGShapeCircle: SVGShapeObject {
 }
 
 /// A drawable ellipse shape that renders an SVG `<ellipse>` element.
-open class SVGShapeEllipse: SVGShapeObject {
+class SVGShapeEllipse: SVGShapeObject {
     class override var key: String { get { return "ellipse" }}
 
     var cx: CGFloat = 0
@@ -158,7 +158,7 @@ open class SVGShapeEllipse: SVGShapeObject {
     var ry: CGFloat = 0
 
     /// Initializes an ellipse by parsing its `cx`, `cy`, `rx`, and `ry` attributes.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         let viewBox = parent.getSvgOptions().viewBox
@@ -194,7 +194,7 @@ open class SVGShapeEllipse: SVGShapeObject {
 }
 
 /// A drawable line shape that renders an SVG `<line>` element.
-open class SVGShapeLine: SVGShapeObject {
+class SVGShapeLine: SVGShapeObject {
     class override var key: String { get { return "line" }}
 
     var x1: CGFloat = 0
@@ -203,7 +203,7 @@ open class SVGShapeLine: SVGShapeObject {
     var y2: CGFloat = 0
 
     /// Initializes a line by parsing its `x1`, `y1`, `x2`, and `y2` attributes.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         let viewBox = parent.getSvgOptions().viewBox
@@ -229,13 +229,13 @@ open class SVGShapeLine: SVGShapeObject {
 }
 
 /// A drawable polyline shape that renders an SVG `<polyline>` element as an open path.
-open class SVGShapePolyline: SVGShapeObject {
+class SVGShapePolyline: SVGShapeObject {
     class override var key: String { get { return "polyline" }}
 
     private(set) var points: [CGPoint] = []
 
     /// Initializes a polyline by parsing its `points` attribute into an ordered list of points.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         if let str = attributeDict["points"] {
@@ -254,13 +254,13 @@ open class SVGShapePolyline: SVGShapeObject {
 }
 
 /// A drawable polygon shape that renders an SVG `<polygon>` element as a closed path.
-open class SVGShapePolygon: SVGShapeObject {
+class SVGShapePolygon: SVGShapeObject {
     class override var key: String { get { return "polygon" }}
 
     private(set) var points: [CGPoint] = []
 
     /// Initializes a polygon by parsing its `points` attribute and closing the resulting path.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         if let str = attributeDict["points"] {

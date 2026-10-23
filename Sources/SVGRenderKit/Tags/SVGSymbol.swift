@@ -2,7 +2,7 @@ import UIKit
 
 /// A reusable `<symbol>` template. Symbols are not rendered directly; they are
 /// instantiated via `<use>` and scaled to fit the instantiating element's viewport.
-open class SVGSymbol: SVGGroupObject {
+class SVGSymbol: SVGGroupObject {
     class override var key: String { get { return "symbol" } }
 
     /// The symbol's own view box, if defined.
@@ -11,7 +11,7 @@ open class SVGSymbol: SVGGroupObject {
     private(set) var preserveAspectRatio: SVGPreserveAspectRatio = SVGPreserveAspectRatio()
 
     /// Initializes a symbol by parsing its `viewBox` and `preserveAspectRatio` attributes and children.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         if let str = attributeDict["viewBox"] {
@@ -30,7 +30,7 @@ open class SVGSymbol: SVGGroupObject {
 extension SVGSymbol: SVGRendering {
     /// Builds a layer containing the symbol's children, without view-box scaling
     /// (scaling is applied by the instantiating `<use>` element).
-    public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
+    func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CAShapeLayer = CAShapeLayer()
 
         try appendChildLayers(layerElements.array, to: mainLayer, addStyle: addStyle, overrideElements: overrideElements, skipEmptyGroups: true)

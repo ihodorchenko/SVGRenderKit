@@ -1,9 +1,9 @@
 import UIKit
 
 /// A `<pattern>` paint server: a tiled fill defined by a rectangle and its content.
-open class SVGPattern: SVGChildObject {
+class SVGPattern: SVGChildObject {
     /// The coordinate system used for the pattern tile's `x`/`y`/`width`/`height`.
-    public enum PatternUnits: String {
+    enum PatternUnits: String {
         case userSpaceOnUse = "userSpaceOnUse"
         case objectBoundingBox = "objectBoundingBox"
     }
@@ -49,7 +49,7 @@ open class SVGPattern: SVGChildObject {
     private let tileCache = SVGBoundedCache<TileKey, UIImage>(limit: 16, costLimit: SVGBitmapCost.budget, cost: SVGBitmapCost.bytes)
 
     /// Initializes a pattern by parsing its geometry attributes and child elements.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         let tsStyle: SVGSourceStyleElement = SVGSourceStyleElement()
@@ -282,7 +282,7 @@ extension SVGPattern {
 
 extension SVGPattern {
     /// Adds `<use>` references to the pattern.
-    public func add(uses: [SVGUseTag]) throws {
+    func add(uses: [SVGUseTag]) throws {
         for use in uses {
             use.parent = self
             self.uses.add(item: use)
@@ -291,7 +291,7 @@ extension SVGPattern {
     }
 
     /// Adds shapes to the pattern.
-    public func add(shapes: [SVGShapeObject]) throws {
+    func add(shapes: [SVGShapeObject]) throws {
         for shape in shapes {
             shape.parent = self
             self.shapes.add(item: shape)
@@ -304,7 +304,7 @@ extension SVGPattern: SVGContentHosting {}
 
 extension SVGPattern: SVGRendering {
     /// Builds a layer containing the pattern's children.
-    public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
+    func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CAShapeLayer = CAShapeLayer()
         let source = contentSource
 
@@ -317,35 +317,35 @@ extension SVGPattern: SVGRendering {
 }
 
 extension SVGPattern: SVGShapesContainer {
-    public func getClipPath(byKey: String, fromParents: Bool) -> SVGClipPath? {
+    func getClipPath(byKey: String, fromParents: Bool) -> SVGClipPath? {
         return nil
     }
 
-    public func getMask(byKey: String, fromParents: Bool) -> SVGMask? {
+    func getMask(byKey: String, fromParents: Bool) -> SVGMask? {
         return nil
     }
 
-    public func getPattern(byKey: String, fromParents: Bool) -> SVGPattern? {
+    func getPattern(byKey: String, fromParents: Bool) -> SVGPattern? {
         return parent.getPattern(byKey: byKey, fromParents: true)
     }
 
-    public func getMarker(byKey: String, fromParents: Bool) -> SVGMarker? {
+    func getMarker(byKey: String, fromParents: Bool) -> SVGMarker? {
         return nil
     }
 
-    public func getFilter(byKey: String, fromParents: Bool) -> SVGFilter? {
+    func getFilter(byKey: String, fromParents: Bool) -> SVGFilter? {
         return nil
     }
 
-    public func getRendering(byKey: String, fromParents: Bool) -> SVGRendering? {
+    func getRendering(byKey: String, fromParents: Bool) -> SVGRendering? {
         return parent.getRendering(byKey: byKey, fromParents: true)
     }
 
-    public func getGradient(byKey: String, fromParents: Bool) -> SVGBaseGradient? {
+    func getGradient(byKey: String, fromParents: Bool) -> SVGBaseGradient? {
         return parent.getGradient(byKey: byKey, fromParents: true)
     }
 
-    public func getStyle(forObject: SVGShapeObject, overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement {
+    func getStyle(forObject: SVGShapeObject, overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement {
         var style: SVGSourceStyleElement = parent.getStyle(forObject: forObject, overrideElements: overrideElements)
         if let selfStyle = self.sourceStyle {
             style = style.combine(child: selfStyle)
@@ -353,11 +353,11 @@ extension SVGPattern: SVGShapesContainer {
         return style
     }
 
-    public func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
+    func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
         return parent.selectorStyle(forObject: forObject)
     }
 
-    public func getSvgOptions() -> SVGOptions {
+    func getSvgOptions() -> SVGOptions {
         return parent.getSvgOptions()
     }
 }

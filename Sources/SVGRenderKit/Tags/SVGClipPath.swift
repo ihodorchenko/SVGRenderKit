@@ -1,9 +1,9 @@
 import UIKit
 
 /// Defines a clipping region that restricts rendering to the shapes and references it contains.
-open class SVGClipPath: SVGChildObject {
+class SVGClipPath: SVGChildObject {
     /// Specifies the coordinate system used to interpret the clip path's contents.
-    public enum ClipPathUnits: String {
+    enum ClipPathUnits: String {
         /// Coordinates are interpreted in the current user coordinate system.
         case userSpaceOnUse = "userSpaceOnUse"
         /// Coordinates are interpreted relative to the bounding box of the clipped element.
@@ -21,7 +21,7 @@ open class SVGClipPath: SVGChildObject {
     var clipPathUnits: ClipPathUnits = ClipPathUnits.userSpaceOnUse
 
     /// Initializes a clip path by parsing its `clipPathUnits`, `transform`, and child elements.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         let tsStyle: SVGSourceStyleElement = SVGSourceStyleElement()
@@ -65,7 +65,7 @@ open class SVGClipPath: SVGChildObject {
 
 extension SVGClipPath {
     /// Adds `<use>` references to the clip path.
-    public func add(uses: [SVGUseTag]) throws {
+    func add(uses: [SVGUseTag]) throws {
         for use in uses {
             use.parent = self
             self.uses.add(item: use)
@@ -74,7 +74,7 @@ extension SVGClipPath {
     }
 
     /// Adds shapes to the clip path.
-    public func add(shapes: [SVGShapeObject]) throws {
+    func add(shapes: [SVGShapeObject]) throws {
         for shape in shapes {
             shape.parent = self
             self.shapes.add(item: shape)
@@ -88,7 +88,7 @@ extension SVGClipPath: SVGGroupHosting {}
 
 extension SVGClipPath: SVGRendering {
     /// Builds and returns a layer containing the clip path's geometry.
-    public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
+    func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CAShapeLayer = CAShapeLayer()
 
         // The raw geometry paints in document order. A child with `display:none` takes no
@@ -137,42 +137,42 @@ extension SVGClipPath: SVGRendering {
 
 extension SVGClipPath: SVGShapesContainer {
     /// Returns `nil`, since a clip path does not define nested clip paths.
-    public func getClipPath(byKey: String, fromParents: Bool) -> SVGClipPath? {
+    func getClipPath(byKey: String, fromParents: Bool) -> SVGClipPath? {
         return nil
     }
 
     /// Returns `nil`, since a clip path does not define masks.
-    public func getMask(byKey: String, fromParents: Bool) -> SVGMask? {
+    func getMask(byKey: String, fromParents: Bool) -> SVGMask? {
         return nil
     }
 
     /// Returns `nil`, since a clip path does not define patterns.
-    public func getPattern(byKey: String, fromParents: Bool) -> SVGPattern? {
+    func getPattern(byKey: String, fromParents: Bool) -> SVGPattern? {
         return nil
     }
 
     /// Returns `nil`, since a clip path does not define markers.
-    public func getMarker(byKey: String, fromParents: Bool) -> SVGMarker? {
+    func getMarker(byKey: String, fromParents: Bool) -> SVGMarker? {
         return nil
     }
 
     /// Returns `nil`, since a clip path does not define filters.
-    public func getFilter(byKey: String, fromParents: Bool) -> SVGFilter? {
+    func getFilter(byKey: String, fromParents: Bool) -> SVGFilter? {
         return nil
     }
 
     /// Resolves a renderable object by key from the parent container.
-    public func getRendering(byKey: String, fromParents: Bool) -> SVGRendering? {
+    func getRendering(byKey: String, fromParents: Bool) -> SVGRendering? {
         return parent.getRendering(byKey: byKey, fromParents: true)
     }
 
     /// Resolves a gradient by key from the parent container.
-    public func getGradient(byKey: String, fromParents: Bool) -> SVGBaseGradient? {
+    func getGradient(byKey: String, fromParents: Bool) -> SVGBaseGradient? {
         return parent.getGradient(byKey: byKey, fromParents: true)
     }
 
     /// Returns the parent's style combined with the clip path's own style for the given shape.
-    public func getStyle(forObject: SVGShapeObject, overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement {
+    func getStyle(forObject: SVGShapeObject, overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement {
         var style: SVGSourceStyleElement = parent.getStyle(forObject: forObject, overrideElements: overrideElements)
         if let selfStyle = self.sourceStyle {
             style = style.combine(child: selfStyle)
@@ -181,11 +181,11 @@ extension SVGClipPath: SVGShapesContainer {
     }
 
     /// Returns the SVG options from the parent container.
-    public func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
+    func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
         return parent.selectorStyle(forObject: forObject)
     }
 
-    public func getSvgOptions() -> SVGOptions {
+    func getSvgOptions() -> SVGOptions {
         return parent.getSvgOptions()
     }
 }

@@ -5,7 +5,7 @@ import ImageIO
 ///
 /// Only inline `data:` URIs (typically base64-encoded PNG/JPEG) are supported;
 /// external URLs are out of scope and degrade to an empty layer.
-open class SVGImage: SVGObject, SVGRendering {
+class SVGImage: SVGObject, SVGRendering {
     class override var key: String { get { return "image" }}
 
     /// The owning parent. `unowned`: the parent owns this `<image>` and always outlives it.
@@ -40,7 +40,7 @@ open class SVGImage: SVGObject, SVGRendering {
     private let decodedImageCache = SVGBoundedCache<String, UIImage>(limit: 1)
 
     /// Initializes an `<image>` tag by parsing its position, size, href, and style.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         self.parent = parent
         try super.init(xmlElement: xmlElement, addDict: addDict)
 
@@ -90,7 +90,7 @@ open class SVGImage: SVGObject, SVGRendering {
     }
 
     /// Builds a layer displaying the decoded image at its resolved frame.
-    public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
+    func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let viewBox = parent.getSvgOptions().viewBox
         let resolvedX = resolve(x, reference: viewBox.width)
         let resolvedY = resolve(y, reference: viewBox.height)

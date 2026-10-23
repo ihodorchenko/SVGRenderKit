@@ -12,7 +12,7 @@ struct SVGTextSpan {
 }
 
 /// A drawable shape that renders an SVG `<text>` element.
-open class SVGTextTag: SVGShapeObject {
+class SVGTextTag: SVGShapeObject {
     class override var key: String { get { return "text" }}
 
     var x: CGFloat = 0
@@ -22,7 +22,7 @@ open class SVGTextTag: SVGShapeObject {
     private(set) var tspans: [SVGTextSpan] = []
 
     /// Initializes a text element by parsing its `x` and `y` attributes.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         // `x`/`y` are length lists in SVG; only the first value is honored (per-glyph
@@ -65,7 +65,7 @@ open class SVGTextTag: SVGShapeObject {
     }
 
     /// Builds and returns a text layer positioned at the element's `x` and `y` coordinates.
-    public override func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
+    override func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let container = CALayer()
 
         var sourceStyle: SVGSourceStyleElement = resolvedStyle(overrideElements: overrideElements)

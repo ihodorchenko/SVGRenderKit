@@ -92,7 +92,7 @@ struct SVGPreserveAspectRatio {
 }
 
 /// Holds the parsed layout options (view box, width, and height) of an SVG document.
-open class SVGOptions {
+class SVGOptions {
     var width: SVGLength = SVGLength.percent(value: 1)
     var height: SVGLength = SVGLength.percent(value: 1)
     var viewBox: CGRect
@@ -129,7 +129,7 @@ open class SVGOptions {
     /// Initializes options by parsing the `viewBox`, `width`, `height`, `preserveAspectRatio`,
     /// `version`, and `baseProfile` attributes.
     /// - parameter attributeDict: The attributes of the root `svg` element.
-    public init(attributeDict: [String : String]) throws {
+    init(attributeDict: [String : String]) throws {
         self.preserveAspectRatio = SVGPreserveAspectRatio.get(string: attributeDict["preserveAspectRatio"])
         self.version = attributeDict["version"]
         self.baseProfile = attributeDict["baseProfile"]
@@ -211,20 +211,20 @@ open class SVGOptions {
 }
 
 /// Represents the root `<svg>` element of an SVG document.
-open class SVGSVGTag: SVGGroupObject {
+class SVGSVGTag: SVGGroupObject {
     class override var key: String { get { return "svg" }}
 
     let options: SVGOptions
 
     /// Returns the parsed layout options for the SVG document.
-    public override func getSvgOptions() -> SVGOptions {
+    override func getSvgOptions() -> SVGOptions {
         return options
     }
 
 
 
     /// Initializes the `<svg>` element by parsing its attributes and children.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         var attributeDict: [String: String] = xmlElement.attributesDict()
         if let addDict = addDict {
             for elem in addDict {
@@ -240,7 +240,7 @@ open class SVGSVGTag: SVGGroupObject {
 
 extension SVGSVGTag: SVGRendering {
     /// Builds the root `CALayer` containing the layers of all child elements.
-    public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
+    func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         // A document render starts here; reset the per-render `<use>` budget (B102).
         SVGInputLimits.beginRender()
         let mainLayer: CAShapeLayer = CAShapeLayer()
@@ -273,7 +273,7 @@ extension SVGSVGTag: SVGRendering {
 
 
 /// The top-level container for a parsed SVG document.
-open class SVGRoot {
+class SVGRoot {
     private(set) var svgElement: SVGSVGTag!
 
     /// Document-wide `id` → object map (keys keep the `#` prefix), so a reference can
@@ -282,13 +282,13 @@ open class SVGRoot {
     private var idMap: [String: SVGObject] = [:]
 
     /// Initializes the root from a single `svg` element.
-    public init(xmlSvgElement: XMLElement) throws {
+    init(xmlSvgElement: XMLElement) throws {
         self.svgElement = try SVGSVGTag(xmlElement: xmlSvgElement, addDict: nil, parent: self)
         buildIdMap()
     }
 
     /// Initializes the root from an array of XML elements, using the first element.
-    public init(xmlSvgElements: [XMLElement]) throws {
+    init(xmlSvgElements: [XMLElement]) throws {
         if xmlSvgElements.count < 1 {
             throw SVGError.parseError(text: "no 'svg' tag")
         }
@@ -339,89 +339,68 @@ open class SVGRoot {
 
     /// Builds and returns the root `CALayer` for the SVG document.
     /// - parameter overrideElements: Optional per-element style overrides.
-    open func createLayer(overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
+    func createLayer(overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         return try svgElement.createLayer(overrideElements: overrideElements)
     }
 }
 
 extension SVGRoot: SVGGroupProtocol {
+    /// Every lookup is document-wide by `id`, whatever `fromParents` says.
+    private func lookup<T>(_ key: String) -> T? { idMap[key] as? T }
+
     /// Returns the clip path with the given `id` from anywhere in the document.
-    public func getClipPath(byKey: String, fromParents: Bool) -> SVGClipPath? {
-        return idMap[byKey] as? SVGClipPath
-    }
+    func getClipPath(byKey: String, fromParents: Bool) -> SVGClipPath? { lookup(byKey) }
 
     /// Returns the mask with the given `id` from anywhere in the document.
-    public func getMask(byKey: String, fromParents: Bool) -> SVGMask? {
-        return idMap[byKey] as? SVGMask
-    }
+    func getMask(byKey: String, fromParents: Bool) -> SVGMask? { lookup(byKey) }
 
     /// Returns the pattern with the given `id` from anywhere in the document.
-    public func getPattern(byKey: String, fromParents: Bool) -> SVGPattern? {
-        return idMap[byKey] as? SVGPattern
-    }
+    func getPattern(byKey: String, fromParents: Bool) -> SVGPattern? { lookup(byKey) }
 
     /// Returns the marker with the given `id` from anywhere in the document.
-    public func getMarker(byKey: String, fromParents: Bool) -> SVGMarker? {
-        return idMap[byKey] as? SVGMarker
-    }
+    func getMarker(byKey: String, fromParents: Bool) -> SVGMarker? { lookup(byKey) }
 
     /// Returns the filter with the given `id` from anywhere in the document.
-    public func getFilter(byKey: String, fromParents: Bool) -> SVGFilter? {
-        return idMap[byKey] as? SVGFilter
-    }
+    func getFilter(byKey: String, fromParents: Bool) -> SVGFilter? { lookup(byKey) }
 
     /// Returns the object with the given `id` from anywhere in the document.
-    public func getObject(byKey: String, fromParents: Bool) -> SVGObject? {
-        return idMap[byKey]
-    }
+    func getObject(byKey: String, fromParents: Bool) -> SVGObject? { lookup(byKey) }
 
     /// Returns the group with the given `id` from anywhere in the document.
-    public func getG(byKey: String, fromParents: Bool) -> SVGGTag? {
-        return idMap[byKey] as? SVGGTag
-    }
+    func getG(byKey: String, fromParents: Bool) -> SVGGTag? { lookup(byKey) }
 
     /// Returns the shape with the given `id` from anywhere in the document.
-    public func getShape(byKey: String, fromParents: Bool) -> SVGShapeObject? {
-        return idMap[byKey] as? SVGShapeObject
-    }
+    func getShape(byKey: String, fromParents: Bool) -> SVGShapeObject? { lookup(byKey) }
 
     /// Returns the symbol with the given `id` from anywhere in the document.
-    public func getSymbol(byKey: String, fromParents: Bool) -> SVGSymbol? {
-        return idMap[byKey] as? SVGSymbol
-    }
+    func getSymbol(byKey: String, fromParents: Bool) -> SVGSymbol? { lookup(byKey) }
 
     /// Returns the linear gradient with the given `id` from anywhere in the document.
-    public func getLinearGradient(byKey: String, fromParents: Bool) -> SVGLinearGradientTag? {
-        return idMap[byKey] as? SVGLinearGradientTag
-    }
+    func getLinearGradient(byKey: String, fromParents: Bool) -> SVGLinearGradientTag? { lookup(byKey) }
 
     /// Returns the radial gradient with the given `id` from anywhere in the document.
-    public func getRadialGradients(byKey: String, fromParents: Bool) -> SVGRadialGradientTag? {
-        return idMap[byKey] as? SVGRadialGradientTag
-    }
+    func getRadialGradients(byKey: String, fromParents: Bool) -> SVGRadialGradientTag? { lookup(byKey) }
 
     /// Returns the default empty style for the given shape.
-    public func getStyle(forObject: SVGShapeObject, overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement {
+    func getStyle(forObject: SVGShapeObject, overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement {
         return SVGSourceStyleElement()
     }
 
     /// Returns the parsed layout options of the document.
-    public func getSvgOptions() -> SVGOptions {
+    func getSvgOptions() -> SVGOptions {
         return svgElement.getSvgOptions()
     }
 
     /// Returns the renderable with the given `id` from anywhere in the document.
-    public func getRendering(byKey: String, fromParents: Bool) -> SVGRendering? {
+    func getRendering(byKey: String, fromParents: Bool) -> SVGRendering? {
         return idMap[byKey] as? SVGRendering
     }
 
     /// Returns the gradient with the given `id` from anywhere in the document.
-    public func getGradient(byKey: String, fromParents: Bool) -> SVGBaseGradient? {
+    func getGradient(byKey: String, fromParents: Bool) -> SVGBaseGradient? {
         return idMap[byKey] as? SVGBaseGradient
     }
 
     /// Returns the image with the given `id` from anywhere in the document.
-    public func getImage(byKey: String, fromParents: Bool) -> SVGImage? {
-        return idMap[byKey] as? SVGImage
-    }
+    func getImage(byKey: String, fromParents: Bool) -> SVGImage? { lookup(byKey) }
 }

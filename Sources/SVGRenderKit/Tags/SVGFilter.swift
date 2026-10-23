@@ -11,7 +11,7 @@ struct SVGDropShadow {
 }
 
 /// A `<filter>` element containing a small subset of filter primitives.
-open class SVGFilter: SVGChildObject {
+class SVGFilter: SVGChildObject {
     class override var key: String { get { return "filter" }}
 
     /// The `feGaussianBlur` standard deviation, if the filter contains one.
@@ -25,7 +25,7 @@ open class SVGFilter: SVGChildObject {
     /// Initializes a filter by parsing its `feGaussianBlur`, `feDropShadow`, and the
     /// SVG 1.1 drop-shadow primitive chain (`feOffset` + `feFlood`) as well as the
     /// Figma/Sketch drop-shadow chain (`feColorMatrix` color tint).
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         var offsetDX: CGFloat = 0

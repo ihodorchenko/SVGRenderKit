@@ -1,18 +1,18 @@
 import UIKit
 
 /// A group of SVG elements rendered as a single `<g>` container.
-open class SVGGTag: SVGGroupObject {
+class SVGGTag: SVGGroupObject {
     class override var key: String { get { return "g" }}
 
     /// Initializes a `<g>` group from an XML element and its parent group.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
     }
 }
 
 extension SVGGTag: SVGRendering {
     /// Builds and returns a layer containing the rendered layers of this group's child elements.
-    public func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
+    func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         let mainLayer: CAShapeLayer = CAShapeLayer()
         let ownStyle = self.ownStyle()
 
@@ -45,7 +45,7 @@ extension SVGGTag: SVGRendering {
 }
 
 /// A container group for reusable `<defs>` definitions that are not rendered directly.
-open class SVGDefsGroupTag: SVGGroupObject {
+class SVGDefsGroupTag: SVGGroupObject {
     class override var key: String { get { return "defs" }}
 }
 

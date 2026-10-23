@@ -1,37 +1,37 @@
 import UIKit
 
 /// Base class for SVG gradients, holding shared attributes and color stops.
-open class SVGBaseGradient: SVGChildObject {
+class SVGBaseGradient: SVGChildObject {
     /// The coordinate system of the gradient geometry (`gradientUnits`).
-    public enum GradientUnits: String {
+    enum GradientUnits: String {
         case userSpaceOnUse = "userSpaceOnUse"
         case objectBoundingBox = "objectBoundingBox"
     }
 
     /// How the gradient fills beyond its end points (`spreadMethod`).
-    public enum SVGSpreadMethod: String {
+    enum SVGSpreadMethod: String {
         case pad = "pad"
         case reflect = "reflect"
         case `repeat` = "repeat"
     }
 
     /// The colour stops, in document order.
-    public internal(set) var stops: [SVGGradientStop] = []
+    var stops: [SVGGradientStop] = []
     /// The `gradientUnits` attribute (default `objectBoundingBox`).
-    public internal(set) var gradientUnits: GradientUnits = GradientUnits.objectBoundingBox
+    var gradientUnits: GradientUnits = GradientUnits.objectBoundingBox
     /// The `spreadMethod` attribute (default `pad`).
-    public internal(set) var spreadMethod: SVGSpreadMethod = SVGSpreadMethod.pad
+    var spreadMethod: SVGSpreadMethod = SVGSpreadMethod.pad
 
     /// The parsed `gradientTransform`, or `nil` when absent.
-    public internal(set) var transform: CATransform3D?
+    var transform: CATransform3D?
 
     /// Returns whether this gradient can be rendered. The base implementation returns false.
-    public func isEnable() -> Bool {
+    func isEnable() -> Bool {
         return false
     }
 
     /// Creates a gradient by parsing shared attributes from the given XML element.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
         if let transformStr = attributeDict["gradientTransform"] {
             do {
@@ -157,7 +157,7 @@ open class SVGBaseGradient: SVGChildObject {
     /// Not synchronised, on purpose: it mutates the (cached, shared) tree, and every path that builds
     /// layers — `SVGView` loads and `SVGRenderer` — runs on the single serial `SVGWorkQueue.shared`,
     /// which also guards `SVGOptions.renderScale` and friends. Calling `SVGParser.getLayer` for one
-    /// document from several threads yourself is outside that contract (B124 б).
+    /// document from several threads yourself is outside that contract (B124 b).
     func resolveHref() {
         guard !hrefResolved, case .local(let key)? = href else { return }
         hrefResolved = true
@@ -180,7 +180,7 @@ open class SVGBaseGradient: SVGChildObject {
     func inherit(from source: SVGBaseGradient) {}
 
     /// Returns the layer that renders this gradient, or nil if it cannot be built.
-    open func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
+    func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
         return nil
     }
 
@@ -195,7 +195,7 @@ open class SVGBaseGradient: SVGChildObject {
 }
 
 /// A CALayer that draws a radial gradient from its start point outward to its radius.
-open class RadialGradientLayer: CALayer {
+class RadialGradientLayer: CALayer {
 
     /// Creates an empty radial gradient layer.
     required override public init() {
@@ -215,19 +215,19 @@ open class RadialGradientLayer: CALayer {
 
     var colors = [UIColor.red.cgColor, UIColor.blue.cgColor]
     /// The color-stop locations, expressed as fractions of the gradient radius.
-    public var locations: [CGFloat] = [0, 1]
+    var locations: [CGFloat] = [0, 1]
     /// The center of the outer circle (the gradient's end center).
-    public var center: CGPoint = CGPoint(x: 0, y: 0)
+    var center: CGPoint = CGPoint(x: 0, y: 0)
     /// The focal point the gradient starts from; `nil` means it coincides with `center`.
-    public var focalPoint: CGPoint?
+    var focalPoint: CGPoint?
     /// The radius of the focal circle (`fr`, SVG 2). Zero means the gradient starts at a
     /// single point, which is what a document without `fr` asks for.
-    public var focalRadius: CGFloat = 0
+    var focalRadius: CGFloat = 0
     /// The distance over which the gradient is drawn.
-    public var radius: CGFloat = 1
+    var radius: CGFloat = 1
     /// An optional affine transform applied to the whole gradient (used for elliptical gradients
     /// produced by a non-uniform `gradientTransform`).
-    public var gradientTransform: CGAffineTransform = .identity
+    var gradientTransform: CGAffineTransform = .identity
 
     /// Draws the radial gradient into the given graphics context.
     override open func draw(in ctx: CGContext) {
@@ -276,19 +276,19 @@ open class RadialGradientLayer: CALayer {
 }
 
 /// A single color stop within a gradient.
-open class SVGGradientStop: SVGObject {
+class SVGGradientStop: SVGObject {
     class override var key: String { get { return "stop" }}
 
     /// The stop position, `0...1` for well-formed documents.
-    public internal(set) var offset: Float = 0
+    var offset: Float = 0
     /// The `stop-color` (without `stop-opacity`; see `resolvedColor(currentColor:)`).
-    public internal(set) var stop_color: UIColor = UIColor.black
+    var stop_color: UIColor = UIColor.black
     private(set) var stopColorString: String?
     private(set) var stopOpacity: CGFloat = 1
 
     /// Resolves the stop's final color, honoring `currentColor` (resolved against
     /// the referencing element's inherited `color`) and `stop-opacity`.
-    public func resolvedColor(currentColor: UIColor) -> UIColor {
+    func resolvedColor(currentColor: UIColor) -> UIColor {
         let base: UIColor
         if let raw = stopColorString, SVGUtils.trimmed(string: raw) == "currentColor" {
             base = currentColor
@@ -299,7 +299,7 @@ open class SVGGradientStop: SVGObject {
     }
 
     /// Creates a gradient stop by parsing stop attributes from the given XML element.
-    public override init(xmlElement: XMLElement, addDict: [String: String]? = nil) throws {
+    override init(xmlElement: XMLElement, addDict: [String: String]? = nil) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict)
 
         // Presentation attributes first, then the inline `style`, which outranks them (B129).

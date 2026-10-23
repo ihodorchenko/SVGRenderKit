@@ -41,6 +41,10 @@ with two oracles; the test is `SVGRenderParityTests.testCorpusParity`.
   (build → install → launch → tests → both gates; `SKIP_DUMP=1`, `SKIP_TESTS=1`, `RASTERS=…`).
   Gate: `.github/webkit-baseline.txt` (`check-parity.sh … WEBKIT_SUMMARY`). In CI it runs from `webkit-parity.yml`
   (nightly, manually, or on a PR with the `webkit` label).
+- **Per fixture**: `check-parity.sh` only sees counts, so `Scripts/check-fixtures.sh <log> .github/parity-fixtures.txt`
+  (CoreSVG, `CORPUS_FAIL`) and `.github/webkit-fixtures.txt` (`WEBKIT_FAIL`) keep the `differing` fraction of every
+  failing fixture: a fixture that gets worse by more than `TOLERANCE` (0.01) or a new failing one fails the gate.
+  After an improvement or a triaged new fixture: `Scripts/check-fixtures.sh --update <log> <file> <PREFIX>`.
 - A baseline file is a single summary line: `pass` must not drop, `fail`/`referenceLimited`/`webkitMissing`
   must not grow, `kitError` and `referenceMissing` are always 0. An improvement → update the baseline in
   the same commit; a regression → do not merge, fix it or triage it honestly in `ParityTriage` (a reason is
@@ -83,7 +87,8 @@ with two oracles; the test is `SVGRenderParityTests.testCorpusParity`.
    are in CONFORMANCE.md.
 5. A contract change (graceful degradation, public API) needs a CHANGELOG/MIGRATION entry and an explicit
    rename/strengthening of the affected tests (a test name must describe the real behavior).
-6. Public API with typos is not removed but kept as an `@available(*, deprecated, renamed:)` shim.
+6. Public API with typos is not removed in a minor release but kept as an `@available(*, deprecated, renamed:)`
+   shim; a major release may break API (2.0 did), with a MIGRATION entry.
 
 ## Out of scope (when met, degrade: skip with a log, do not implement)
 
@@ -109,8 +114,11 @@ their content).
   edge — 390 fixtures diverge from both oracles; do not do it.
 - Narrowing the raster window of a `userSpaceOnUse` gradient to its bbox is up to 5× faster but shifts AA;
   kept in reserve in case it becomes the bottleneck.
-- `SVGBaseGradient` is a supported extension point (`open`, `public init`); the other tag classes that
-  have no init reachable from outside are `public`, not `open`.
+- **The object model is internal (2.0).** Tags, `SVGRoot`, the container protocols and the vendored
+  SWXMLHash are `internal`; the public surface is the views, `SVGRenderer`, `SVGCache`,
+  `SVGConfiguration`, the style/paint/length value types and the helpers listed in MIGRATION.md.
+  `SVGBaseGradient` stopped being an extension point: the parser instantiates concrete classes, so a
+  third-party subclass could never be part of a parsed tree. `SVGView` stays `open`.
 - `spreadMethod` pad-only and mixing the stops of a linear gradient "like CoreSVG" are deliberate
   divergences.
 

@@ -212,11 +212,6 @@ open class SVGView: UIView {
         return result
     }
 
-    /// Hands the parser and layer built off-main over to the main thread, which owns them from then on.
-    private struct UncheckedSendable<Value>: @unchecked Sendable {
-        let value: Value
-    }
-
     private struct LoadResult: @unchecked Sendable {
         let parser: SVGParser
         let layer: CALayer
@@ -242,7 +237,7 @@ open class SVGView: UIView {
         // the caller declared its own because it rasterizes the view itself (B119-6).
         let outputScale = self.outputScale ?? window?.screen.scale ?? UIScreen.main.scale
 
-        let overrides = UncheckedSendable(value: overrideElements)
+        let overrides = UncheckedSendable(overrideElements)
         let latestGeneration = self.latestGeneration
         SVGView.loadQueue.async {
             // Superseded while waiting in the queue (a view reconfigured in quick succession, or a
@@ -294,7 +289,7 @@ open class SVGView: UIView {
                 // cell would show a foreign icon and the reported name would not match
                 // what is drawn. Drop the stale content and report the failure, keeping the
                 // source so a reload after the error can retry it (B96).
-                let failure = UncheckedSendable(value: error)
+                let failure = UncheckedSendable(error)
                 DispatchQueue.main.async {
                     guard generation == self.loadGeneration else { return }
                     self.dropRenderedContent()
