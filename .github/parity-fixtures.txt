@@ -30,4 +30,4 @@ svg_3.0/Illustration/cards_black/black_visa_3rd_stack.svg 0.103
 svg_3.0/Illustration/cards_black/black_visa_stack.svg 0.102
 svg_3.0/Illustration/widget_cards.svg 0.073
 svg_3.0/Illustration/widget_cards_empty.svg 0.068
-svg_3.0/action/icon__action__transaction_special.svg 0.154
+svg_3.0/action/icon__action__transaction_special.svg 0.175
