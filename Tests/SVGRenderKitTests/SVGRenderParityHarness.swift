@@ -640,7 +640,6 @@ enum ParityTriage {
         "svg_3.0/Illustration/widget_cards_empty.svg": "filter: Figma drop-shadow without feMorphology erode",
 
         // ── Mask boundary ──
-        "svg_2.0/menu/commission.svg": "mask: region boundary anti-aliasing",
         "svg_3.0/action/icon__action__transaction_special.svg": "mask: region boundary anti-aliasing",
 
         // ── Clip-path ──
@@ -650,7 +649,6 @@ enum ParityTriage {
 
         // ── Complex logos: path rasterization / anti-aliasing vs CoreSVG ──
         "svg_1.0/widget/america.svg": "logo: many-path rasterization / AA",
-        "svg_1.0/fifa/ticket.svg": "logo: many-path rasterization / AA",
         "svg_1.0/hawaiiFlowers.svg": "logo: many-path rasterization / AA",
         "svg_1.0/finger_print.svg": "logo: many-path rasterization / AA",
         "svg_2.0/payment/maestro_200px.svg": "logo: many-path rasterization / AA",

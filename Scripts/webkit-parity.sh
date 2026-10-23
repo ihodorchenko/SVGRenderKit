@@ -115,6 +115,8 @@ grep -aE "^(CORPUS_SUMMARY|WEBKIT_SUMMARY) " "$TEST_LOG" | tail -4
 
 Scripts/check-parity.sh "$TEST_LOG" .github/parity-baseline.txt || status=1
 Scripts/check-parity.sh "$TEST_LOG" .github/webkit-baseline.txt WEBKIT_SUMMARY || status=1
+Scripts/check-fixtures.sh "$TEST_LOG" .github/parity-fixtures.txt CORPUS_FAIL || status=1
+Scripts/check-fixtures.sh "$TEST_LOG" .github/webkit-fixtures.txt WEBKIT_FAIL || status=1
 
 if [ "$status" = 0 ]; then
   echo "both oracles are within their baselines"
