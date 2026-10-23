@@ -510,19 +510,25 @@ public class SVGSourceStyleElement {
 
     func setFontSize(str: String) {
         var string = str.trimmed
+        // A non-finite or negative size is invalid: ignore it (the inherited size stays) rather
+        // than hand a NaN to the text layer.
+        func number(_ text: String) -> Float? {
+            guard let f = Float(text), f.isFinite, f >= 0 else { return nil }
+            return f
+        }
         if string.hasSuffix("px") {
             string.removeLast(2)
             string = string.trimmed
-            if let f = Float(string) { fontSize = .px(CGFloat(f)) }
+            if let f = number(string) { fontSize = .px(CGFloat(f)) }
         } else if string.hasSuffix("%") {
             string.removeLast(1)
             string = string.trimmed
-            if let f = Float(string) { fontSize = .percent(CGFloat(f / 100.0)) }
+            if let f = number(string) { fontSize = .percent(CGFloat(f / 100.0)) }
         } else if string.hasSuffix("em") {
             string.removeLast(2)
             string = string.trimmed
-            if let f = Float(string) { fontSize = .em(CGFloat(f)) }
-        } else if let f = Float(string) {
+            if let f = number(string) { fontSize = .em(CGFloat(f)) }
+        } else if let f = number(string) {
             fontSize = .px(CGFloat(f))
         }
     }
