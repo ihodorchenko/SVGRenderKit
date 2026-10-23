@@ -57,7 +57,8 @@ jobs:
       - name: Extract release notes from CHANGELOG.md
         run: |
           awk -v tag="$TAG" '
-            $0 == "## " tag { found = 1; next }
+            # The heading may carry a date: "## 1.4.0 - 2026-10-16".
+            index($0, "## " tag) == 1 && (length($0) == length("## " tag) || substr($0, length("## " tag) + 1, 1) == " ") { found = 1; next }
             found && /^## /  { exit }
             found            { print }
           ' CHANGELOG.md | sed -e '/./,$!d' > notes.md

@@ -1,1 +1,1 @@
-CORPUS_SUMMARY pass=1405 fail=33 referenceMissing=0 kitError=0 referenceLimited=7 total=1445
+CORPUS_SUMMARY pass=1578 fail=33 referenceMissing=0 kitError=0 referenceLimited=7 total=1618

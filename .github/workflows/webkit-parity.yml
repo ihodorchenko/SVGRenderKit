@@ -1,0 +1,54 @@
+name: WebKit parity
+
+# The browser oracle (WKWebView, rendered inside the Example app) next to CoreSVG. WebKit does not
+# start inside the unit-test bundle, so `Scripts/webkit-parity.sh` builds and launches the Example app,
+# dumps the corpus rasters and then gates both oracles against `.github/parity-baseline.txt` and
+# `.github/webkit-baseline.txt`.
+#
+# Not part of the per-PR job: it builds the app and renders the whole corpus in a browser (several
+# minutes). Runs nightly, manually, and on pull requests carrying the `webkit` label.
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+  pull_request:
+    types: [labeled, synchronize]
+
+concurrency:
+  group: webkit-parity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  webkit-parity:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'webkit')
+    # Pinned on purpose — see the note in ci.yml (B120).
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Both oracles
+        run: |
+          set -o pipefail
+          Scripts/webkit-parity.sh 2>&1 | tee webkit-parity.out
+
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo '## Parity — CoreSVG and WebKit'
+            echo '```'
+            grep -aE '^(CORPUS_SUMMARY|WEBKIT_SUMMARY|WEBKIT_DUMP_SUMMARY) ' webkit-parity.out \
+              || echo '(no summary found — the run may have failed before the comparison)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webkit-parity-logs
+          path: |
+            webkit-parity.out
+            /tmp/svgrkit-webkit-parity.log
+            /tmp/svgrkit-webkit-dump.log
