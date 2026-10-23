@@ -17,27 +17,6 @@ class SVGTags<T: SVGObject> {
         array.append(item)
     }
 
-    func addRange(items: [T]) {
-        for item in items {
-            add(item: item)
-        }
-    }
-
-    internal func exist(id: String) -> Bool {
-        return byId[id] != nil
-    }
-
-    internal func exist(`class`: String) -> Bool {
-        return !(byClass[`class`]?.isEmpty ?? true)
-    }
-
-    internal func exist(key: String) -> Bool {
-        if byId[key] != nil {
-            return true
-        }
-        return !(byClass[key]?.isEmpty ?? true)
-    }
-
     internal func get(key: String) -> T? {
         if let v = byId[key] {
             return v

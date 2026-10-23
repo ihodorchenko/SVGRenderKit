@@ -11,7 +11,6 @@ open class SVGImage: SVGObject, SVGRendering {
     /// The owning parent. `unowned`: the parent owns this `<image>` and always outlives it.
     unowned var parent: SVGShapesContainer
 
-    var sourceStyle: SVGSourceStyleElement?
     private let presentationStyle = SVGSourceStyleElement()
     private let inlineStyle = SVGSourceStyleElement()
 
@@ -49,7 +48,6 @@ open class SVGImage: SVGObject, SVGRendering {
         // the inline `style`, which outranks both (B124).
         try presentationStyle.set(attributeDict: attributeDict)
         if let str = attributeDict["style"] { try inlineStyle.set(styleStr: str) }
-        sourceStyle = presentationStyle.combine(child: inlineStyle)
 
         if let str = attributeDict["x"] {
             x = try SVGLength.get(string: str)

@@ -2,7 +2,6 @@ import UIKit
 
 /// Base class for drawable SVG shapes that own a `UIBezierPath` and can render it to a layer.
 open class SVGShapeObject: SVGObject, SVGRendering {
-    var sourceStyle: SVGSourceStyleElement!
     /// Presentation attributes only (no inline `style`); these rank below `<style>` rules.
     var presentationStyle: SVGSourceStyleElement!
     /// Inline `style` attribute only; ranks above `<style>` rules.
@@ -32,10 +31,6 @@ open class SVGShapeObject: SVGObject, SVGRendering {
             try inline.set(styleStr: str)
         }
         self.inlineStyle = inline
-
-        let sourceStyle: SVGSourceStyleElement = presentation.combine(child: inline)
-
-        self.sourceStyle = sourceStyle
 
         if let str = attributeDict["transform"] {
             transform = try SVGTransform.get(string: str)
