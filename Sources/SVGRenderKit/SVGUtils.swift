@@ -107,7 +107,7 @@ public class SVGUtils {
     }
 
     /// The vertices of a path with their tangents, in drawing order; every subpath contributes its
-    /// own start and end, so a joint between two subpaths is two vertices (B133 в).
+    /// own start and end, so a joint between two subpaths is two vertices (B133 c).
     class func markerVertices(path: UIBezierPath) -> [MarkerVertex] {
         var vertices: [MarkerVertex] = []
         var current = CGPoint.zero

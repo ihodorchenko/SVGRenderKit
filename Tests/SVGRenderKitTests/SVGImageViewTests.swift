@@ -103,7 +103,7 @@ final class SVGImageViewTests: XCTestCase {
 
         let source = SVGImageView.Source.url(url)
         let coordinator = SVGImageView.Coordinator()
-        coordinator.statInterval = 0   // B133 е: by default the file is stat'ed at most every 0.5 s
+        coordinator.statInterval = 0   // B133 f: by default the file is stat'ed at most every 0.5 s
         XCTAssertTrue(coordinator.needsLoad(source: source, fillColors: nil, overrides: nil))
         coordinator.record(source: source, fillColors: nil, overrides: nil)
         // An unchanged URL with an unchanged file must not reload.
@@ -116,7 +116,7 @@ final class SVGImageViewTests: XCTestCase {
                       "a changed file at the same URL must reload")
     }
 
-    // B133 е: a redraw storm must not stat the file on every call.
+    // B133 f: a redraw storm must not stat the file on every call.
     func testCoordinatorThrottlesFileStats() {
         let url = URL(fileURLWithPath: "/tmp/throttle.svg")
         let source = SVGImageView.Source.url(url)

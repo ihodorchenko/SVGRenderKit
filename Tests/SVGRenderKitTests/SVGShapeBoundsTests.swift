@@ -1,7 +1,7 @@
 import XCTest
 @testable import SVGRenderKit
 
-/// B133(ж) — the objectBoundingBox of a curved shape is its geometric bounds, not the box of its
+/// B133(g) — the objectBoundingBox of a curved shape is its geometric bounds, not the box of its
 /// control points.
 final class SVGShapeBoundsTests: XCTestCase {
 

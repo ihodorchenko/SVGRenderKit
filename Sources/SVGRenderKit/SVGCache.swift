@@ -29,7 +29,7 @@ public class SVGCache: @unchecked Sendable {
 
     /// Bumped by every `resetCache()`. A parse snapshots it before it starts and hands it to
     /// `set(md5:object:generation:)`, so a tree parsed against stale state (override colors that
-    /// changed mid-parse) is not stored after the reset that invalidated it (B133 д).
+    /// changed mid-parse) is not stored after the reset that invalidated it (B133 e).
     var generation: UInt64 {
         lock.lock()
         defer { lock.unlock() }

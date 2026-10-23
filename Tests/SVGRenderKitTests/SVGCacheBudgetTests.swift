@@ -1,7 +1,7 @@
 import XCTest
 @testable import SVGRenderKit
 
-/// B133 (г, д, е) — cache memory accounting, the reset/parse race and the notification observer.
+/// B133 (d, e, f) — cache memory accounting, the reset/parse race and the notification observer.
 final class SVGCacheBudgetTests: XCTestCase {
 
     override func setUp() {
@@ -16,7 +16,7 @@ final class SVGCacheBudgetTests: XCTestCase {
         super.tearDown()
     }
 
-    // MARK: г — byte budget
+    // MARK: d — byte budget
 
     func testBoundedCacheEvictsWhenTheByteBudgetIsExceeded() {
         let cache = SVGBoundedCache<Int, Int>(limit: 100, costLimit: 100, cost: { $0 })
@@ -56,7 +56,7 @@ final class SVGCacheBudgetTests: XCTestCase {
         XCTAssertEqual(cache.value(for: 3), 3)
     }
 
-    // MARK: д — a parse that straddles resetCache()
+    // MARK: e — a parse that straddles resetCache()
 
     func testStaleParseIsNotStoredAfterReset() throws {
         let root = try XCTUnwrap(SVGParser(svgString: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1 1\"/>", parsedRoot: nil).root)
@@ -70,7 +70,7 @@ final class SVGCacheBudgetTests: XCTestCase {
         SVGConfiguration.shared.setColorOverrides([:])
     }
 
-    // MARK: е — the old notification observer is removed
+    // MARK: f — the old notification observer is removed
 
     func testChangingTheNotificationNameDropsTheOldObserver() throws {
         let root = try XCTUnwrap(SVGParser(svgString: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1 1\"/>", parsedRoot: nil).root)

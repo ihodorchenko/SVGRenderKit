@@ -1,7 +1,7 @@
 import XCTest
 @testable import SVGRenderKit
 
-/// B124 (б) — `resolveHref()` lazily writes to the shared, cached tree while layers are built.
+/// B124 (b) — `resolveHref()` lazily writes to the shared, cached tree while layers are built.
 /// Layer building is serialised on `SVGWorkQueue.shared` (SVGView loads and SVGRenderer both go
 /// through it), so concurrent callers of the public API must still get identical results.
 final class SVGHrefStressTests: XCTestCase {

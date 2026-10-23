@@ -1,7 +1,7 @@
 import XCTest
 @testable import SVGRenderKit
 
-/// B133 (в) — `marker-start/mid` follow the curve tangents and treat each subpath end as its own vertex.
+/// B133 (c) — `marker-start/mid` follow the curve tangents and treat each subpath end as its own vertex.
 final class SVGMarkerTangentTests: XCTestCase {
 
     /// Marker placements in drawing order: (point, angle in degrees). The marker's ref point is the origin.

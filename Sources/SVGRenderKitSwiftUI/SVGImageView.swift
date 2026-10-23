@@ -136,7 +136,7 @@ public struct SVGImageView: UIViewRepresentable {
         private var loadedFileStamp: String?
 
         /// `updateUIView` runs on every SwiftUI redraw on the main thread, and a `stat` per call adds
-        /// up: the file is inspected at most once per `statInterval` (B133 е). `stamp` and `now` are
+        /// up: the file is inspected at most once per `statInterval` (B133 f). `stamp` and `now` are
         /// seams for tests.
         var statInterval: TimeInterval = 0.5
         var now: () -> Date = { Date() }
