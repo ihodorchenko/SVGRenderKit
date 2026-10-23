@@ -1,22 +1,25 @@
 #!/bin/bash
 #
-# Запуск тестов пакета SVGRenderKit с принудительным завершением зависшего xcodebuild.
+# Runs the SVGRenderKit package tests and force-terminates a hung xcodebuild.
 #
-# Зачем: после последнего теста `xcodebuild test` нередко не завершается сам (Xcode 26/27),
-# хотя итог уже напечатан, и инструменты, которые ждут выхода процесса, висят. Скрипт ждёт
-# строку итога, даёт процессу GRACE_SECONDS выйти самому, иначе гасит его и сам разбирает лог.
+# Why: after the last test `xcodebuild test` often does not exit on its own (Xcode 26/27) although
+# the result is already printed, and tools waiting for the process hang. The script waits for the
+# result line, gives the process GRACE_SECONDS to exit by itself, otherwise kills it and parses the
+# log itself.
 #
-# Использование (из любого каталога):
-#   Scripts/run-tests.sh                                            — все тесты
+# Usage (from any directory):
+#   Scripts/run-tests.sh                                            — all tests except the benchmarks
 #   Scripts/run-tests.sh -only-testing:SVGRenderKitTests/SVGMemoryManagementTests
 #   LOG=/tmp/svg.log DESTINATION='platform=iOS Simulator,name=iPhone 17' Scripts/run-tests.sh
 #
-# Итог печатается в конце и пишется в "$LOG.verdict"; последняя строка — одно из слов:
-# PASSED, WARNINGS, FAILED, BUILD-FAILED, CRASHED, HUNG, NO-RESULT. Код возврата: 0 только у PASSED.
+# The verdict is printed at the end and written to "$LOG.verdict"; the last line is one of:
+# PASSED, WARNINGS, FAILED, BUILD-FAILED, CRASHED, HUNG, NO-RESULT. Exit code: 0 only for PASSED.
 #
-# HUNG — лог не растёт дольше STALL_SECONDS (по умолчанию 180): зависший тест не держит
-# прогон вечно; в вердикте указан тест, на котором остановились.
-# CLEAN=1 — чистая пересборка (тогда компилятор предупреждает обо всех файлах пакета).
+# HUNG — the log has not grown for more than STALL_SECONDS (default 180): a hung test does not hold
+# the run forever; the verdict names the test it stopped on.
+# CLEAN=1 — a clean rebuild (the compiler then warns about every file of the package).
+# PERF=1 — also run SVGPerformanceTests (skipped by default: Debug timings are not representative;
+# measure in Release, see CLAUDE.md). Naming SVGPerformanceTests in -only-testing also runs them.
 
 set -u
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,7 +36,10 @@ if [ "${CLEAN:-0}" = 1 ]; then
   xcodebuild -scheme "$SCHEME" -destination "$DESTINATION" clean > /dev/null 2>&1
 fi
 
-xcodebuild -scheme "$SCHEME" -destination "$DESTINATION" "$@" test > "$LOG" 2>&1 &
+SKIP_PERF=(-skip-testing:SVGRenderKitTests/SVGPerformanceTests)
+if [ "${PERF:-0}" = 1 ] || printf '%s\n' "$*" | grep -q "SVGPerformanceTests"; then SKIP_PERF=(); fi
+
+xcodebuild -scheme "$SCHEME" -destination "$DESTINATION" ${SKIP_PERF[@]+"${SKIP_PERF[@]}"} "$@" test > "$LOG" 2>&1 &
 PID=$!
 DONE='\*\* TEST (SUCCEEDED|FAILED) \*\*|\*\* BUILD FAILED \*\*|Test Suite .(All tests|Selected tests). (passed|failed)'
 
@@ -56,7 +62,7 @@ while kill -0 $PID 2>/dev/null; do
     for _ in $(seq $GRACE_SECONDS); do kill -0 $PID 2>/dev/null || break; sleep 1; done
     if kill -0 $PID 2>/dev/null; then
       kill $PID
-      echo "xcodebuild завис после итога — завершён принудительно" >> "$LOG.verdict"
+      echo "xcodebuild hung after the result — killed" >> "$LOG.verdict"
     fi
     break
   fi
@@ -64,31 +70,31 @@ while kill -0 $PID 2>/dev/null; do
 done
 wait $PID 2>/dev/null
 
-# Предупреждения: уникальные строки `файл:строка:столбец: warning:` из файлов самого пакета.
-# Предупреждения зависимостей (.build/checkouts) и служебные без пути не считаются.
+# Warnings: unique `file:line:column: warning:` lines from the package's own files.
+# Warnings of dependencies (.build/checkouts) and service ones without a path do not count.
 COMPILER_WARNINGS=$(grep -E "^$ROOT_DIR/(Sources|Tests|Example)/.*\.swift:[0-9]+:[0-9]+: warning:" "$LOG" | sort -u)
 COMPILER_COUNT=$(printf '%s' "$COMPILER_WARNINGS" | grep -c . || true)
 
 {
-  echo "--- вердикт ($LOG) ---"
+  echo "--- verdict ($LOG) ---"
   if [ "$STALLED" = 1 ]; then
-    grep -E "Test Case .* started" "$LOG" | tail -1 | sed "s/^[[:space:]]*/завис на: /"
+    grep -E "Test Case .* started" "$LOG" | tail -1 | sed "s/^[[:space:]]*/hung on: /"
   fi
-  # Каждый тестовый бандл печатает свой итог; складываем по одному на бандл.
+  # Every test bundle prints its own result; sum one per bundle.
   awk '/Test Suite .*\.xctest. (passed|failed)/ { name = $3; want = 1; next }
        want && /Executed [0-9]+ tests/ && !(name in seen) { seen[name] = 1; n += $2; f += $5; want = 0 }
-       END { if (length(seen)) printf "Executed %d tests, with %d failures, бандлов: %d\n", n, f, length(seen) }' "$LOG"
-  grep -c "Restarting after unexpected exit" "$LOG" | sed 's/^/перезапусков после падения: /'
-  grep -E "^\s+[A-Za-z]+Tests\.test[A-Za-z0-9_]*\(\)" "$LOG" | sort -u | sed 's/^[[:space:]]*/упавший: /'
+       END { if (length(seen)) printf "Executed %d tests, with %d failures, bundles: %d\n", n, f, length(seen) }' "$LOG"
+  grep -c "Restarting after unexpected exit" "$LOG" | sed 's/^/restarts after a crash: /'
+  grep -E "^\s+[A-Za-z]+Tests\.test[A-Za-z0-9_]*\(\)" "$LOG" | sort -u | sed 's/^[[:space:]]*/failed: /'
   grep -E "^/.*\.swift:[0-9]+(:[0-9]+)?: error:" "$LOG" | sort -u | head -10
-  echo "предупреждений компилятора: $COMPILER_COUNT"
+  echo "compiler warnings: $COMPILER_COUNT"
   if [ "$COMPILER_COUNT" -gt 0 ]; then
     printf '%s\n' "$COMPILER_WARNINGS" | sed "s#^$ROOT_DIR/##" | head -20 | sed 's/^/  /'
   fi
   if [ "$STALLED" = 1 ]; then echo "HUNG"
   elif ! grep -q "Test Suite" "$LOG" && grep -qE "\*\* BUILD FAILED \*\*|\.swift:[0-9]+:[0-9]+: error:" "$LOG"; then echo "BUILD-FAILED"
   elif grep -q "Restarting after unexpected exit" "$LOG"; then echo "CRASHED"
-  # Несколько бандлов печатают по своему «All tests»: упавший хоть где-то — это FAILED.
+  # Several bundles each print their own "All tests": a failure anywhere is FAILED.
   elif grep -qE "Test Suite .(All tests|Selected tests). failed|: error: -\[" "$LOG"; then echo "FAILED"
   elif grep -qE "Test Suite .(All tests|Selected tests). passed" "$LOG"; then
     if [ "$COMPILER_COUNT" -gt 0 ]; then echo "WARNINGS"; else echo "PASSED"; fi

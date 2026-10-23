@@ -15,6 +15,8 @@ commit messages are in English.
   hung process and parses the log itself. The verdict (last line, also in `$LOG.verdict`) is one of
   `PASSED`, `WARNINGS`, `FAILED`, `BUILD-FAILED`, `CRASHED`, `HUNG` (the log has not grown for more
   than `STALL_SECONDS`, 180 s), `NO-RESULT`. The exit code is 0 only for `PASSED`.
+- The Debug benchmarks (`SVGPerformanceTests`) are skipped by default; `PERF=1` runs them (they are not
+  representative in Debug, see Performance).
 - Arguments are passed through to `xcodebuild`: `Scripts/run-tests.sh -only-testing:SVGRenderKitTests/SVGMemoryManagementTests`.
   Variables: `LOG`, `DESTINATION` (default `platform=iOS Simulator,name=iPhone 17`), `SCHEME`
   (`SVGRenderKit-Package`), `CLEAN=1`.
@@ -37,7 +39,8 @@ with two oracles; the test is `SVGRenderParityTests.testCorpusParity`.
   (no `com.apple.developer.web-browser-engine.*` entitlement), so the Example app dumps the rasters
   (`WebKitParityRunner`) and the test reads them. One run of both oracles is `Scripts/webkit-parity.sh`
   (build → install → launch → tests → both gates; `SKIP_DUMP=1`, `SKIP_TESTS=1`, `RASTERS=…`).
-  Gate: `.github/webkit-baseline.txt` (`check-parity.sh … WEBKIT_SUMMARY`).
+  Gate: `.github/webkit-baseline.txt` (`check-parity.sh … WEBKIT_SUMMARY`). In CI it runs from `webkit-parity.yml`
+  (nightly, manually, or on a PR with the `webkit` label).
 - A baseline file is a single summary line: `pass` must not drop, `fail`/`referenceLimited`/`webkitMissing`
   must not grow, `kitError` and `referenceMissing` are always 0. An improvement → update the baseline in
   the same commit; a regression → do not merge, fix it or triage it honestly in `ParityTriage` (a reason is

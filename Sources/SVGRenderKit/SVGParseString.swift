@@ -293,7 +293,7 @@ public class SVGParseString {
             switch classify(byte) {
             case .command(let command):
                 if let error = pushCoordinateAndExecuteIfPossible() {
-                    if index > 0 {//игнорить для старта
+                    if index > 0 {// ignored for the start
                         return (path: partialPath(returnPath, currentPath), error: error)
                     }
                 }

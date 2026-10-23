@@ -1,7 +1,7 @@
 import Foundation
 
 ///from https://github.com/fontello/svgpath
-///Перевод ellipse arc в набор кривых
+/// Converts an elliptical arc into a set of cubic Bézier curves
 class EllipseArcToCurves {
     let pi2: Scalar = Scalar.pi * 2
 

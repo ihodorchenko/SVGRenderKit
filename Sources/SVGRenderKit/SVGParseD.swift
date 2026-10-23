@@ -120,7 +120,7 @@ internal class VerticalLineTo: PathCommand {
     }
 }
 
-/// взято с SVGKit
+/// Taken from SVGKit
 internal class EllipticalArcTo: PathCommand {
     struct BezierCurve {
         var toPoint: CGPoint

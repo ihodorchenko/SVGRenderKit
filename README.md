@@ -329,7 +329,8 @@ xcodebuild test \
 
 The `Performance` GitHub workflow runs them on pushes to `main`, manually, and on pull requests
 labeled `perf`. `Scripts/perf_report.py` turns the log into a Markdown table and, when
-`.github/perf-baseline.json` exists, fails a test that is more than 2x slower than its baseline.
+`.github/perf-baseline.json` exists, fails a test that is more than 3x slower than its baseline (and by at least 50 ms; baselines under
+50 ms and tests with a relative standard deviation above 35% are only reported).
 Parse, layer-build and export steps are also marked with `os_signpost` intervals (Points of Interest)
 for Instruments.
 

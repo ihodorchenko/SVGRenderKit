@@ -1,7 +1,7 @@
 import UIKit
 import SVGRenderKit
 
-/// Вариант цвета подложки для галереи и детального просмотра.
+/// Backdrop colour variant for the gallery and the detail view.
 enum SubstrateStyle: Int, CaseIterable {
     case gray = 0
     case light = 1
@@ -9,13 +9,13 @@ enum SubstrateStyle: Int, CaseIterable {
 
     var title: String {
         switch self {
-        case .gray: return "Серая"
-        case .light: return "Светлая"
-        case .dark: return "Тёмная"
+        case .gray: return "Gray"
+        case .light: return "Light"
+        case .dark: return "Dark"
         }
     }
 
-    /// Цвет самой подложки (ячейка / карточка).
+    /// The colour of the backdrop itself (cell / card).
     var substrateColor: UIColor {
         switch self {
         case .gray: return UIColor(white: 0.95, alpha: 1)
@@ -24,7 +24,7 @@ enum SubstrateStyle: Int, CaseIterable {
         }
     }
 
-    /// Цвет фона экрана позади подложки.
+    /// The screen background colour behind the backdrop.
     var screenColor: UIColor {
         switch self {
         case .gray, .light: return UIColor.white
@@ -47,14 +47,14 @@ enum SubstrateStyle: Int, CaseIterable {
     }
 }
 
-/// Общее хранилище выбранного варианта подложки.
+/// Shared storage of the selected backdrop variant.
 final class SubstrateStore {
     static let shared = SubstrateStore()
     var style: SubstrateStyle = .gray
     private init() {}
 }
 
-/// Собирает кнопку-меню выбора подложки для навбара.
+/// Builds the navbar menu button that selects the backdrop.
 func makeSubstrateButton(onSelect: @escaping () -> Void) -> UIBarButtonItem {
     let current = SubstrateStore.shared.style
     let actions = SubstrateStyle.allCases.map { style in
@@ -63,11 +63,11 @@ func makeSubstrateButton(onSelect: @escaping () -> Void) -> UIBarButtonItem {
             onSelect()
         }
     }
-    let menu = UIMenu(title: "Подложка", options: .displayInline, children: actions)
+    let menu = UIMenu(title: "Backdrop", options: .displayInline, children: actions)
     return UIBarButtonItem(image: UIImage(systemName: "paintpalette"), menu: menu)
 }
 
-/// Приводит внешний вид навбара в соответствие с выбранной подложкой.
+/// Matches the navbar appearance to the selected backdrop.
 func applyNavBarAppearance(style: SubstrateStyle, to navigationController: UINavigationController?) {
     guard let navigationController = navigationController else { return }
     let appearance = UINavigationBarAppearance()
@@ -80,10 +80,10 @@ func applyNavBarAppearance(style: SubstrateStyle, to navigationController: UINav
     navigationController.navigationBar.tintColor = style == .dark ? UIColor.white : UIColor.darkGray
 }
 
-/// Папки с SVG внутри бандла (каждая — отдельная подгалерея).
+/// SVG folders inside the bundle (each one is a separate sub-gallery).
 let svgFolders = ["svg_0.0", "svg_1.0", "svg_2.0", "svg_3.0", "BookTracker", "hatavik", "mycourse", "petfolio"]
 
-/// Корневой экран: список папок, по тапу открывается галерея папки.
+/// Root screen: a list of folders, a tap opens the folder gallery.
 class ViewController2: UITableViewController {
 
     static let allTitle = "All"
@@ -161,8 +161,8 @@ class ViewController2: UITableViewController {
     }
 }
 
-/// Возвращает пути SVG относительно корня бандла внутри папки, включая подпапки
-/// (например `svg_1.0/alert/foo.svg`).
+/// Returns the SVG paths relative to the bundle root inside a folder, including subfolders
+/// (for example `svg_1.0/alert/foo.svg`).
 func svgPaths(inFolder folder: String) -> [String] {
     guard let resourceURL = Bundle.main.resourceURL else { return [] }
     let directoryURL = resourceURL.appendingPathComponent(folder)
@@ -402,7 +402,7 @@ final class SVGDetailViewController: UIViewController {
 
     private func setupNavBar() {
         navigationItem.leftBarButtonItem = UIBarButtonItem(
-            title: "Закрыть",
+            title: "Close",
             style: .plain,
             target: self,
             action: #selector(closeTapped)
