@@ -1,7 +1,7 @@
 import UIKit
 
 /// An SVG radial gradient defined by a center point, radius, and color stops.
-open class SVGRadialGradientTag: SVGBaseGradient {
+class SVGRadialGradientTag: SVGBaseGradient {
     class override var key: String { get { return "radialGradient" }}
 
     /// Center x, defaults to 50%.
@@ -18,13 +18,13 @@ open class SVGRadialGradientTag: SVGBaseGradient {
     var fr: SVGLength?
 
     /// Returns whether the gradient has at least one color stop and can be rendered.
-    public override func isEnable() -> Bool {
+    override func isEnable() -> Bool {
         resolveHref()
         return stops.count >= 1
     }
 
     /// Builds a masked layer that draws this radial gradient.
-    open override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
+    override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
         getGradientLayer(maskLayer: maskLayer, path: path, boundingBox: nil, viewBox: viewBox, currentColor: currentColor)
     }
 
@@ -50,6 +50,7 @@ open class SVGRadialGradientTag: SVGBaseGradient {
     private func boundingBoxLayer(path: UIBezierPath, boundingBox: CGRect?, maskLayer: CALayer, colors: [CGColor], locations: [CGFloat]) -> CALayer? {
         // The layer covers the path's bounds; the gradient itself resolves against the geometry's
         // box when one is given (a stroke, B135) — a degenerate box falls back to the layer's.
+        // (`UIBezierPath.bounds` excludes Bézier control points, see `SVGGradientFillBBoxTests`.)
         let frame = path.bounds
         guard frame.width > 0, frame.height > 0 else { return nil }
         var bbox = frame
@@ -162,7 +163,7 @@ open class SVGRadialGradientTag: SVGBaseGradient {
     }
 
     /// Creates a radial gradient by parsing center/radius and color stops.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         if let str = attributeDict["cx"] {

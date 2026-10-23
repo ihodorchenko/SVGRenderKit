@@ -1,7 +1,7 @@
 import UIKit
 
 /// An SVG linear gradient defined by two points and a list of color stops.
-open class SVGLinearGradientTag: SVGBaseGradient {
+class SVGLinearGradientTag: SVGBaseGradient {
     class override var key: String { get { return "linearGradient" }}
 
     var x1: SVGLength = SVGLength.percent(value: 0)
@@ -10,13 +10,13 @@ open class SVGLinearGradientTag: SVGBaseGradient {
     var y2: SVGLength = SVGLength.percent(value: 0)
 
     /// Returns whether this gradient has at least one color stop and can be rendered.
-    public override func isEnable() -> Bool {
+    override func isEnable() -> Bool {
         resolveHref()
         return stops.count >= 1
     }
 
     /// Builds a masked layer that draws this linear gradient along its axis.
-    open override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
+    override func getGradientLayer(maskLayer: CALayer, path: UIBezierPath, viewBox: CGRect, currentColor: UIColor = .black) -> CALayer? {
         getGradientLayer(maskLayer: maskLayer, path: path, boundingBox: nil, viewBox: viewBox, currentColor: currentColor)
     }
 
@@ -32,6 +32,8 @@ open class SVGLinearGradientTag: SVGBaseGradient {
                 boundsToPoints = viewBox
                 break
             case .objectBoundingBox:
+                // `UIBezierPath.bounds` is the geometric extent (control points excluded), the
+                // box the spec asks for; pinned by `SVGGradientFillBBoxTests`.
                 boundsToPoints = path.bounds
                 break
             }
@@ -174,7 +176,7 @@ open class SVGLinearGradientTag: SVGBaseGradient {
     }
 
     /// Creates a linear gradient by parsing attributes and color stops.
-    public required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
+    required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGGroupProtocol) throws {
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
         if let str = attributeDict["x1"] {
