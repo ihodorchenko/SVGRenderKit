@@ -40,7 +40,8 @@ with two oracles; the test is `SVGRenderParityTests.testCorpusParity`.
   (`WebKitParityRunner`) and the test reads them. One run of both oracles is `Scripts/webkit-parity.sh`
   (build → install → launch → tests → both gates; `SKIP_DUMP=1`, `SKIP_TESTS=1`, `RASTERS=…`).
   Gate: `.github/webkit-baseline.txt` (`check-parity.sh … WEBKIT_SUMMARY`). In CI it runs from `webkit-parity.yml`
-  (nightly, manually, or on a PR with the `webkit` label).
+  (nightly — skipped when main has not moved since the last successful run — manually, or on a PR with the
+  `webkit` label).
 - **Per fixture**: `check-parity.sh` only sees counts, so `Scripts/check-fixtures.sh <log> .github/parity-fixtures.txt`
   (CoreSVG, `CORPUS_FAIL`) and `.github/webkit-fixtures.txt` (`WEBKIT_FAIL`) keep the `differing` fraction of every
   failing fixture: a fixture that gets worse by more than `TOLERANCE` (0.01) or a new failing one fails the gate.
