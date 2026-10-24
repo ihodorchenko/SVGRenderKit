@@ -46,6 +46,9 @@ with two oracles; the test is `SVGRenderParityTests.testCorpusParity`.
   failing fixture: a fixture that gets worse by more than `TOLERANCE` (0.01) or a new failing one fails the gate.
   The numbers of CI are the reference (all four CI jobs agree to three decimals; a local Xcode/OS can differ on a
   mask edge — `transaction_special.svg` is 0.154 locally, 0.175 on the runner), so take a baseline from a CI log.
+  The WebKit side is even more sensitive: the baseline was once taken from a local `webkit-parity.sh` run, and the
+  first CI run shifted the four `cards_black` shadow fixtures by +0.024 (local WebKit 27.1 vs the runner's 26.5;
+  `pick-simulator.sh` picks the newest runtime, so the two environments do not even use the same browser build).
   After an improvement or a triaged new fixture: `Scripts/check-fixtures.sh --update <log> <file> <PREFIX>`.
 - A baseline file is a single summary line: `pass` must not drop, `fail`/`referenceLimited`/`webkitMissing`
   must not grow, `kitError` and `referenceMissing` are always 0. An improvement → update the baseline in

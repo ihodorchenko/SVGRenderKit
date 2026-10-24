@@ -70,10 +70,10 @@ folder_4/Illustration/cards/fifa_mini_stack.svg 0.528
 folder_4/Illustration/cards/mc_virtual_ecard_mini.svg 0.053
 folder_4/Illustration/cards/mc_virtual_ecard_mini_stack.svg 0.055
 folder_4/Illustration/cards/scorina_belcard_mini.svg 0.021
-folder_4/Illustration/cards_black/black_mc_3rd_stack.svg 0.105
-folder_4/Illustration/cards_black/black_mc_stack.svg 0.102
-folder_4/Illustration/cards_black/black_visa_3rd_stack.svg 0.107
-folder_4/Illustration/cards_black/black_visa_stack.svg 0.104
+folder_4/Illustration/cards_black/black_mc_3rd_stack.svg 0.129
+folder_4/Illustration/cards_black/black_mc_stack.svg 0.126
+folder_4/Illustration/cards_black/black_visa_3rd_stack.svg 0.131
+folder_4/Illustration/cards_black/black_visa_stack.svg 0.128
 folder_4/Illustration/widget_cards.svg 0.075
 folder_4/Illustration/widget_cards_empty.svg 0.066
 folder_4/action/icon__action__transaction_special.svg 0.066
