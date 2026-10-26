@@ -6,59 +6,24 @@ name: WebKit parity
 # `.github/webkit-baseline.txt`.
 #
 # Not part of the per-PR job: it builds the app and renders the whole corpus in a browser (several
-# minutes). Runs nightly, manually, and on pull requests carrying the `webkit` label. A scheduled run
-# is skipped when main has not moved since the last successful run: the unchanged tree on the same
-# runner image would just repeat the previous raster comparison (the `check` job below).
+# minutes). Runs on pushes to main, manually, and on pull requests carrying the `webkit` label — the
+# same shape as `perf.yml`. There is no schedule: a nightly run of an unchanged tree on the same runner
+# image would only repeat the previous raster comparison, and `cancel-in-progress` already supersedes an
+# in-flight run of the same ref.
 on:
-  schedule:
-    - cron: '0 3 * * *'
+  push:
+    branches: [main]
   workflow_dispatch:
   pull_request:
     types: [labeled, synchronize]
-
-permissions:
-  contents: read
-  actions: read # the nightly skip check lists previous runs of this workflow
 
 concurrency:
   group: webkit-parity-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # A cheap Linux job that decides whether the scheduled run is worth the macOS minutes. It compares
-  # main against the head of the last *successful* run, so a red nightly (e.g. a detected drift that
-  # has not been re-baselined yet) keeps running every night until it is fixed.
-  check:
-    runs-on: ubuntu-latest
-    outputs:
-      should-run: ${{ steps.decide.outputs.should-run }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Decide whether main changed
-        id: decide
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          should=run
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            last="$(gh run list --branch main --workflow webkit-parity.yml --status success \
-              --limit 1 --json headSha --jq '.[0].headSha // empty' || true)"
-            head="$(git rev-parse HEAD)"
-            if [ -n "$last" ] && [ "$last" = "$head" ]; then
-              echo "main is unchanged since the last successful run ($head) — skipping the nightly"
-              should=skip
-            else
-              echo "main moved (last successful run: ${last:-none}, now: $head) — running the parity"
-            fi
-          fi
-          echo "should-run=$should" >> "$GITHUB_OUTPUT"
-
   webkit-parity:
-    needs: check
-    if: needs.check.outputs.should-run != 'skip' &&
-        (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'webkit'))
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'webkit')
     # Pinned on purpose — see the note in ci.yml (B120).
     runs-on: macos-26
     timeout-minutes: 60

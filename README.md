@@ -321,7 +321,7 @@ renders the corpus in a `WKWebView` (inside the Example app, because a bare test
 bundle cannot host WebKit's WebContent process), runs the parity test against those
 rasters, and gates both summaries and — per fixture, with `Scripts/check-fixtures.sh` — the
 differing fraction of every accepted divergence, so a known-bad icon cannot get worse unnoticed.
-CI runs it nightly, manually, and on pull requests labelled `webkit`. A behaviour that CoreSVG shares with the kit — or
+CI runs it on pushes to `main`, manually, and on pull requests labelled `webkit`. A behaviour that CoreSVG shares with the kit — or
 hides — then shows up next to the CoreSVG report in the same run; the browser rasters
 live in a temporary directory (recorded in `.webkit-rasters`, so later test runs pick
 them up too) and nothing is committed.

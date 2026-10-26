@@ -169,7 +169,8 @@ against Apple's CoreSVG over a corpus of real icons, not by the W3C SVG test sui
   test bundle cannot host WebKit's WebContent process) and the test then compares *both*
   oracles against the identical raster, so a behaviour CoreSVG shares with the kit, or hides,
   is visible in one report. That side reports as `WEBKIT_SUMMARY` and is triaged the same way.
-  CI runs it nightly (`webkit-parity.yml`).
+  CI runs it on pushes to main, manually, and on pull requests labelled `webkit`
+  (`webkit-parity.yml`).
 - Besides the summary counts, every accepted divergence keeps its differing-pixel fraction in
   `.github/parity-fixtures.txt` / `.github/webkit-fixtures.txt` (`Scripts/check-fixtures.sh`): a
   fixture that gets worse, or a new failing one, fails the gate.
