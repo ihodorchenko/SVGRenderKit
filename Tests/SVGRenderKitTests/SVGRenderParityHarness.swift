@@ -328,10 +328,33 @@ enum CorpusLoader {
             .deletingLastPathComponent() // repo root
     }
 
+    /// Whether the document's rendering changes over time, i.e. whether a *static* raster of it is
+    /// a well-defined thing at all.
+    ///
+    /// Animated documents are not pixel fixtures: CoreSVG ignores CSS animations and draws the base
+    /// state, the WebKit oracle draws the SVG-as-image into a canvas at an arbitrary moment of the
+    /// timeline, and the kit rasters its model state, so the three answers disagree by design. The
+    /// corpus skips them (`load`), while the Example gallery still shows them.
+    ///
+    /// Detected: SMIL animation elements and CSS animations in a `<style>` block or inline style.
+    static func hasRenderingAnimation(_ svg: String) -> Bool {
+        svg.contains("<animate")          // <animate>, <animateTransform>, <animateMotion>
+            || svg.contains("<set")       // SMIL <set attributeName="…">
+            || svg.contains("@keyframes") // CSS animations
+            || svg.contains("animation:") // the `animation` shorthand, inline or in a stylesheet
+            || svg.contains("animation-name")
+    }
+
     /// Enumerates every `.svg` under `Example/Example/data` and returns it as a
-    /// fixture named by its path relative to that directory.
+    /// fixture named by its path relative to that directory. Documents that animate are skipped:
+    /// no static frame of them is comparable across the renderers (see `hasRenderingAnimation`).
     static func load(relativePath: String = "Example/Example/data") -> [ParityFixture] {
-        let dataDirectory = repositoryRoot.appendingPathComponent(relativePath)
+        load(directory: repositoryRoot.appendingPathComponent(relativePath))
+    }
+
+    /// Enumerates every `.svg` under `directory` as a fixture named by its relative path.
+    static func load(directory: URL) -> [ParityFixture] {
+        let dataDirectory = directory
 
         guard FileManager.default.fileExists(atPath: dataDirectory.path) else { return [] }
 
@@ -348,6 +371,10 @@ enum CorpusLoader {
                   let data = try? Data(contentsOf: url),
                   let svg = String(data: data, encoding: .utf8) else { continue }
             let name = url.path.replacingOccurrences(of: dataDirectory.path + "/", with: "")
+            if hasRenderingAnimation(svg) {
+                print("PARITY_SKIP \(name): the document animates, a static raster is not comparable across the renderers")
+                continue
+            }
             fixtures.append(ParityFixture(name: name, svg: svg))
         }
 
