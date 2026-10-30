@@ -81,7 +81,7 @@ func applyNavBarAppearance(style: SubstrateStyle, to navigationController: UINav
 }
 
 /// SVG folders inside the bundle (each one is a separate sub-gallery).
-let svgFolders = ["folder_1", "folder_2", "folder_3", "folder_4", "folder_5", "folder_6", "folder_7", "folder_8"]
+let svgFolders = ["folder_1", "folder_2", "folder_3", "folder_4", "folder_5", "folder_6", "folder_7", "folder_8", "folder_9"]
 
 /// Root screen: a list of folders, a tap opens the folder gallery.
 class ViewController2: UITableViewController {
