@@ -5,6 +5,36 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.0.1 - 2026-10-30
+
+### Fixed
+- `SVGView` no longer loses a document's SMIL animations when the layer tree is built before the view
+  is in a window (`viewDidLoad`, a collection view cell configured before it is enqueued, or any
+  load whose main-thread install is delayed): Core Animation discards the animations of a layer tree
+  that is committed while it is not in a render tree, and attaching the view later did not bring
+  them back, so such a document stayed static for its whole lifetime. The build now collects the
+  animations (`SVGOptions.defersAnimationAttach`) and `SVGView` attaches them on the main thread
+  once the tree is installed and the view has a window, keeping the timeline epoch so the animation
+  does not restart (`SVGViewAnimationAttachTests`). `SVGParser.getLayer` called directly still
+  attaches the animations during the build, as before.
+
+- A `linearGradient` with `gradientUnits="userSpaceOnUse"` now paints the whole element when an
+  ancestor `transform` moves it. The gradient's raster window was the `viewBox`, which lives in the
+  element's own coordinate space: a moving element (a wave group scrolling across a logo) left the
+  part outside the window unpainted and the layer underneath showed through — a pale letter that
+  flickered as the element moved. The window now also covers the element's own bounds; because the
+  gradient is painted through the element's silhouette a larger window never paints anything extra,
+  and documents whose shapes already fit the viewBox still render pixel-identically
+  (`SVGUserSpaceGradientBoundsTests`). The radial `userSpaceOnUse` window has the same limitation
+  and is not covered by this fix.
+
+### Internal
+- The parity corpus skips documents that animate (`CorpusLoader.hasRenderingAnimation`, a
+  `PARITY_SKIP` line names each one): a static raster of them is not comparable across the three
+  renderers — CoreSVG draws the base state, the WebKit oracle draws the SVG-as-image at an arbitrary
+  moment of the timeline, and the kit rasters its model state. The Example gallery still shows them
+  and the corpus summary is back to `total=1618` (`ParityCorpusAnimationTests`).
+
 ## 2.0.0 - 2026-10-23
 
 A major release that narrows the public API to what a client can actually use, removes the 1.4.0

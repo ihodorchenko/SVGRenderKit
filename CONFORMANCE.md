@@ -175,6 +175,10 @@ against Apple's CoreSVG over a corpus of real icons, not by the W3C SVG test sui
   `.github/parity-fixtures.txt` / `.github/webkit-fixtures.txt` (`Scripts/check-fixtures.sh`): a
   fixture that gets worse, or a new failing one, fails the gate.
 - New icons that fail are triaged as either bugs or new profile features.
+- Documents that animate (SMIL or CSS) stay out of the pixel corpus: a static raster of them is
+  not defined — CoreSVG draws the base state, the browser's image raster lands at an arbitrary
+  moment of the timeline, and the kit rasters its model state. They are excluded by
+  `CorpusLoader` and covered by dedicated behaviour/trajectory tests instead.
 
 The live corpus summary is reported by CI in the GitHub step summary; see [README.md](README.md#tests) for how the suite is run.
 

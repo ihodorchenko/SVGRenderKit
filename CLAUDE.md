@@ -58,6 +58,12 @@ with two oracles; the test is `SVGRenderParityTests.testCorpusParity`.
   wide color space): our render is correct, there is no pixel gate.
 - Untracked local folders under `Example/Example/data/*` inflate the corpus `total` locally — CI has a
   different `total`; compare with the baseline by `pass/fail`, not by `total`, and do not commit such folders.
+- **Documents that animate are not pixel fixtures.** `CorpusLoader` skips them (a `PARITY_SKIP`
+  line names the file): no static frame of them is comparable across the three renderers — CoreSVG
+  draws the base state, the WebKit oracle draws the SVG-as-image at an arbitrary moment of the
+  timeline, and the kit rasters its model state. A demo icon may therefore live under
+  `Example/Example/data` for the Example gallery without affecting the parity counts; the browser
+  dump still rasterizes it and the test ignores that extra raster.
 - `.webkit-rasters` (a pointer to the dump) is in `.gitignore`, do not commit it.
 - There are no radial gradients in the corpus; their fixtures are `referenceLimited` — targeted tests pin
   the geometry. CoreSVG and the kit interpolate color differently — this divergence is known.
@@ -133,6 +139,9 @@ Do these only on a user complaint or after a measurement.
 
 - `<style>` is looked up along the ancestor chain, not across the whole document (needs a registry of
   rules in document order).
+- A `radialGradient` with `gradientUnits="userSpaceOnUse"` still rasterizes its window as the `viewBox`
+  (the same limitation the linear gradient had: an element moved by an ancestor `transform` gets the part
+  outside the window unpainted). Uncovered by the linear-gradient fix in `Unreleased`.
 - `marker-mid`: arcs (`A`) can produce extra mid vertices; Bézier curves and subpaths already follow tangents.
 - A gradient/pattern `stroke` on `<text>`/`<tspan>` is not supported (a solid stroke, opacity, clip, mask
   and filter are).
@@ -153,6 +162,12 @@ Do these only on a user complaint or after a measurement.
   deinit test).
 - Tests that go through `layer.animation`/`animation(forKey:)` are unreliable on headless CI; check the
   timeline epoch `SVGView.animationEpoch` and sample the trajectory.
+- Core Animation **drops every CAAnimation of a layer tree that is committed while it is not in a
+  render tree** (no window ancestor — or a long gap between the background build and the main-thread
+  install), and attaching the view later does not bring them back. Animations therefore cannot be
+  attached during the background build: `SVGOptions.defersAnimationAttach` collects them and
+  `SVGView` attaches them on main after the install, once the view has a window. Any new animation
+  work must keep that path (see `SVGViewAnimationAttachTests`).
 - Unsupported units in `SVGLength.get` yield `.px(0)`: on the root `<svg>` that is 0×0 — there is a
   fallback to the `viewBox` there; account for it elsewhere.
 - `SVGInputLimits` are thread-local limits on untrusted input (nesting 256, `<use>` depth 10 and 8192
