@@ -29,7 +29,16 @@ class SVGLinearGradientTag: SVGBaseGradient {
             let boundsToPoints: CGRect
             switch self.gradientUnits {
             case .userSpaceOnUse:
-                boundsToPoints = viewBox
+                // The gradient only paints through the element's own silhouette, so the raster
+                // window has to cover the element's bounds as well as the viewBox. The window lives
+                // in the element's user space, and an ancestor `transform` that moves the element (a
+                // wave group scrolling across a logo) maps part of it outside the viewBox; that part
+                // used to stay unpainted and the layer underneath showed through
+                // (`SVGUserSpaceGradientBoundsTests`). A *larger* window never paints anything extra
+                // — the mask is the element itself — and keeping the viewBox inside the union leaves
+                // documents whose shapes already fit it pixel-identical (narrowing the window to the
+                // bbox was rejected for its AA shift, see CLAUDE.md).
+                boundsToPoints = viewBox.union(path.bounds)
                 break
             case .objectBoundingBox:
                 // `UIBezierPath.bounds` is the geometric extent (control points excluded), the
@@ -68,12 +77,14 @@ class SVGLinearGradientTag: SVGBaseGradient {
                     _startPoint = CGPoint(x: unitFraction(self.x1), y: unitFraction(self.y1))
                     _endPoint = CGPoint(x: unitFraction(self.x2), y: unitFraction(self.y2))
                 case .userSpaceOnUse:
+                    // A percentage resolves against the viewport, not against the raster window;
+                    // with `px` values the dimension is irrelevant.
                     _startPoint = CGPoint(
-                        x: resolveCoordinate(self.x1, dimension: boundsToPoints.width),
-                        y: resolveCoordinate(self.y1, dimension: boundsToPoints.height))
+                        x: resolveCoordinate(self.x1, dimension: viewBox.width),
+                        y: resolveCoordinate(self.y1, dimension: viewBox.height))
                     _endPoint = CGPoint(
-                        x: resolveCoordinate(self.x2, dimension: boundsToPoints.width),
-                        y: resolveCoordinate(self.y2, dimension: boundsToPoints.height))
+                        x: resolveCoordinate(self.x2, dimension: viewBox.width),
+                        y: resolveCoordinate(self.y2, dimension: viewBox.height))
                 }
 
                 // A gradient carries its normal along with its vector (SVG 1.1 §13.2.1):
@@ -116,8 +127,8 @@ class SVGLinearGradientTag: SVGBaseGradient {
                 }
 
                 // User-space coordinates are absolute; the gradient layer's frame starts at
-                // the viewBox origin, so make them relative to it (a non-zero viewBox origin
-                // shifted the gradient before), then normalized for CAGradientLayer.
+                // the raster window origin, so make them relative to it (a non-zero window
+                // origin shifted the gradient before), then normalized for CAGradientLayer.
                 if gradientUnits == .userSpaceOnUse {
                     _startPoint.x -= boundsToPoints.origin.x
                     _startPoint.y -= boundsToPoints.origin.y
