@@ -63,6 +63,10 @@ open class SVGView: UIView {
     /// Host time the current source's SMIL timeline started; survives re-renders of the same source (B131).
     private(set) var animationEpoch: CFTimeInterval = CACurrentMediaTime()
 
+    /// Animations of the installed document that are not attached yet: they are added once the view
+    /// is in a window (see `attachPendingAnimations`). Empty for static documents.
+    private var pendingAnimations: [SVGDeferredAnimation] = []
+
     /// The name of a bundled SVG resource to render. Setting this property triggers parsing.
     @IBInspectable open var SVGName: String? {
         get {
@@ -195,6 +199,9 @@ open class SVGView: UIView {
     private struct LoadResult: @unchecked Sendable {
         let parser: SVGParser
         let layer: CALayer
+        /// SMIL animations of the document, collected instead of attached: the tree is installed
+        /// on main later, and Core Animation drops animations committed outside a render tree.
+        let animations: [SVGDeferredAnimation]
     }
 
     /// Parses and renders the given source asynchronously, discarding stale results.
@@ -208,6 +215,7 @@ open class SVGView: UIView {
             return
         }
         currentSource = source
+        pendingAnimations = []
         if restartsAnimation { animationEpoch = CACurrentMediaTime() }
         let epoch = animationEpoch
         loadGeneration += 1
@@ -248,13 +256,25 @@ open class SVGView: UIView {
                     options.renderScale = pointsPerUnit * outputScale
                 }
 
+                // Attaching animations during a background build is not safe: the tree is
+                // installed on main later, and Core Animation discards the animations of a layer
+                // tree that is committed while it is not in a render tree. Collect them instead
+                // and attach after the install.
+                options.defersAnimationAttach = true
+                options.deferredAnimations.removeAll()
                 options.animationEpoch = epoch
-                defer { options.animationEpoch = nil }
+                defer {
+                    options.animationEpoch = nil
+                    options.defersAnimationAttach = false
+                    options.deferredAnimations.removeAll()
+                }
                 let layer = try parser.getLayer(overrideElements: overrides.value)
+                let animations = options.deferredAnimations
+                options.deferredAnimations.removeAll()
                 let usesScaledPaint = options.usesPatterns || options.usesMasks
 
                 // The layer tree is built on the load queue and only touched on main afterwards.
-                let result = LoadResult(parser: parser, layer: layer)
+                let result = LoadResult(parser: parser, layer: layer, animations: animations)
                 DispatchQueue.main.async {
                     guard generation == self.loadGeneration else { return }
                     self.renderedScale = scale
@@ -262,6 +282,8 @@ open class SVGView: UIView {
                     self.parser = result.parser
                     self.shapeLayer = result.layer
                     self.set(layer: result.layer)
+                    self.pendingAnimations = result.animations
+                    self.attachPendingAnimations()
                 }
             } catch {
                 SVGLog.addSLog(errorStr: "SVG load error: \(error.localizedDescription)")
@@ -279,6 +301,25 @@ open class SVGView: UIView {
         }
     }
 
+    /// Adds the document's animations to the installed layer tree. They can only be attached
+    /// once the view is in a window: Core Animation drops animations of a layer tree that is
+    /// committed outside a render tree, and attaching the view later does not bring them back.
+    open override func didMoveToWindow() {
+        super.didMoveToWindow()
+        attachPendingAnimations()
+    }
+
+    /// Attaches the animations collected during the build, if the view is ready to keep them.
+    private func attachPendingAnimations() {
+        guard window != nil, !pendingAnimations.isEmpty else { return }
+        let animations = pendingAnimations
+        pendingAnimations = []
+        let epoch = animationEpoch
+        for deferred in animations {
+            deferred.animation.apply(to: deferred.layer, pathLayer: deferred.pathLayer, epoch: epoch)
+        }
+    }
+
     /// Drops the current source and rendered content, and invalidates any in-flight load.
     private func resetContent() {
         guard Thread.isMainThread else {
@@ -287,6 +328,7 @@ open class SVGView: UIView {
         }
         currentSource = nil
         overrideElements = nil
+        pendingAnimations = []
         dropRenderedContent()
     }
 
@@ -298,6 +340,7 @@ open class SVGView: UIView {
             DispatchQueue.main.async { [weak self] in self?.dropRenderedContent() }
             return
         }
+        pendingAnimations = []
         loadGeneration += 1
         _SVGName = nil
         _svgString = nil

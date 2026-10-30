@@ -1,6 +1,14 @@
 import UIKit
 import QuartzCore
 
+/// One animation whose attach was deferred together with the layers it targets, so a host can add
+/// it to a layer tree that is already installed (see `SVGOptions.defersAnimationAttach`).
+struct SVGDeferredAnimation {
+    let animation: SVGAnimation
+    let layer: CALayer
+    let pathLayer: CAShapeLayer?
+}
+
 /// A parsed SMIL animation element (`animate`, `animateTransform`, or `set`).
 struct SVGAnimation {
     enum Kind {

@@ -86,8 +86,12 @@ class SVGShapeObject: SVGObject, SVGRendering {
             mainLayer.transform = transform
         }
 
-        for anim in animations {
-            anim.apply(to: mainLayer, pathLayer: pathLayer, epoch: getSvgOptions()?.animationEpoch)
+        if let options = getSvgOptions() {
+            options.attach(animations, to: mainLayer, pathLayer: pathLayer)
+        } else {
+            for animation in animations {
+                animation.apply(to: mainLayer, pathLayer: pathLayer, epoch: nil)
+            }
         }
 
         return mainLayer

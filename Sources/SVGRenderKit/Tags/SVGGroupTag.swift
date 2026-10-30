@@ -36,9 +36,7 @@ extension SVGGTag: SVGRendering {
 
         try ownStyle.applyGroupComposite(to: mainLayer, bbox: contentBounds, container: self, overrideElements: overrideElements, maskScale: accumulatedScale())
 
-        for anim in animations {
-            anim.apply(to: mainLayer, pathLayer: nil, epoch: getSvgOptions().animationEpoch)
-        }
+        getSvgOptions().attach(animations, to: mainLayer, pathLayer: nil)
 
         return mainLayer
     }

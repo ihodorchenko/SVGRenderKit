@@ -121,6 +121,29 @@ class SVGOptions {
     /// across re-renders of the same source so an animation does not restart on resize (B131).
     var animationEpoch: CFTimeInterval?
 
+    /// When set, `createLayer` records SMIL animations in `deferredAnimations` instead of adding
+    /// them to the layers. `SVGView` builds the tree on a background queue and installs it on the
+    /// main thread later; Core Animation discards the animations of a layer tree that is committed
+    /// while it is not in a render tree, so the host attaches them after the install instead.
+    var defersAnimationAttach = false
+
+    /// Animations collected while `defersAnimationAttach` is set, in build order.
+    var deferredAnimations: [SVGDeferredAnimation] = []
+
+    /// Adds `animations` to their target layers, or records them when the attach is deferred.
+    func attach(_ animations: [SVGAnimation], to layer: CALayer, pathLayer: CAShapeLayer?) {
+        if defersAnimationAttach {
+            for animation in animations {
+                deferredAnimations.append(
+                    SVGDeferredAnimation(animation: animation, layer: layer, pathLayer: pathLayer))
+            }
+        } else {
+            for animation in animations {
+                animation.apply(to: layer, pathLayer: pathLayer, epoch: animationEpoch)
+            }
+        }
+    }
+
     /// The `version` attribute of the root `<svg>` element (e.g. `"1.1"`).
     var version: String?
     /// The `baseProfile` attribute of the root `<svg>` element (e.g. `"tiny"`).
