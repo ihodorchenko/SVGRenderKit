@@ -185,19 +185,25 @@ enum SVGCSSAnimations {
             }
             values.append(value)
         }
-        // The implicit 0%/100% keyframes come from the element's computed value.
-        guard let baseValue = baseValue(for: property, base: base) else {
-            SVGLog.addSLog(errorStr: "CSS animation '\(spec.name)': \(property.rawValue) is not "
-                + "interpolable on this element; skipped")
-            return nil
-        }
-        if frames[0].offset > 1e-9 {
-            frames.insert((0, "", nil), at: 0)
-            values.insert(baseValue, at: 0)
-        }
-        if frames[frames.count - 1].offset < 1 - 1e-9 {
-            frames.append((1, "", nil))
-            values.append(baseValue)
+        // The implicit 0%/100% keyframes come from the element's computed value. A property
+        // without a usable base (a `stroke` whose computed value is `none`, a gradient `fill`)
+        // is still animatable when the keyframes define both endpoints themselves.
+        let needsImplicitStart = frames[0].offset > 1e-9
+        let needsImplicitEnd = frames[frames.count - 1].offset < 1 - 1e-9
+        if needsImplicitStart || needsImplicitEnd {
+            guard let baseValue = baseValue(for: property, base: base) else {
+                SVGLog.addSLog(errorStr: "CSS animation '\(spec.name)': \(property.rawValue) is "
+                    + "not interpolable on this element; skipped")
+                return nil
+            }
+            if needsImplicitStart {
+                frames.insert((0, "", nil), at: 0)
+                values.insert(baseValue, at: 0)
+            }
+            if needsImplicitEnd {
+                frames.append((1, "", nil))
+                values.append(baseValue)
+            }
         }
         guard values.count >= 2 else { return nil }
 

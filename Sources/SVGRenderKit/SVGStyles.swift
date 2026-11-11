@@ -705,7 +705,7 @@ extension SVGSourceStyleElement {
             try applyStrokeReference(iri, fallback: fallback, mainLayer: mainLayer, path: path, pathLayer: pathLayer, viewBox: strokeViewBox, group: group, width: resolvedStrokeWidth, opacity: strokeOpacity)
         }
 
-        applyStrokeGeometry(to: pathLayer)
+        applyStrokeGeometry(to: pathLayer, width: resolvedStrokeWidth)
 
         var clipMaskLayer: CALayer?
         if let clipPath = clipPath {
@@ -850,7 +850,11 @@ extension SVGSourceStyleElement {
     }
 
     /// `stroke-linecap`/`-linejoin`/`-miterlimit`/`-dasharray`/`-dashoffset` of a stroked layer.
-    private func applyStrokeGeometry(to pathLayer: CAShapeLayer) {
+    private func applyStrokeGeometry(to pathLayer: CAShapeLayer, width: CGFloat) {
+        // A CSS animation can paint a stroke on an element whose static `stroke` is `none`: the
+        // width must be applied even when there is no static paint, or the animated colour is
+        // drawn at CALayer's default width of 1.
+        pathLayer.lineWidth = width
         if let strokeLinecap = self.strokeLinecap {
             switch strokeLinecap {
             case .butt:
@@ -909,7 +913,7 @@ extension SVGSourceStyleElement {
             applyStrokeFallback(fallback, to: pathLayer, width: width, opacity: opacity)
         }
         guard pathLayer.strokeColor != nil, width > 0 else { return false }
-        applyStrokeGeometry(to: pathLayer)
+        applyStrokeGeometry(to: pathLayer, width: width)
         return true
     }
 

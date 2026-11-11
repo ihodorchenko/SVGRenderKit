@@ -125,14 +125,14 @@ final class SVGCSSAnimationPropertiesTests: XCTestCase {
         XCTAssertEqual(animation.duration, 1, accuracy: 1e-9)
     }
 
-    func testFillOnAGradientIsSkipped() throws {
+    func testFillOnAGradientBaseWithoutEndpointsIsSkipped() throws {
         let root = try layer("""
         <defs><linearGradient id="g"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#00f"/></linearGradient></defs>
-        <style>@keyframes paint{0%{fill:#ff0000}100%{fill:#0000ff}}</style>
+        <style>@keyframes paint{50%{fill:#ff0000}}</style>
         <path d="M0 0h10v10z" fill="url(#g)" style="animation:paint 1s linear infinite"/>
         """)
         XCTAssertNil(find(root, key: "fillColor"),
-                     "a paint server and a color are not interpolable, so the animation is skipped")
+                     "the implicit 0%/100% would be the gradient, so the animation is skipped")
     }
 
     // MARK: Transform
@@ -177,6 +177,35 @@ final class SVGCSSAnimationPropertiesTests: XCTestCase {
         """)
         XCTAssertNotNil(find(root, key: "opacity"))
         XCTAssertNotNil(find(root, key: "transform"))
+    }
+
+    // MARK: Paint bases
+
+    func testAnimatedStrokeWithoutAStaticStrokeUsesTheStrokeWidth() throws {
+        let root = try layer("""
+        <style>@keyframes ink{0%{stroke:#ff0000}100%{stroke:#0000ff}}
+               .a{animation:ink 1s linear infinite}</style>
+        <circle class="a" cx="50" cy="50" r="20" fill="none" stroke-width="10"/>
+        """)
+        let animated = try XCTUnwrap(find(root, key: "strokeColor"))
+        let shape = try XCTUnwrap(animated as? CAShapeLayer)
+        XCTAssertEqual(shape.lineWidth, 10, accuracy: 0.01,
+                       "the animated stroke must not fall back to CALayer's width of 1")
+        let animation = try XCTUnwrap(shape.animation(forKey: "strokeColor"))
+        let basic = try XCTUnwrap(animation as? CABasicAnimation)
+        let from = try XCTUnwrap(basic.fromValue) as! CGColor
+        assertColor(from, 1, 0, 0)
+    }
+
+    func testFillAnimationOnAGradientBaseWithBothEndpoints() throws {
+        let root = try layer("""
+        <defs><linearGradient id="g"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#00f"/></linearGradient></defs>
+        <style>@keyframes paint{0%{fill:#ff0000}100%{fill:#0000ff}}
+               .a{animation:paint 1s linear infinite}</style>
+        <path class="a" d="M0 0h10v10z" fill="url(#g)"/>
+        """)
+        XCTAssertNotNil(find(root, key: "fillColor"),
+                        "both keyframes define the fill, so the gradient base is not needed")
     }
 
     // MARK: Groups
