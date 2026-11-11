@@ -85,7 +85,11 @@ final class SVGSelfReferenceTests: XCTestCase {
         body += "</defs><use href=\"#u30\" mask=\"url(#nothing)\" opacity=\"0.5\"/>"
         let start = Date()
         _ = try layer(body)
-        XCTAssertLessThan(Date().timeIntervalSince(start), 10, "fan-out DAG must not take 2^n time")
+        // A wall-clock ceiling is a coarse complexity guard: local runs take ~0.1 s, while CI
+        // runners have been observed at 11–17 s for the same work. An exponential 2^30 walk would
+        // take far longer than 30 s, so this still catches the regression without flaking on a
+        // loaded runner (the separate `testUseFanOutIsCapped` pins the layer ceiling).
+        XCTAssertLessThan(Date().timeIntervalSince(start), 30, "fan-out DAG must not take 2^n time")
     }
 
     func testOversizedSourceIsRejected() {

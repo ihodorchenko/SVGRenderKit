@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.1.1 - 2026-11-11
+
+### Fixed
+- The B102 use fan-out complexity test no longer fails on a loaded CI runner: the wall-clock
+  ceiling is 30 s instead of 10 s (local runs take ~0.1 s; an exponential DAG is orders of
+  magnitude larger). No runtime change.
+
 ## 2.1.0 - 2026-11-11
 
 This release completes the runtime CSS animation work: designer-exported `@keyframes` animate in

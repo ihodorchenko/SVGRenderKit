@@ -49,7 +49,7 @@ https://github.com/ihodorchenko/SVGRenderKit.git
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ihodorchenko/SVGRenderKit.git", from: "2.1.0")
+    .package(url: "https://github.com/ihodorchenko/SVGRenderKit.git", from: "2.1.1")
 ]
 ```
 
