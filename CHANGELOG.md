@@ -5,9 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Besides the Keep a Changelog types, this file uses `Changed (breaking)` for source-breaking changes
+and `Internal` for tooling, CI, test and refactoring work with no user-visible effect.
+
+## Unreleased
+
 ## 2.1.1 - 2026-11-11
 
-### Fixed
+### Internal
 - The B102 use fan-out complexity test no longer fails on a loaded CI runner: the wall-clock
   ceiling is 30 s instead of 10 s (local runs take ~0.1 s; an exponential DAG is orders of
   magnitude larger). No runtime change.
@@ -73,6 +78,18 @@ trajectories against WebKit. No source changes are required; see [MIGRATION.md](
   (paint properties are inherited and cannot be animated on a group layer). The known divergences
   are Core Animation's matrix decomposition and color interpolation (CONFORMANCE.md). The SMIL
   subset gained the `stroke-dashoffset` target, so `Scripts/css-to-smil.py` converts it as well.
+
+### Changed
+- Designer-exported CSS animations now play: a document whose `@keyframes` were previously ignored
+  animates instead of showing its base frame, and `SVGView` follows the trait collection and Reduce
+  Motion by default, so a `@media` dark palette may now be selected. Pass
+  `motionPreference = .reduce` or render through `SVGRenderer` for a frozen base frame; see
+  [MIGRATION.md](MIGRATION.md).
+- A CSS `transform` now wins over the `transform` attribute on the same shape or `<g>` (the
+  presentation-attribute cascade), and the document-wide `<style>` registry lets rules apply through
+  descendant and compound selectors, including blocks that used to be consulted only along the
+  ancestor chain. A document that previously ignored part of its stylesheet or attribute can
+  therefore render differently; both changes follow the SVG/CSS cascade (CONFORMANCE.md).
 
 ### Fixed
 - CSS transform animation now matches the browser for the patterns the frame oracle exposed:
@@ -310,7 +327,7 @@ Each old name still works and forwards to the new one; the compiler offers a fix
   renderer), `SVGParser.shouldParseSinglePathOnly`, and the ignored `force` parameter of the internal
   `set(styleStr:)`.
 
-## 1.3.1
+## 1.3.1 - 2026-10-12
 
 Performance release; there are no public API changes.
 
@@ -340,7 +357,7 @@ Performance release; there are no public API changes.
 - Release-mode performance benchmarks (`SVGPerformanceTests`), `os_signpost` intervals around parse,
   layer building and rasterization, and a `Performance` GitHub workflow with `Scripts/perf_report.py`.
 
-## 1.3.0
+## 1.3.0 - 2026-10-12
 
 ### Added
 - `SVGRenderKitSwiftUI` product with `SVGImageView`, a SwiftUI wrapper around `SVGView` that renders
@@ -348,7 +365,7 @@ Performance release; there are no public API changes.
 - `SVGRenderer.render(_:size:format:scale:background:overrideElements:)` — render SVG (string, data or file URL)
   directly to PNG, JPEG or PDF `Data` without an `SVGView`, as an `async` method and a completion-handler method.
 
-## 1.2.0
+## 1.2.0 - 2026-10-12
 
 ### Added
 - Swift 6 language mode support alongside Swift 5.9+ (`swiftLanguageVersions: [.v5, .v6]`).
@@ -360,7 +377,7 @@ Performance release; there are no public API changes.
   `SVGCache` and `SVGConfiguration` are `@unchecked Sendable`.
 - `SVGLog.logger` access is now thread-safe.
 
-## 1.1.1
+## 1.1.1 - 2026-10-12
 
 ### Added
 - `SVGView.set(SVGName:bundle:overrideElements:)` — load a bundled SVG from any `Bundle`
@@ -389,7 +406,7 @@ Performance release; there are no public API changes.
   interference between views sharing a cached document).
 - `SVGView` should be used from the main thread, like any `UIView`.
 
-## 1.1.0
+## 1.1.0 - 2026-10-11
 
 ### Added
 - Group-compositing of `opacity`/`clip-path`/`mask`/`filter` + `visibility` on `<g>`.
@@ -414,7 +431,7 @@ Performance release; there are no public API changes.
 - Parity triage classifies `display:none` and `<switch>` fixtures as *reference-limited*:
   CoreSVG does not implement these SVG 1.1 features.
 
-## 1.0.1
+## 1.0.1 - 2026-10-11
 
 ### Added
 - On-the-fly render-parity tests against Apple's CoreSVG (no committed golden images).
@@ -438,6 +455,6 @@ Performance release; there are no public API changes.
 - Unsupported units and invalid stroke/color attributes degrade gracefully instead
   of failing the whole document.
 
-## 1.0.0
+## 1.0.0 - 2026-10-10
 
 Initial public release.

@@ -10,10 +10,12 @@ commit messages are in English.
 - Semantic Versioning, tags without a `v` prefix (`2.1.0`); the tag name must match the
   `## <version> - <date>` heading in CHANGELOG.md exactly — `.github/workflows/release.yml` extracts
   the notes from that heading and creates the GitHub Release, `docs.yml` publishes DocC.
-- Bump the version in the README installation snippet, add the release section to CHANGELOG.md
-  (Keep a Changelog), update MIGRATION.md when API/behaviour changes, run the full suite and both
-  parity gates, then `git tag <version> && git push origin main <version>`. Release workflows test
-  the tag before publishing; do not move a pushed tag.
+- Keep an `## Unreleased` section at the top of CHANGELOG.md (Keep a Changelog) and add an entry for
+  every user-visible change as it lands; at release time retitle it `## <version> - <date>` and open
+  a fresh empty `## Unreleased`. Bump the version in the README installation snippet, update
+  MIGRATION.md when API/behaviour changes, run the full suite and both parity gates, then
+  `git tag <version> && git push origin main <version>`. Release workflows test the tag before
+  publishing; do not move a pushed tag.
 
 ## Tests
 
