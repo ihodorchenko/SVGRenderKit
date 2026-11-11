@@ -93,20 +93,33 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 
 ### Animation (SMIL subset)
 
-- `animate` (`opacity`/`fill`/`stroke`), `animateTransform`
-  (`rotate`/`translate`/`scale`), `set` ✅
+- `animate` (`opacity`/`fill`/`stroke`/`stroke-dashoffset`), `animateTransform`
+  (`rotate`/`translate`/`scale`), `set` ✅ (`stroke-dashoffset` animates
+  `CAShapeLayer.lineDashPhase`, the same mapping the attribute uses)
 - `from`/`to`, `values`, `keyTimes`, `repeatCount`, `begin` ✅
 - Event-based `begin`, `to`-only, `additive`/`accumulate`, `calcMode`,
   `fill="freeze"` ❌ out of scope
 
-CSS animations (`@keyframes` and the `animation` shorthand) are **not** part of the runtime
-profile: `<style>` at-rules are skipped and `animation*` properties are ignored, so such a document
-renders its base state. Build-time alternative for the common designer-export class:
-`Scripts/css-to-smil.py` rewrites the asset into the SMIL subset above (CSS inlined; the timing
-function sampled into `values`/`keyTimes`; direction/delay/iterations folded in; a mixed transform
-list split into nested wrapper groups, one function per layer). The runtime CSS
-engine, if the product needs arbitrary CSS assets, is the separate plan in
-[docs/css-animations-plan.md](docs/css-animations-plan.md).
+### CSS Animations (runtime subset)
+
+- `@keyframes` in any `<style>` block the element's ancestor chain reaches, plus `animation`
+  shorthand and the `animation-*` longhands from inline `style` and simple tag/class/id rules ✅
+  (resolved on the shape itself; a CSS animation declared on a `<g>` is not inherited by its
+  children, and descendant/combinator selectors are still dropped)
+- animated properties: `stroke-dashoffset` only (the first property of the runtime CSS plan,
+  `SVGCSSAnimations.supportedProperties`); other keyframe properties are logged and skipped, the
+  document keeps its base state for them
+- timing functions `linear`/`ease*`/`cubic-bezier()`, `animation-direction`
+  (`normal`/`reverse`/`alternate`/`alternate-reverse`), `animation-delay`, iteration counts and
+  `animation-fill-mode` ✅ (`steps()` falls back to linear with a log; finite alternating counts are
+  expanded, infinite ones use `autoreverses`)
+- paused animations, `@media`, descendant/combinator selectors and the rest of the cascade ❌ still
+  out of scope (the plan in [docs/css-animations-plan.md](docs/css-animations-plan.md))
+
+For every other CSS-animated asset the build-time route remains: `Scripts/css-to-smil.py` rewrites
+it into the SMIL subset above (CSS inlined; the timing function sampled into `values`/`keyTimes`;
+direction/delay/iterations folded in; a mixed transform list split into nested wrapper groups, one
+function per layer).
 
 ## Explicitly out of scope (browser features)
 

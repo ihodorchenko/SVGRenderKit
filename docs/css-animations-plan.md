@@ -1,19 +1,23 @@
 # Plan: render and animate the original CSS-driven SVG (`folder_9/original/logo-ghost-wave-effect.svg`)
 
-Status: **proposal**, not started for the runtime. Depends on the two animation fixes released in 2.0.1
-(see "Prerequisites").
+Status: **in progress**. M2 (CSS Animations core) started with the `stroke-dashoffset` property: the
+runtime parses `@keyframes`/`animation` from `<style>` blocks reachable through the ancestor chain and
+inline `style`, and plays the property through `CAShapeLayer.lineDashPhase` (`SVGCSSAnimations`,
+tests in `SVGCSSDashoffsetAnimationTests`). Direction, easing, delay, iteration count and
+`fill-mode` are mapped to Core Animation; other properties, the full cascade/selectors, `@media` and
+appearance plumbing remain. Depends on the two animation fixes released in 2.0.1 (see "Prerequisites").
 
 Update: a *build-time* converter for the common export class now exists — `Scripts/css-to-smil.py`
 (Unreleased). It inlines the matched CSS, translates `@keyframes`/`animation` into the SMIL profile
 with the timing function sampled, normalises transform lists (same-kind functions merged, CSS 3D
 aliases flattened, a mixed chain split into nested wrapper `<g>` layers), and covers
-`folder_9/original/1_29.svg`, the light variant of the original logo and most of the dsgnmax
-icon set (`folder_9/fixed`), which unblocks assets without the runtime engine. It does not replace this plan:
+`folder_9/original/1_29.svg`, the light variant of the original logo and the whole dsgnmax icon
+set (`folder_9/fixed`), which unblocks assets without the runtime engine. It does not replace this plan:
 the runtime still cannot play arbitrary CSS (cascade, `@media`, `transform-origin`/`fill-box`,
 dynamic appearance, `prefers-reduced-motion`), and converted output inherits the SMIL subset's limits
 (no `keySplines`, so easing is sampled; a finite `fill-mode` cannot freeze; a positive delay with
 `fill-mode: backwards/both` on an infinite animation shows the base value during the delay;
-`stroke-dashoffset` and other paint-only properties cannot be expressed at all).
+paint-only properties other than `stroke-dashoffset` cannot be expressed at all).
 
 ## 1. Goal
 

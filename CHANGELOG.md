@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+- The runtime now plays a first slice of **CSS Animations**: `@keyframes` in `<style>` blocks
+  reachable through the ancestor chain and the `animation` shorthand/longhands (inline `style` or a
+  simple tag/class/id rule) for `stroke-dashoffset`, mapped to `CAShapeLayer.lineDashPhase`.
+  Direction, easing (`linear`/`ease*`/`cubic-bezier()`), delay, iteration count and fill mode are
+  mapped to Core Animation, including finite alternating counts. Other animated properties stay
+  out of scope for now and keep their base state (`SVGCSSAnimations`, `CONFORMANCE.md`,
+  `SVGCSSDashoffsetAnimationTests`). The SMIL subset gained the same target
+  (`<animate attributeName="stroke-dashoffset">`), so `Scripts/css-to-smil.py` can now convert the
+  three icons that previously animated only the dash offset.
+
 ### Internal
 - `Scripts/css-to-smil.py` — a build-time converter that rewrites a CSS-animated SVG into the SMIL
   profile the runtime animates (matched CSS inlined; `@keyframes`/`animation` translated to
@@ -16,8 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`translate(...) scale(...)`) becomes a chain of nested wrapper `<g>` layers, so designer exports
   no longer need a runtime CSS engine for the common case. `--self-test` covers the converter and
   `--strict` fails an asset pipeline on a degradation; properties outside the SMIL profile (e.g.
-  `stroke-dashoffset`) are reported and skipped. The runtime CSS plan stays in
-  `docs/css-animations-plan.md`.
+  `stroke-width`, `fill-opacity`) are reported and skipped, `stroke-dashoffset` is now part of
+  the profile. The runtime CSS plan stays in `docs/css-animations-plan.md`.
 
 ## 2.0.1 - 2026-10-30
 

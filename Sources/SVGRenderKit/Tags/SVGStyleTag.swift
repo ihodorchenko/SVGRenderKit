@@ -10,7 +10,25 @@ class SVGStyleTag: SVGChildObject {
     struct Rule {
         let key: String
         let declarations: SVGSourceStyleElement
+        /// The declarations in source order. `SVGSourceStyleElement` keeps only presentation
+        /// properties, so the animation declarations are resolved from this list instead.
+        let rawDeclarations: [(property: String, value: String)]
     }
+
+    /// One keyframe of a CSS `@keyframes` block: the normalised offset and the declarations
+    /// (`stroke-dashoffset` is the property the runtime CSS-animation subset animates today).
+    struct Keyframe {
+        let offset: Double
+        let declarations: [String: String]
+    }
+
+    /// A parsed `@keyframes` block, sorted by offset.
+    struct Keyframes {
+        let frames: [Keyframe]
+    }
+
+    /// The `@keyframes` blocks of this stylesheet by animation name.
+    private(set) var keyframes: [String: Keyframes] = [:]
 
     /// The rules in document order, one list per selector kind: within a kind a later rule
     /// wins, and the kinds keep their coarse specificity order — tag, then class, then id
@@ -47,8 +65,75 @@ class SVGStyleTag: SVGChildObject {
 
     func parseStyle(styleStr: String) throws {
         for rule in SVGStyleTag.cssRules(in: SVGStyleTag.removingComments(styleStr)) {
-            try applyRule(selectors: rule.selectors, declarations: rule.declarations)
+            if rule.selectors.hasPrefix("@") {
+                parseAtRule(prelude: rule.selectors, body: rule.declarations)
+            } else {
+                try applyRule(selectors: rule.selectors, declarations: rule.declarations)
+            }
         }
+    }
+
+    /// `@keyframes` become a keyframe registry; every other at-rule (`@media`, `@font-face`,
+    /// `@supports`, …) stays out of scope and is skipped with its body.
+    private func parseAtRule(prelude: String, body: String) {
+        let withoutAt = prelude.dropFirst() // the leading '@'
+        guard let separator = withoutAt.firstIndex(where: { $0.isWhitespace }) else { return }
+        let name = String(withoutAt[..<separator]).lowercased()
+        guard name == "keyframes" || name.hasSuffix("-keyframes") else { return }
+        let animationName = SVGUtils.trimmed(string: String(withoutAt[separator...]))
+        guard !animationName.isEmpty else { return }
+
+        var frames: [Keyframe] = []
+        for block in SVGStyleTag.cssRules(in: body) {
+            let offsets = SVGStyleTag.keyframeOffsets(block.selectors)
+            guard !offsets.isEmpty else { continue }
+            var declarations: [String: String] = [:]
+            for declaration in SVGSourceStyleElement.orderedDeclarations(from: block.declarations) {
+                declarations[declaration.property] = declaration.value
+            }
+            for offset in offsets {
+                frames.append(Keyframe(offset: offset, declarations: declarations))
+            }
+        }
+        frames.sort { $0.offset < $1.offset }
+        keyframes[animationName] = Keyframes(frames: frames)
+    }
+
+    /// Keyframe offsets of one block prelude: `from`, `to`, `33.3%`, and comma-separated lists.
+    private static func keyframeOffsets(_ prelude: String) -> [Double] {
+        var offsets: [Double] = []
+        for raw in prelude.split(separator: ",") {
+            let token = SVGUtils.trimmed(string: String(raw)).lowercased()
+            if token == "from" {
+                offsets.append(0)
+            } else if token == "to" {
+                offsets.append(1)
+            } else if token.hasSuffix("%"), let percent = Double(token.dropLast()) {
+                offsets.append(percent / 100)
+            } else {
+                return [] // an invalid keyframe selector drops the whole block, as CSS does
+            }
+        }
+        return offsets
+    }
+
+    /// The `animation`/`animation-*` declarations of every rule matching `object`, in cascade
+    /// order (the same coarse tag → class → id order as `style(for:)`). They are not presentation
+    /// properties, so `style(for:)` does not carry them.
+    func animationDeclarations(for object: SVGObject) -> [(property: String, value: String)] {
+        var result: [(property: String, value: String)] = []
+        func append(_ rule: Rule) {
+            for declaration in rule.rawDeclarations
+            where declaration.property == "animation" || declaration.property.hasPrefix("animation-") {
+                result.append(declaration)
+            }
+        }
+        for rule in tagRules where rule.key == object.key { append(rule) }
+        for rule in classRules where object.classNames.contains(rule.key) { append(rule) }
+        if let id = object.id {
+            for rule in idRules where rule.key == id { append(rule) }
+        }
+        return result
     }
 
     private enum SelectorKind { case classSelector, idSelector, tagSelector }
@@ -67,7 +152,8 @@ class SVGStyleTag: SVGChildObject {
             }
             let element = SVGSourceStyleElement()
             try element.set(styleStr: declarations)
-            let rule = Rule(key: target.key, declarations: element)
+            let rule = Rule(key: target.key, declarations: element,
+                            rawDeclarations: SVGSourceStyleElement.orderedDeclarations(from: declarations))
             switch target.kind {
             case .tagSelector: tagRules.append(rule)
             case .classSelector: classRules.append(rule)
@@ -138,13 +224,27 @@ class SVGStyleTag: SVGChildObject {
             if prelude.hasPrefix("@"), let semicolon = prelude.lastIndex(of: ";") {
                 prelude = SVGUtils.trimmed(string: String(prelude[prelude.index(after: semicolon)...]))
             }
-            if prelude.isEmpty || prelude.hasPrefix("@") {
+            if prelude.isEmpty {
                 var depth = 1
                 while i < chars.count, depth > 0 {
                     if chars[i] == "{" { depth += 1 }
                     else if chars[i] == "}" { depth -= 1 }
                     i += 1
                 }
+                continue
+            }
+            if prelude.hasPrefix("@") {
+                // A block at-rule (`@media`, `@keyframes`): keep its body so `parseStyle` can
+                // pick up the keyframe registries; everything else is ignored there.
+                var body = ""
+                var depth = 1
+                while i < chars.count, depth > 0 {
+                    if chars[i] == "{" { depth += 1 }
+                    else if chars[i] == "}" { depth -= 1 }
+                    if depth > 0 { body.append(chars[i]) }
+                    i += 1
+                }
+                rules.append((prelude, body))
                 continue
             }
             var body = ""

@@ -28,17 +28,17 @@ What is converted:
   `animation-delay`, `animation-iteration-count` and `animation-fill-mode` are folded into one SMIL
   animation (a full `alternate` cycle repeats with `repeatCount="indefinite"`; finite counts are
   expanded into a single sampled duration);
-- animated properties: `transform`, `opacity`, `fill` and `stroke`. Transform lists are flattened to
+- animated properties: `transform`, `opacity`, `fill`, `stroke` and `stroke-dashoffset`. Transform lists are flattened to
   the 2D plane (`translate3d`/`scale3d`, `rotateZ`/`rotate3d` about z, `skewX`/`skewY`); a list of
   same-kind functions collapses into one (`translateX + translateY` → `translate`), and a mixed list
   (`translate(...) scale(...)`) becomes a chain of wrapper `<g>` layers with one `<animateTransform>`
   per function, because the runtime animates one transform function per layer. `transform-origin` is
   not modelled: SVG's initial origin is `0 0` and a pure translation is origin-independent,
   everything else is reported;
-- properties outside the SMIL profile (`stroke-dashoffset`, `stroke-width`, …) and `@media`/`@supports`/
+- properties outside the SMIL profile (`stroke-width`, `fill-opacity`, …) and `@media`/`@supports`/
   `@import`/CSS transitions cannot be converted: they are dropped with a warning (the runtime animates
-  only `transform`/`opacity`/`fill`/`stroke`, and has no media queries — a dark variant belongs to the
-  app);
+  only `transform`/`opacity`/`fill`/`stroke`/`stroke-dashoffset`, and has no media queries — a dark
+  variant belongs to the app);
 Output: a document with the same geometry, CSS inlined as presentation/inline style, the consumed
 `<style>` blocks and `animation*` declarations removed, and one `<animate>`/`<animateTransform>` per
 animated property (a mixed transform list gains one nested `<g>` wrapper per function). Animated
@@ -60,7 +60,7 @@ from collections import OrderedDict
 SVG_NS = "http://www.w3.org/2000/svg"
 XLINK_NS = "http://www.w3.org/1999/xlink"
 
-SUPPORTED_ANIMATED_PROPS = ("transform", "opacity", "fill", "stroke")
+SUPPORTED_ANIMATED_PROPS = ("transform", "opacity", "fill", "stroke", "stroke-dashoffset")
 ANIMATION_LONGHANDS = (
     "animation-name", "animation-duration", "animation-timing-function", "animation-delay",
     "animation-iteration-count", "animation-direction", "animation-fill-mode",
@@ -446,6 +446,10 @@ def apply_cascade(element, rules, parents, warnings):
     style_props = OrderedDict()
     animation_declarations = []
     for prop, value in cascade(element, rules, parents):
+        # Vendor-prefixed duplicates (`-webkit-animation`, `-webkit-transition`, …) are not part of
+        # the SVG profile; the standard property (when handled) is inlined above them.
+        if prop.startswith(("-webkit-", "-moz-", "-ms-", "-o-")):
+            continue
         if prop == "animation" or prop in ANIMATION_LONGHANDS:
             animation_declarations.append((prop, value))
         elif prop in ("transform-origin", "transform-box"):
@@ -1076,6 +1080,13 @@ def parse_property_value(prop, raw):
         if not NUMBER_RE.match(raw.strip()):
             raise UnsupportedValue(raw)
         return float(raw.strip())
+    if prop == "stroke-dashoffset":
+        value = raw.strip()
+        if value.endswith("px"):
+            value = value[:-2].strip()
+        if not NUMBER_RE.match(value):
+            raise UnsupportedValue(raw)
+        return float(value)
     color = parse_color(raw)
     if color is None:
         raise UnsupportedValue(raw)
@@ -1085,7 +1096,7 @@ def parse_property_value(prop, raw):
 def interpolate_value(prop, start, end, factor):
     if prop == "transform":
         return interpolate_transform(start, end, factor)
-    if prop == "opacity":
+    if prop in ("opacity", "stroke-dashoffset"):
         return interpolate_number(start, end, factor)
     return interpolate_color(start, end, factor)
 
@@ -1093,7 +1104,7 @@ def interpolate_value(prop, start, end, factor):
 def format_property_value(prop, value):
     if prop == "transform":
         return format_transform_list(value)
-    if prop == "opacity":
+    if prop in ("opacity", "stroke-dashoffset"):
         return format_number(value)
     return format_color(value)
 
@@ -1229,7 +1240,7 @@ def build_timeline(sampled_iteration, direction, iterations):
 
 def smil_value(prop, value):
     """One SMIL `values` entry for a non-transform property."""
-    if prop == "opacity":
+    if prop in ("opacity", "stroke-dashoffset"):
         return format_number(value)
     return format_color(value)
 
@@ -1547,7 +1558,7 @@ def values_equal(prop, value, base):
         return [kind for kind, _ in value] == [kind for kind, _ in base] and all(
             abs(a - b) < 1e-6 for (_, params_a), (_, params_b) in zip(value, base)
             for a, b in zip(params_a, params_b))
-    if prop == "opacity":
+    if prop in ("opacity", "stroke-dashoffset"):
         return abs(value - base) < 1e-6
     return all(abs(a - b) < 1e-6 for a, b in zip(value, base))
 

@@ -16,6 +16,8 @@ struct SVGAnimation {
         case fill
         case stroke
         case transform(type: String)
+        /// `stroke-dashoffset`, animated through `CAShapeLayer.lineDashPhase`.
+        case strokeDashoffset
     }
 
     var kind: Kind
@@ -24,6 +26,13 @@ struct SVGAnimation {
     var duration: TimeInterval
     var repeatCount: Float
     var begin: TimeInterval
+
+    /// CSS Animations only: the per-segment easing (`values.count − 1` entries; one entry for a
+    /// two-value basic animation) and the Core Animation behaviour CSS `animation-direction` and
+    /// `animation-fill-mode` map to. SMIL animations leave them at their defaults.
+    var timingFunctions: [CAMediaTimingFunction]?
+    var autoreverses = false
+    var fillMode: CAMediaTimingFillMode?
 
     /// Parses `<animate>`, `<animateTransform>`, and `<set>` children into animations.
     static func parse(children: [XMLElement]) -> [SVGAnimation] {
@@ -42,6 +51,7 @@ struct SVGAnimation {
                 case "opacity": kind = .opacity
                 case "fill": kind = .fill
                 case "stroke": kind = .stroke
+                case "stroke-dashoffset": kind = .strokeDashoffset
                 default: continue
                 }
             }
@@ -104,6 +114,7 @@ struct SVGAnimation {
         case .opacity: targetLayer = layer; keyPath = "opacity"
         case .fill: targetLayer = pathLayer ?? layer; keyPath = "fillColor"
         case .stroke: targetLayer = pathLayer ?? layer; keyPath = "strokeColor"
+        case .strokeDashoffset: targetLayer = pathLayer ?? layer; keyPath = "lineDashPhase"
         case .transform: targetLayer = layer; keyPath = "transform"
         }
 
@@ -140,6 +151,18 @@ struct SVGAnimation {
         animation.duration = duration
         animation.repeatCount = repeatCount
         animation.beginTime = (epoch ?? CACurrentMediaTime()) + begin
+        animation.autoreverses = autoreverses
+        if let fillMode = fillMode {
+            animation.fillMode = fillMode
+            animation.isRemovedOnCompletion = false
+        }
+        if let timingFunctions = timingFunctions, !timingFunctions.isEmpty {
+            if let keyframe = animation as? CAKeyframeAnimation {
+                keyframe.timingFunctions = timingFunctions
+            } else if let basic = animation as? CABasicAnimation, timingFunctions.count == 1 {
+                basic.timingFunction = timingFunctions[0]
+            }
+        }
         targetLayer.add(animation, forKey: keyPath)
     }
 
@@ -212,6 +235,8 @@ struct SVGAnimation {
             pathLayer?.fillColor = SVGColors.getColor(string: value).cgColor
         case .stroke:
             pathLayer?.strokeColor = SVGColors.getColor(string: value).cgColor
+        case .strokeDashoffset:
+            if let offset = Self.parseDashoffset(value) { pathLayer?.lineDashPhase = CGFloat(offset) }
         case .transform(let type):
             if let t = Self.transform(from: value, type: type) { layer.transform = t }
         }
@@ -223,9 +248,19 @@ struct SVGAnimation {
             return Float(string) ?? 0
         case .fill, .stroke:
             return SVGColors.getColor(string: string).cgColor
+        case .strokeDashoffset:
+            return Self.parseDashoffset(string) ?? 0
         case .transform(let type):
             return NSValue(caTransform3D: Self.transform(from: string, type: type) ?? CATransform3DIdentity)
         }
+    }
+
+    /// Parses one `stroke-dashoffset` value: a number with an optional `px` unit (the user unit
+    /// and a CSS pixel are the same length inside an SVG viewport).
+    static func parseDashoffset(_ string: String) -> Double? {
+        var trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasSuffix("px") { trimmed = String(trimmed.dropLast(2)) }
+        return Double(trimmed)
     }
 
     /// Numbers in an SMIL value list, separated by whitespace and/or commas (`0 12 12`

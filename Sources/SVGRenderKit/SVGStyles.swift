@@ -200,11 +200,12 @@ public class SVGSourceStyleElement {
         if let str = attributeDict["style"] { try set(styleStr: str) }
     }
 
-    /// Parses an inline `style` or a CSS declaration block into a property dictionary.
-    /// Per CSS: a value may itself contain `:`, a trailing `!important` is not part of the
-    /// value, and the last declaration of a property wins (B109).
-    static func declarations(from styleStr: String) -> [String: String] {
-        var result: [String: String] = [:]
+    /// Parses an inline `style` or a CSS declaration block into `(property, value)` pairs in
+    /// source order. CSS animations need the order (`animation` vs `animation-*`), so it is kept.
+    /// Per CSS: a value may itself contain `:`, and a trailing `!important` is not part of the
+    /// value.
+    static func orderedDeclarations(from styleStr: String) -> [(property: String, value: String)] {
+        var result: [(property: String, value: String)] = []
         for declaration in splitDeclarations(stripComments(styleStr)) {
             let parts = declaration.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
             guard parts.count == 2 else { continue }
@@ -214,7 +215,18 @@ public class SVGSourceStyleElement {
             if value.lowercased().hasSuffix("!important") {
                 value = SVGUtils.trimmed(string: String(value.dropLast("!important".count)))
             }
-            result[key] = value
+            result.append((property: key, value: value))
+        }
+        return result
+    }
+
+    /// Parses an inline `style` or a CSS declaration block into a property dictionary.
+    /// Per CSS: a value may itself contain `:`, a trailing `!important` is not part of the
+    /// value, and the last declaration of a property wins (B109).
+    static func declarations(from styleStr: String) -> [String: String] {
+        var result: [String: String] = [:]
+        for declaration in orderedDeclarations(from: styleStr) {
+            result[declaration.property] = declaration.value
         }
         return result
     }

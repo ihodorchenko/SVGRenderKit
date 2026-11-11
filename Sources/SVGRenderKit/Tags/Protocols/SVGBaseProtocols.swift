@@ -27,6 +27,11 @@ protocol SVGShapesContainer: AnyObject {
     ///
     /// Per SVG, these outrank presentation attributes; inline `style` outranks them both.
     func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement
+    /// The CSS `animation`/`animation-*` declarations of the `<style>` blocks matching a shape,
+    /// in cascade order. They are not presentation properties and are resolved separately.
+    func animationDeclarations(forObject: SVGShapeObject) -> [(property: String, value: String)]
+    /// The `@keyframes` block for a CSS animation name, searched through the ancestor chain.
+    func keyframes(named name: String) -> SVGStyleTag.Keyframes?
     /// Returns the rendering options for the SVG document.
     func getSvgOptions() -> SVGOptions
 
@@ -114,5 +119,15 @@ extension SVGShapesContainer {
     /// Containers without `<style>` support contribute no selector rules.
     func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
         return SVGSourceStyleElement()
+    }
+
+    /// Containers without `<style>` support contribute no CSS animations.
+    func animationDeclarations(forObject: SVGShapeObject) -> [(property: String, value: String)] {
+        return []
+    }
+
+    /// Containers without `<style>` support define no keyframes.
+    func keyframes(named name: String) -> SVGStyleTag.Keyframes? {
+        return nil
     }
 }

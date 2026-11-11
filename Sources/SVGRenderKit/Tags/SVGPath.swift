@@ -15,6 +15,10 @@ class SVGShapeObject: SVGObject, SVGRendering {
     var path: UIBezierPath = UIBezierPath()
 
     var animations: [SVGAnimation] = []
+    /// Inline `style` declarations of this shape that belong to CSS animations
+    /// (`animation`/`animation-*`). They are not presentation properties, so `inlineStyle`
+    /// does not keep them; the runtime CSS subset resolves them separately.
+    private var cssAnimationDeclarations: [(property: String, value: String)] = []
 
     /// Initializes a shape object from an XML element and its parent shapes container.
     required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
@@ -29,6 +33,7 @@ class SVGShapeObject: SVGObject, SVGRendering {
         let inline = SVGSourceStyleElement()
         if let str = attributeDict["style"] {
             try inline.set(styleStr: str)
+            self.cssAnimationDeclarations = SVGSourceStyleElement.orderedDeclarations(from: str)
         }
         self.inlineStyle = inline
 
@@ -86,15 +91,30 @@ class SVGShapeObject: SVGObject, SVGRendering {
             mainLayer.transform = transform
         }
 
+        // CSS animations (the runtime subset) ride the same attach/deferred path as SMIL.
+        let cssAnimations = cssAnimations(style: sourceStyle)
         if let options = getSvgOptions() {
-            options.attach(animations, to: mainLayer, pathLayer: pathLayer)
+            options.attach(animations + cssAnimations, to: mainLayer, pathLayer: pathLayer)
         } else {
-            for animation in animations {
+            for animation in animations + cssAnimations {
                 animation.apply(to: mainLayer, pathLayer: pathLayer, epoch: nil)
             }
         }
 
         return mainLayer
+    }
+
+    /// The CSS animations of this shape: the document's `<style>` rules matching it plus its
+    /// inline `style`. Only the properties of `SVGCSSAnimations.supportedProperties` are built;
+    /// the rest are logged and skipped there.
+    private func cssAnimations(style: SVGSourceStyleElement) -> [SVGAnimation] {
+        let declarations = parent.animationDeclarations(forObject: self) + cssAnimationDeclarations
+        guard !declarations.isEmpty else { return [] }
+        return SVGCSSAnimations.animations(
+            specs: SVGCSSAnimations.specs(from: declarations),
+            keyframes: { [parent] name in parent.keyframes(named: name) },
+            baseDashoffset: style.strokeDashoffset ?? 0
+        )
     }
 
     class func create(xml: XMLElement, parent: SVGShapesContainer) throws -> SVGShapeObject? {

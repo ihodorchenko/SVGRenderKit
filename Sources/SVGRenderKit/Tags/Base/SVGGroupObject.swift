@@ -373,6 +373,32 @@ extension SVGGroupObject {
         return selectorStyle(for: forObject)
     }
 
+    /// CSS animation declarations of the `<style>` blocks matching a shape, in cascade order.
+    /// Unlike presentation properties they are not inherited: a rule on a `<g>` animates the
+    /// group, not its children.
+    func animationDeclarations(forObject anObject: SVGShapeObject) -> [(property: String, value: String)] {
+        return animationDeclarations(for: anObject)
+    }
+
+    func animationDeclarations(for object: SVGObject) -> [(property: String, value: String)] {
+        var declarations: [(property: String, value: String)] = []
+        for styleTag in styleTags() {
+            declarations.append(contentsOf: styleTag.animationDeclarations(for: object))
+        }
+        return declarations
+    }
+
+    /// The `@keyframes` block for a CSS animation name; the document's `<style>` blocks are
+    /// searched root→leaf, so a nested block can override a top-level name.
+    func keyframes(named name: String) -> SVGStyleTag.Keyframes? {
+        for styleTag in styleTags() {
+            if let keyframes = styleTag.keyframes[name] {
+                return keyframes
+            }
+        }
+        return nil
+    }
+
     /// This group's own effective style: presentation attributes, then the `<style>`-block
     /// rules that target the group itself (`<g class="st0">` with `.st0{…}`), then its
     /// inline `style`. A selector outranks a presentation attribute; inline `style`
