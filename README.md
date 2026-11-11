@@ -284,7 +284,7 @@ See [CONFORMANCE.md](CONFORMANCE.md) for the full icon-profile contract.
 ## Example app
 
 The `Example` project is a gallery that renders every SVG bundled under
-`Example/Example/data` (`folder_1` … `folder_8`). Open `Example/Example.xcodeproj`
+`Example/Example/data` (`folder_1` … `folder_9`). Open `Example/Example.xcodeproj`
 and run the `Example` scheme — it consumes the library as a local Swift Package.
 The gallery supports a light/dark/gray substrate color picker and a full-screen
 detail view.
@@ -325,6 +325,19 @@ CI runs it on pushes to `main`, manually, and on pull requests labelled `webkit`
 hides — then shows up next to the CoreSVG report in the same run; the browser rasters
 live in a temporary directory (recorded in `.webkit-rasters`, so later test runs pick
 them up too) and nothing is committed.
+
+### CSS-animated assets
+
+Designer tools export motion as CSS (`<style>` with `@keyframes` and `animation`), while the runtime
+profile animates only SMIL — such an asset renders a frozen base frame. `Scripts/css-to-smil.py` is
+the build-time step for that class: it inlines the matched CSS declarations, rewrites every CSS
+animation as `<animate>`/`<animateTransform>` (the timing function is sampled into
+`values`/`keyTimes`, direction, delay and iteration count are folded in) and drops `@media` blocks
+with a warning. `--self-test` checks the converter without Xcode; `--strict` turns every degradation
+into a failure for an asset pipeline. Converted documents animate through `SVGView` like any SMIL
+asset and stay out of the pixel corpus (`CorpusLoader.hasRenderingAnimation`). The runtime CSS
+engine — full cascade, media queries, `transform-origin`, dynamic appearance — remains a separate
+work item, see `docs/css-animations-plan.md`.
 
 ## Performance
 

@@ -99,6 +99,14 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 - Event-based `begin`, `to`-only, `additive`/`accumulate`, `calcMode`,
   `fill="freeze"` ❌ out of scope
 
+CSS animations (`@keyframes` and the `animation` shorthand) are **not** part of the runtime
+profile: `<style>` at-rules are skipped and `animation*` properties are ignored, so such a document
+renders its base state. Build-time alternative for the common designer-export class:
+`Scripts/css-to-smil.py` rewrites the asset into the SMIL subset above (CSS inlined; the timing
+function sampled into `values`/`keyTimes`; direction/delay/iterations folded in). The runtime CSS
+engine, if the product needs arbitrary CSS assets, is the separate plan in
+[docs/css-animations-plan.md](docs/css-animations-plan.md).
+
 ## Explicitly out of scope (browser features)
 
 - Scripting, DOM, and events.

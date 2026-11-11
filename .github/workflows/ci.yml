@@ -25,6 +25,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The converter is a build-time tool (no Xcode needed); keep its checks green like the
+      # library tests. It runs once per matrix leg — cheap compared to a simulator boot.
+      - name: Check the CSS-to-SMIL converter
+        run: python3 Scripts/css-to-smil.py --self-test
+
       - name: Pick a simulator
         id: simulator
         run: echo "udid=$(Scripts/pick-simulator.sh ${{ matrix.device }})" >> "$GITHUB_OUTPUT"

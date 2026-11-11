@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Internal
+- `Scripts/css-to-smil.py` — a build-time converter that rewrites a CSS-animated SVG into the SMIL
+  profile the runtime animates (matched CSS inlined; `@keyframes`/`animation` translated to
+  `<animate>`/`<animateTransform>` with the timing function, direction, delay and iteration count
+  folded into sampled `values`/`keyTimes`). Designer exports no longer need a runtime CSS engine for
+  the common case; `--self-test` covers the converter and `--strict` fails an asset pipeline on a
+  degradation. The runtime CSS plan stays in `docs/css-animations-plan.md`.
+
 ## 2.0.1 - 2026-10-30
 
 ### Fixed

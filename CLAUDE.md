@@ -114,6 +114,13 @@ full filter pipeline (`feMorphology` etc.). If real icons start to need any of t
 separate decision (in particular `<a>` and a nested `<svg>` are currently dropped silently together with
 their content).
 
+CSS animations are outside the runtime profile as well (only the SMIL subset animates): `@keyframes`
+and the `animation` shorthand are ignored, so a designer-exported asset renders its base state. For
+such an asset use the build-time converter `Scripts/css-to-smil.py` (`--self-test`, `--strict`), which
+rewrites it into the SMIL subset; the runtime engine remains the separate plan in
+[docs/css-animations-plan.md](docs/css-animations-plan.md). Converted assets still go through
+`CorpusLoader.hasRenderingAnimation` and never enter the pixel corpus.
+
 ## Decisions taken and rejected options
 
 - **A linear gradient in sRGB was rejected.** Replacing `CAGradientLayer` with CG drawing that mixes in

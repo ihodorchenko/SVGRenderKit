@@ -1,7 +1,16 @@
 # Plan: render and animate the original CSS-driven SVG (`folder_9/logo-ghost-wave-effect.svg`)
 
-Status: **proposal**, not started. Depends on the two animation fixes released in 2.0.1 (see
-"Prerequisites").
+Status: **proposal**, not started for the runtime. Depends on the two animation fixes released in 2.0.1
+(see "Prerequisites").
+
+Update: a *build-time* converter for the common export class now exists — `Scripts/css-to-smil.py`
+(Unreleased). It inlines the matched CSS, translates `@keyframes`/`animation` into the SMIL profile
+with the timing function sampled, and covers `folder_9/1_29.svg` and the light variant of the original
+logo, which unblocks assets without the runtime engine. It does not replace this plan: the runtime
+still cannot play arbitrary CSS (cascade, `@media`, `transform-origin`/`fill-box`, dynamic appearance,
+`prefers-reduced-motion`), and converted output inherits the SMIL subset's limits (no `keySplines`, so
+easing is sampled; a finite `fill-mode` cannot freeze; a positive delay with `fill-mode: backwards/both`
+on an infinite animation shows the base value during the delay).
 
 ## 1. Goal
 
@@ -162,7 +171,8 @@ original's light-mode look is unaffected.
 | **Total** | **27.5–52 (~38)** |
 
 Cheaper options already available: the converted asset (0.5–1 day, done) and a build-time converter
-(3–6 days) for teams that can preprocess assets — neither makes designer files work at runtime.
+(`Scripts/css-to-smil.py`, done for the common export class) for teams that can preprocess assets —
+neither makes arbitrary designer files work at runtime.
 
 ## 8. Suggested order
 
