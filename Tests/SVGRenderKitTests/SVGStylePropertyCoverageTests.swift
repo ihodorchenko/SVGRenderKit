@@ -33,25 +33,41 @@ final class SVGStylePropertyCoverageTests: XCTestCase {
         return style
     }
 
+    /// `filter` and `dropShadow` are two shapes of the same CSS property and are mutually
+    /// exclusive, so the sample can only exercise one of them; `dropShadow` has its own test.
     func testSampleSetsEveryProperty() throws {
-        XCTAssertEqual(unsetProperties(of: try fullStyle()), [],
+        XCTAssertEqual(unsetProperties(of: try fullStyle()), ["dropShadow"],
                        "a property is missing from `sample` or not parsed by `set(attributeDict:)`")
     }
 
     func testCombineCarriesEveryProperty() throws {
         let combined = SVGSourceStyleElement().combine(child: try fullStyle())
-        XCTAssertEqual(unsetProperties(of: combined), [], "`combine(child:)` drops a property")
+        XCTAssertEqual(unsetProperties(of: combined), ["dropShadow"], "`combine(child:)` drops a property")
     }
 
     func testSetElementCopiesEveryProperty() throws {
         let copy = SVGSourceStyleElement()
         copy.set(element: try fullStyle())
-        XCTAssertEqual(unsetProperties(of: copy), [], "`set(element:)` drops a property")
+        XCTAssertEqual(unsetProperties(of: copy), ["dropShadow"], "`set(element:)` drops a property")
+    }
+
+    func testDropShadowIsACarriedProperty() throws {
+        let style = SVGSourceStyleElement()
+        try style.set(attributeDict: ["filter": "drop-shadow(1px 2px 3px #123456)"])
+        XCTAssertNotNil(style.dropShadow)
+        XCTAssertNil(style.filter)
+        let combined = SVGSourceStyleElement().combine(child: style)
+        XCTAssertNotNil(combined.dropShadow)
+        XCTAssertNil(combined.filter, "`combine` keeps the mutually exclusive pair coherent")
+        let copy = SVGSourceStyleElement()
+        copy.set(element: style)
+        XCTAssertNotNil(copy.dropShadow)
     }
 
     func testWithoutGroupCompositingKeepsTheRest() throws {
         let stripped = try fullStyle().withoutGroupCompositing()
         XCTAssertEqual(Set(unsetProperties(of: stripped)),
-                       ["opacity", "clipPath", "mask", "filter", "transform", "transformOrigin", "transformBox"])
+                       ["opacity", "clipPath", "mask", "filter", "dropShadow", "transform", "transformOrigin",
+                        "transformBox"])
     }
 }

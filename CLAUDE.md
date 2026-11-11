@@ -123,11 +123,13 @@ stylesheet or inline `style`, with direction, easing, delay, iteration count and
 `<g>` only `opacity`/`transform` (the paint properties are inherited). `@media` is evaluated for
 `prefers-color-scheme` and `prefers-reduced-motion`; appearance/Reduce Motion come from the view's
 traits and `UIAccessibility` (`SVGView.appearanceOverride`/`motionPreference`, the SwiftUI
-environment, `SVGRenderer` parameters). The CSS `transform` property and
+environment, `SVGRenderer` parameters). `steps()`, CSS `linear()` and an overshooting
+`cubic-bezier()` are sampled into keyframes (Core Animation cannot express them), and
+`filter: drop-shadow()` renders as a layer shadow. The CSS `transform` property and
 `transform-origin`/`transform-box` (`view-box`/`fill-box`) are applied to shapes and `<g>`, both
 statically and inside every `transform` keyframe; an origin animated inside a keyframe, the CSS
-`transform` property on `<use>`/`<image>`, CSS transitions, `drop-shadow` and the frame oracle
-remain out of scope; for an asset that needs those use the
+`transform` property on `<use>`/`<image>`, a paused animation, CSS transitions and the frame
+oracle remain out of scope; for an asset that needs those use the
 build-time converter `Scripts/css-to-smil.py` (`--self-test`, `--strict`), which rewrites it into
 the SMIL subset. The remaining runtime CSS work is the plan in
 [docs/css-animations-plan.md](docs/css-animations-plan.md). Animated assets still go through

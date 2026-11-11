@@ -200,10 +200,19 @@ enum SVGCSSAnimations {
         }
         guard values.count >= 2 else { return nil }
 
-        let keyTimes = frames.map { $0.offset }
-        let timings = (0..<(values.count - 1)).map { index -> CAMediaTimingFunction in
-            easingFunction(frames[index].timing ?? spec.timingFunction, animationName: spec.name)
+        var keyTimes = frames.map { $0.offset }
+        var easings = (0..<(values.count - 1)).map { index in
+            easing(frames[index].timing ?? spec.timingFunction, animationName: spec.name)
         }
+        // `steps()`, `linear()` and an overshooting `cubic-bezier()` are not expressible as a
+        // Core Animation timing function: sample them into extra keyframes instead.
+        if easings.contains(where: { !$0.isRepresentable }) {
+            let expanded = expand(values: values, keyTimes: keyTimes, easings: easings)
+            values = expanded.values
+            keyTimes = expanded.keyTimes
+            easings = expanded.easings
+        }
+        let timings = easings.map { $0.timingFunction }
         guard let arranged = arrange(values: values, keyTimes: keyTimes, timings: timings, spec: spec),
               let cssValues = cssValues(for: property, values: arranged.values) else {
             return nil
@@ -384,27 +393,293 @@ enum SVGCSSAnimations {
         return min(1, max(0, number))
     }
 
-    private static func easingFunction(_ text: String, animationName: String) -> CAMediaTimingFunction {
-        switch text {
-        case "linear": return CAMediaTimingFunction(name: .linear)
-        case "ease": return CAMediaTimingFunction(name: .easeInEaseOut)
-        case "ease-in": return CAMediaTimingFunction(name: .easeIn)
-        case "ease-out": return CAMediaTimingFunction(name: .easeOut)
-        case "ease-in-out": return CAMediaTimingFunction(name: .easeInEaseOut)
-        default:
-            if text.hasPrefix("cubic-bezier("), text.hasSuffix(")") {
-                let body = text.dropFirst("cubic-bezier(".count).dropLast()
-                let numbers = body.split(separator: ",").compactMap {
-                    Float($0.trimmingCharacters(in: .whitespaces))
-                }
-                if numbers.count == 4 {
-                    return CAMediaTimingFunction(controlPoints: numbers[0], numbers[1],
-                                                 numbers[2], numbers[3])
-                }
-            }
-            SVGLog.addSLog(errorStr: "CSS animation '\(animationName)': timing function '\(text)' is not supported; linear is used")
+    // MARK: - Easing (Core Animation timing functions and CSS-only curves)
+
+    private enum StepPosition {
+        case jumpStart
+        case jumpEnd
+        case jumpNone
+        case jumpBoth
+    }
+
+    /// One segment's easing: either a Core Animation timing function or a curve sampled into
+    /// keyframes because Core Animation cannot express it.
+    private enum Easing {
+        /// Breakpoints as `(local time 0…1, eased fraction)`.
+        case sampled([(time: Double, fraction: Double)])
+        case steps(count: Int, position: StepPosition)
+        case timing(CAMediaTimingFunction)
+
+        var isRepresentable: Bool {
+            if case .timing = self { return true }
+            return false
+        }
+
+        var timingFunction: CAMediaTimingFunction {
+            if case .timing(let function) = self { return function }
             return CAMediaTimingFunction(name: .linear)
         }
+    }
+
+    private static func easing(_ text: String, animationName: String) -> Easing {
+        switch text {
+        case "linear": return .timing(CAMediaTimingFunction(name: .linear))
+        case "ease": return .timing(CAMediaTimingFunction(name: .easeInEaseOut))
+        case "ease-in": return .timing(CAMediaTimingFunction(name: .easeIn))
+        case "ease-out": return .timing(CAMediaTimingFunction(name: .easeOut))
+        case "ease-in-out": return .timing(CAMediaTimingFunction(name: .easeInEaseOut))
+        default: break
+        }
+        if text.hasPrefix("cubic-bezier(") {
+            let body = text.dropFirst("cubic-bezier(".count).dropLast()
+            let numbers = body.split(separator: ",").compactMap {
+                Double($0.trimmingCharacters(in: .whitespaces))
+            }
+            if numbers.count == 4, numbers[0] >= 0, numbers[0] <= 1, numbers[2] >= 0, numbers[2] <= 1 {
+                if numbers[1] >= 0, numbers[1] <= 1, numbers[3] >= 0, numbers[3] <= 1 {
+                    return .timing(CAMediaTimingFunction(controlPoints: Float(numbers[0]),
+                                                         Float(numbers[1]),
+                                                         Float(numbers[2]),
+                                                         Float(numbers[3])))
+                }
+                // An overshoot (y outside 0…1): sample the curve into keyframes.
+                return .sampled(cubicBezierSamples(numbers[0], numbers[1], numbers[2], numbers[3]))
+            }
+        }
+        if text.hasPrefix("steps("), text.hasSuffix(")") {
+            let body = text.dropFirst("steps(".count).dropLast()
+            let parts = body.split(separator: ",").map {
+                $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            }
+            if let count = parts.first.flatMap({ Int($0) }), count > 0 {
+                var position = StepPosition.jumpEnd
+                if parts.count > 1 {
+                    switch parts[1] {
+                    case "start", "jump-start": position = .jumpStart
+                    case "end", "jump-end": position = .jumpEnd
+                    case "jump-none": position = .jumpNone
+                    case "jump-both": position = .jumpBoth
+                    default:
+                        SVGLog.addSLog(errorStr: "CSS animation '\(animationName)': unknown steps() position '\(parts[1])'; jump-end is used")
+                    }
+                }
+                if position == .jumpNone, count < 2 {
+                    SVGLog.addSLog(errorStr: "CSS animation '\(animationName)': steps(1, jump-none) is invalid; linear is used")
+                    return .timing(CAMediaTimingFunction(name: .linear))
+                }
+                return .steps(count: count, position: position)
+            }
+        }
+        if text.hasPrefix("linear("), text.hasSuffix(")") {
+            let body = text.dropFirst("linear(".count).dropLast()
+            if let samples = linearEasingSamples(String(body)) {
+                return .sampled(samples)
+            }
+        }
+        SVGLog.addSLog(errorStr: "CSS animation '\(animationName)': timing function '\(text)' is not supported; linear is used")
+        return .timing(CAMediaTimingFunction(name: .linear))
+    }
+
+    /// Evaluates the cubic-bezier timing curve at `x` (a binary search for the Bézier parameter,
+    /// then the y value there).
+    private static func cubicBezierY(_ x: Double, _ x1: Double, _ y1: Double,
+                                     _ x2: Double, _ y2: Double) -> Double {
+        func bezier(_ t: Double, _ p1: Double, _ p2: Double) -> Double {
+            let mt = 1 - t
+            return 3 * mt * mt * t * p1 + 3 * mt * t * t * p2 + t * t * t
+        }
+        var low = 0.0
+        var high = 1.0
+        for _ in 0..<40 {
+            let mid = (low + high) / 2
+            if bezier(mid, x1, x2) < x { low = mid } else { high = mid }
+        }
+        return bezier((low + high) / 2, y1, y2)
+    }
+
+    private static func cubicBezierSamples(_ x1: Double, _ y1: Double,
+                                           _ x2: Double, _ y2: Double) -> [(time: Double, fraction: Double)] {
+        let steps = 24
+        return (0...steps).map { index in
+            let time = Double(index) / Double(steps)
+            return (time, cubicBezierY(time, x1, y1, x2, y2))
+        }
+    }
+
+    /// Parses the CSS `linear()` easing into its breakpoints; `nil` when the syntax is invalid.
+    private static func linearEasingSamples(_ body: String) -> [(time: Double, fraction: Double)]? {
+        let entries = body.split(separator: ",").map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        guard !entries.isEmpty else { return nil }
+        var values: [Double] = []
+        var inputs: [Double?] = []
+        for entry in entries {
+            let tokens = entry.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+            guard let value = tokens.first.flatMap({ Double($0) }) else { return nil }
+            values.append(value)
+            if tokens.count > 1, tokens[1].hasSuffix("%"), let percent = Double(tokens[1].dropLast()) {
+                inputs.append(percent / 100)
+            } else {
+                inputs.append(nil)
+            }
+        }
+        guard values.count >= 2 else { return nil }
+        if inputs.contains(where: { $0 == nil }) {
+            // Missing input percentages are distributed evenly between the annotated anchors,
+            // with the ends pinned to 0 and 1 (the CSS `linear()` rule).
+            if inputs[0] == nil { inputs[0] = 0 }
+            if inputs[inputs.count - 1] == nil { inputs[inputs.count - 1] = 1 }
+            var index = 0
+            while index < inputs.count {
+                guard inputs[index] == nil else {
+                    index += 1
+                    continue
+                }
+                var end = index
+                while end < inputs.count, inputs[end] == nil { end += 1 }
+                guard end < inputs.count, let startTime = inputs[index - 1],
+                      let endTime = inputs[end] else { return nil }
+                let gaps = end - index + 1
+                for offset in 0..<gaps {
+                    inputs[index + offset] = startTime
+                        + (endTime - startTime) * Double(offset + 1) / Double(gaps)
+                }
+                index = end
+            }
+            for index in 1..<inputs.count {
+                guard let previous = inputs[index - 1], let current = inputs[index],
+                      previous <= current else { return nil }
+            }
+        }
+        var samples: [(time: Double, fraction: Double)] = []
+        for index in 0..<values.count {
+            let time = min(1, max(0, inputs[index] ?? 0))
+            samples.append((time, values[index]))
+        }
+        // CSS requires the first input at 0 and the last at 1; clamp the ends so the segment
+        // still spans the whole keyframe interval.
+        if samples[0].time > 0 { samples.insert((0, values[0]), at: 0) }
+        if samples[samples.count - 1].time < 1 { samples.append((1, values[values.count - 1])) }
+        return samples
+    }
+
+    /// Breakpoints for a `steps()` easing. A tiny gap before every jump keeps the jump sharp
+    /// when Core Animation interpolates the sampled keyframes linearly.
+    private static func stepSamples(count: Int, position: StepPosition) -> [(time: Double, fraction: Double)] {
+        let n = Double(count)
+        let epsilon = min(1e-4, 0.25 / n)
+        var samples: [(time: Double, fraction: Double)] = []
+        for step in 0..<count {
+            let start = Double(step) / n
+            let end = min(1 - epsilon, (Double(step) + 1) / n - epsilon)
+            let value: Double
+            switch position {
+            case .jumpEnd: value = Double(step) / n
+            case .jumpStart: value = (Double(step) + 1) / n
+            case .jumpNone: value = Double(step) / Double(count - 1)
+            case .jumpBoth: value = (Double(step) + 1) / Double(count + 1)
+            }
+            samples.append((max(epsilon, start), value))
+            samples.append((max(max(epsilon, start), end), value))
+        }
+        samples.append((1, 1))
+        return samples
+    }
+
+    /// Expands the segments whose easing is not a Core Animation timing function into sampled
+    /// keyframes; every other segment stays a single timing function.
+    private static func expand(values: [Value], keyTimes: [Double], easings: [Easing])
+        -> (values: [Value], keyTimes: [Double], easings: [Easing]) {
+        var outValues = [values[0]]
+        var outTimes = [keyTimes[0]]
+        var outEasings: [Easing] = []
+        for index in 0..<easings.count {
+            let from = values[index]
+            let to = values[index + 1]
+            let t0 = keyTimes[index]
+            let t1 = keyTimes[index + 1]
+            switch easings[index] {
+            case .timing(let function):
+                outValues.append(to)
+                outTimes.append(t1)
+                outEasings.append(.timing(function))
+            case .steps(let count, let position):
+                appendSamples(stepSamples(count: count, position: position),
+                              from: from, to: to, t0: t0, t1: t1,
+                              values: &outValues, times: &outTimes, easings: &outEasings)
+            case .sampled(let samples):
+                appendSamples(samples, from: from, to: to, t0: t0, t1: t1,
+                              values: &outValues, times: &outTimes, easings: &outEasings)
+            }
+        }
+        return (outValues, outTimes, outEasings)
+    }
+
+    private static func appendSamples(_ samples: [(time: Double, fraction: Double)],
+                                      from: Value, to: Value, t0: Double, t1: Double,
+                                      values: inout [Value], times: inout [Double],
+                                      easings: inout [Easing]) {
+        for sample in samples where sample.time > 0 {
+            let time = t0 + (t1 - t0) * min(1, max(0, sample.time))
+            let value = interpolate(from, to, sample.fraction)
+            if let last = times.last, time <= last + 1e-9 {
+                values[values.count - 1] = value
+                continue
+            }
+            values.append(value)
+            times.append(time)
+            easings.append(.timing(CAMediaTimingFunction(name: .linear)))
+        }
+        // The linear approximation must still reach the segment's end value.
+        if let last = times.last, last < t1 - 1e-9 {
+            values.append(to)
+            times.append(t1)
+            easings.append(.timing(CAMediaTimingFunction(name: .linear)))
+        }
+    }
+
+    /// Interpolates between two keyframe values for the sampled easings.
+    private static func interpolate(_ from: Value, _ to: Value, _ fraction: Double) -> Value {
+        // An overshooting cubic-bezier is sampled with fractions outside 0…1 on purpose.
+        let t = fraction
+        switch (from, to) {
+        case (.number(let a), .number(let b)):
+            return .number(a + (b - a) * t)
+        case (.color(let a), .color(let b)):
+            return .color(interpolateColor(a, b, t))
+        case (.transform(let a), .transform(let b)):
+            return .transform(interpolateMatrix(a, b, t))
+        default:
+            return t < 0.5 ? from : to
+        }
+    }
+
+    private static func interpolateColor(_ from: CGColor, _ to: CGColor, _ t: Double) -> CGColor {
+        let a = UIColor(cgColor: from)
+        let b = UIColor(cgColor: to)
+        var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
+        var r2: CGFloat = 0, g2: CGFloat = 0, b2: CGFloat = 0, a2: CGFloat = 0
+        a.getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
+        b.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
+        let t = CGFloat(t)
+        func channel(_ a: CGFloat, _ b: CGFloat) -> CGFloat { min(1, max(0, a + (b - a) * t)) }
+        return UIColor(red: channel(r1, r2), green: channel(g1, g2),
+                       blue: channel(b1, b2), alpha: channel(a1, a2)).cgColor
+    }
+
+    private static func interpolateMatrix(_ from: CATransform3D, _ to: CATransform3D,
+                                          _ t: Double) -> CATransform3D {
+        let t = CGFloat(t)
+        func mix(_ a: CGFloat, _ b: CGFloat) -> CGFloat { return a + (b - a) * t }
+        return CATransform3D(m11: mix(from.m11, to.m11), m12: mix(from.m12, to.m12),
+                             m13: mix(from.m13, to.m13), m14: mix(from.m14, to.m14),
+                             m21: mix(from.m21, to.m21), m22: mix(from.m22, to.m22),
+                             m23: mix(from.m23, to.m23), m24: mix(from.m24, to.m24),
+                             m31: mix(from.m31, to.m31), m32: mix(from.m32, to.m32),
+                             m33: mix(from.m33, to.m33), m34: mix(from.m34, to.m34),
+                             m41: mix(from.m41, to.m41), m42: mix(from.m42, to.m42),
+                             m43: mix(from.m43, to.m43), m44: mix(from.m44, to.m44))
     }
 
     private static func caFillMode(_ value: String) -> CAMediaTimingFillMode? {

@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
+- CSS `filter: drop-shadow(offset-x offset-y blur-radius? color?)` renders as a layer shadow on
+  shapes and `<g>` (one shadow; a shadow list uses the first entry and logs the rest), and the
+  mutually exclusive URL/`none` forms keep the same cascade slot.
+- The CSS easing subset grew: `steps()` (all four jump positions), CSS `linear()` and an
+  overshooting `cubic-bezier()` (a control point's y outside 0…1) are sampled into keyframes, because
+  Core Animation has no timing function for them; `linear`/`ease*`/in-range `cubic-bezier()` still
+  map to a native timing function.
 - The CSS `transform` property now replaces the `transform` attribute on shapes and `<g>`, with
   `transform-origin` (`px`, `%`, keyword pairs) and `transform-box` (`view-box` by default,
   `fill-box` for the element's bounding box). Percentages resolve against the reference box, the

@@ -79,6 +79,8 @@ public class SVGSourceStyleElement {
     /// The CSS `transform` property (raw value). The SVG `transform` attribute is its presentation
     /// form, so the cascade resolves both here and the object applies the resolved matrix.
     var transform: String?
+    /// A CSS `filter: drop-shadow(…)` (one shadow); mutually exclusive with `filter`.
+    var dropShadow: SVGCSSDropShadow?
     /// The CSS `transform-origin` (raw value): the point the transform is applied around.
     var transformOrigin: String?
     /// The CSS `transform-box` (raw value): the reference box (`view-box`, the default, or
@@ -133,7 +135,13 @@ public class SVGSourceStyleElement {
         if let markerStart = child.markerStart { newElem.markerStart = markerStart }
         if let markerMid = child.markerMid { newElem.markerMid = markerMid }
         if let markerEnd = child.markerEnd { newElem.markerEnd = markerEnd }
-        if let filter = child.filter { newElem.filter = filter }
+        if let dropShadow = child.dropShadow {
+            newElem.dropShadow = dropShadow
+            newElem.filter = nil
+        } else if let filter = child.filter {
+            newElem.filter = filter
+            newElem.dropShadow = nil
+        }
         if let transform = child.transform { newElem.transform = transform }
         if let transformOrigin = child.transformOrigin { newElem.transformOrigin = transformOrigin }
         if let transformBox = child.transformBox { newElem.transformBox = transformBox }
@@ -174,6 +182,7 @@ public class SVGSourceStyleElement {
         markerMid = element.markerMid
         markerEnd = element.markerEnd
         filter = element.filter
+        dropShadow = element.dropShadow
         transform = element.transform
         transformOrigin = element.transformOrigin
         transformBox = element.transformBox
@@ -188,7 +197,7 @@ public class SVGSourceStyleElement {
     /// (`opacity`, `clip-path`, `mask`, `filter`) — the ones that must not be inherited
     /// by a `<use>` clone's content (B119-1).
     var hasGroupCompositing: Bool {
-        return opacity != nil || clipPath != nil || mask != nil || filter != nil
+        return opacity != nil || clipPath != nil || mask != nil || filter != nil || dropShadow != nil
     }
 
     /// This style without the non-inherited properties: the group-compositing ones (`opacity`,
@@ -214,6 +223,7 @@ public class SVGSourceStyleElement {
         copy.clipPath = nil
         copy.mask = nil
         copy.filter = nil
+        copy.dropShadow = nil
         copy.transform = nil
         copy.transformOrigin = nil
         copy.transformBox = nil
@@ -544,7 +554,20 @@ public class SVGSourceStyleElement {
     }
 
     func setFilter(str: String) throws {
-        self.filter = try SVGFuncIRI.get(fullStr: str)
+        let text = str.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = text.lowercased()
+        if lower == "none" {
+            filter = nil
+            dropShadow = nil
+            return
+        }
+        if lower.hasPrefix("drop-shadow(") {
+            dropShadow = try SVGCSSDropShadow.parse(text)
+            filter = nil
+            return
+        }
+        self.filter = try SVGFuncIRI.get(fullStr: text)
+        dropShadow = nil
     }
 
     func setFontFamily(str: String) {
@@ -757,6 +780,10 @@ extension SVGSourceStyleElement {
         if let markerEnd = self.markerEnd {
             let endInfo = SVGUtils.pathEndInfo(path: path)
             try applyMarker(iri: markerEnd, at: (endInfo.point, endInfo.tangent), mainLayer: mainLayer, group: group, strokeWidth: resolvedStrokeWidth, overrideElements: overrideElements)
+        }
+
+        if let dropShadow = self.dropShadow {
+            dropShadow.apply(to: mainLayer, currentColor: color ?? .black)
         }
 
         if let filter = self.filter {
@@ -980,6 +1007,10 @@ extension SVGSourceStyleElement {
         }
 
         layer.mask = combineClipAndMask(clip: clipMaskLayer, mask: appliedMaskLayer)
+
+        if let dropShadow = self.dropShadow {
+            dropShadow.apply(to: layer, currentColor: color ?? .black)
+        }
 
         if let filter = self.filter {
             switch filter {

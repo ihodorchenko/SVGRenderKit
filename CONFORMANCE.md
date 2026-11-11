@@ -136,10 +136,14 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 - known divergences: Core Animation interpolates matrices by decomposition (CSS interpolates the
   transform list component-wise) and colors in its own space (CSS uses premultiplied sRGB);
   `transform-origin` is not modelled (the SVG initial `0 0` is assumed)
+- `filter: drop-shadow()` (one shadow: offsets and blur in `px`/user units, a color or
+  `currentColor`) on shapes and groups ✅ (a comma-separated shadow list is out of scope: the first
+  shadow is used and the rest are logged)
 - timing functions `linear`/`ease*`/`cubic-bezier()`, `animation-direction`
   (`normal`/`reverse`/`alternate`/`alternate-reverse`), `animation-delay`, iteration counts and
-  `animation-fill-mode` ✅ (`steps()` falls back to linear with a log; finite alternating counts are
-  expanded, infinite ones use `autoreverses`)
+  `animation-fill-mode` ✅. `steps()`, CSS `linear()` and an overshooting `cubic-bezier()` (a
+  control point's y outside 0…1) are sampled into keyframes, because Core Animation has no timing
+  function for them; finite alternating counts are expanded, infinite ones use `autoreverses`
 - paused animations, child/sibling combinators, pseudo-classes and attribute selectors ❌ still out
   of scope (the plan in [docs/css-animations-plan.md](docs/css-animations-plan.md))
 
