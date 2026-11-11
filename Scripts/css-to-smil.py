@@ -28,15 +28,21 @@ What is converted:
   `animation-delay`, `animation-iteration-count` and `animation-fill-mode` are folded into one SMIL
   animation (a full `alternate` cycle repeats with `repeatCount="indefinite"`; finite counts are
   expanded into a single sampled duration);
-- animated properties: `transform` (`translate`/`translateX`/`translateY`, `scale`/`scaleX`/`scaleY`,
-  `rotate`), `opacity`, `fill` and `stroke`. `transform-origin` is not modelled: SVG's initial origin
-  is `0 0` and a pure translation is origin-independent, everything else is reported;
-- `@media`/`@supports`/`@import` and CSS transitions are out of scope: they are dropped with a
-  warning (the runtime profile has no media queries; a dark variant belongs to the app).
-
+- animated properties: `transform`, `opacity`, `fill` and `stroke`. Transform lists are flattened to
+  the 2D plane (`translate3d`/`scale3d`, `rotateZ`/`rotate3d` about z, `skewX`/`skewY`); a list of
+  same-kind functions collapses into one (`translateX + translateY` → `translate`), and a mixed list
+  (`translate(...) scale(...)`) becomes a chain of wrapper `<g>` layers with one `<animateTransform>`
+  per function, because the runtime animates one transform function per layer. `transform-origin` is
+  not modelled: SVG's initial origin is `0 0` and a pure translation is origin-independent,
+  everything else is reported;
+- properties outside the SMIL profile (`stroke-dashoffset`, `stroke-width`, …) and `@media`/`@supports`/
+  `@import`/CSS transitions cannot be converted: they are dropped with a warning (the runtime animates
+  only `transform`/`opacity`/`fill`/`stroke`, and has no media queries — a dark variant belongs to the
+  app);
 Output: a document with the same geometry, CSS inlined as presentation/inline style, the consumed
 `<style>` blocks and `animation*` declarations removed, and one `<animate>`/`<animateTransform>` per
-animated property on the target element. Animated documents stay out of the pixel-corpus
+animated property (a mixed transform list gains one nested `<g>` wrapper per function). Animated
+documents stay out of the pixel-corpus
 (`CorpusLoader.hasRenderingAnimation` detects `<animate`/`@keyframes`), so a converted asset is
 safe to bundle next to its original for the Example gallery.
 
@@ -820,7 +826,7 @@ def parse_transform_functions(text, css):
             i += 1
         if i >= n:
             break
-        match = re.match(r"([A-Za-z]+)\s*\(", text[i:])
+        match = re.match(r"([A-Za-z][A-Za-z0-9]*)\s*\(", text[i:])
         if not match:
             raise UnsupportedValue(text)
         name = match.group(1).lower()
@@ -841,6 +847,12 @@ def parse_transform_functions(text, css):
 
 
 def normalize_transform_function(name, arguments, css):
+    """Maps one CSS/SVG transform function to `(kind, params)` in the 2D plane.
+
+    3D aliases are flattened: the runtime is a 2D layer renderer, so `translate3d`/`scale3d` and
+    `translateZ`/`scaleZ` keep their x/y part and a rotation about z (`rotateZ`, or `rotate3d`
+    with a z axis only) becomes the ordinary `rotate`. Anything else is reported by the caller.
+    """
     if name == "translate":
         if not 1 <= len(arguments) <= 2:
             raise UnsupportedValue(name)
@@ -851,6 +863,12 @@ def normalize_transform_function(name, arguments, css):
         return ("translate", (parse_length(arguments[0]), 0.0))
     if name == "translatey":
         return ("translate", (0.0, parse_length(arguments[0])))
+    if name == "translatez":
+        return ("translate", (0.0, 0.0))
+    if name == "translate3d":
+        if len(arguments) != 3:
+            raise UnsupportedValue(name)
+        return ("translate", (parse_length(arguments[0]), parse_length(arguments[1])))
     if name == "scale":
         if not 1 <= len(arguments) <= 2:
             raise UnsupportedValue(name)
@@ -861,17 +879,90 @@ def normalize_transform_function(name, arguments, css):
         return ("scale", (parse_length(arguments[0]), 1.0))
     if name == "scaley":
         return ("scale", (1.0, parse_length(arguments[0])))
-    if name == "rotate":
+    if name == "scalez":
+        return ("scale", (1.0, 1.0))
+    if name == "scale3d":
+        if len(arguments) != 3:
+            raise UnsupportedValue(name)
+        return ("scale", (parse_length(arguments[0]), parse_length(arguments[1])))
+    if name in ("rotate", "rotatez"):
         if len(arguments) != 1:
             raise UnsupportedValue(name)  # the 3-argument rotation about a point is not a CSS form
         return ("rotate", (parse_angle(arguments[0]),))
+    if name == "rotate3d":
+        if len(arguments) != 4:
+            raise UnsupportedValue(name)
+        x, y, z = (float(arguments[0]), float(arguments[1]), float(arguments[2]))
+        if abs(x) > 1e-9 or abs(y) > 1e-9 or abs(z) < 1e-9:
+            raise UnsupportedValue(name)  # not a 2D rotation
+        return ("rotate", (parse_angle(arguments[3]),))
+    if name == "skewx":
+        return ("skewX", (parse_angle(arguments[0]),))
+    if name == "skewy":
+        return ("skewY", (parse_angle(arguments[0]),))
     raise UnsupportedValue(name)
 
 
+# One identity value per transform function kind (padding for implicit `0%`/`100%` keyframes and
+# for `transform: none`).
+TRANSFORM_IDENTITIES = {
+    "translate": (0.0, 0.0),
+    "scale": (1.0, 1.0),
+    "rotate": (0.0,),
+    "skewX": (0.0,),
+    "skewY": (0.0,),
+}
+
+
 def identity_transform_like(functions):
-    return [("translate", (0.0, 0.0)) if kind == "translate"
-            else ("scale", (1.0, 1.0)) if kind == "scale"
-            else ("rotate", (0.0,)) for kind, _ in functions]
+    return [(kind, TRANSFORM_IDENTITIES[kind]) for kind, _ in functions]
+
+
+def merge_same_kind(functions):
+    """Collapses a transform list whose functions all share one kind.
+
+    CSS composes `translate(a) translate(b)` as `translate(a + b)`, scales multiply and rotations
+    add, so the list fits the runtime's one-function-per-animation model. A list that mixes kinds
+    is left alone: it needs nested wrapper layers (`wrap_with_transform_animations`).
+    """
+    if len(functions) <= 1:
+        return functions
+    kinds = {kind for kind, _ in functions}
+    if len(kinds) != 1:
+        return functions
+    kind = kinds.pop()
+    if kind == "translate":
+        params = (sum(parameters[0] for _, parameters in functions),
+                  sum(parameters[1] for _, parameters in functions))
+    elif kind == "scale":
+        sx = sy = 1.0
+        for _, (x, y) in functions:
+            sx *= x
+            sy *= y
+        params = (sx, sy)
+    elif kind == "rotate":
+        params = (sum(parameters[0] for _, parameters in functions),)
+    else:
+        return functions  # skew lists do not compose additively; keep them as they are
+    return [(kind, params)]
+
+
+def transform_function_value(kind, params):
+    """One SMIL `values` entry of a transform function (`0 4`, `1.5 1.5`, `45`)."""
+    if kind in ("rotate", "skewX", "skewY"):
+        return format_number(params[0])
+    return " ".join(format_number(parameter) for parameter in params)
+
+
+def format_transform_list(functions):
+    """A transform list as the SVG `transform` attribute syntax (kit parses chains of these)."""
+    pieces = []
+    for kind, params in functions:
+        if kind in ("translate", "scale"):
+            pieces.append("%s(%s, %s)" % (kind, format_number(params[0]), format_number(params[1])))
+        elif kind in ("rotate", "skewX", "skewY"):
+            pieces.append("%s(%s)" % (kind, format_number(params[0])))
+    return " ".join(pieces) if pieces else "none"
 
 
 def interpolate_transform(start, end, factor):
@@ -919,7 +1010,7 @@ def build_base_transform(element, style_props, warnings):
     if "transform" in style_props:
         raw = style_props["transform"]
         try:
-            functions = parse_transform_functions(raw, css=True)
+            functions = merge_same_kind(parse_transform_functions(raw, css=True))
             return raw, functions
         except UnsupportedValue:
             warnings.warn("%s: static CSS transform '%s' is not representable; kept as is"
@@ -928,7 +1019,7 @@ def build_base_transform(element, style_props, warnings):
     attribute = element.get("transform")
     if attribute:
         try:
-            return attribute, parse_transform_functions(attribute, css=False)
+            return attribute, merge_same_kind(parse_transform_functions(attribute, css=False))
         except UnsupportedValue:
             # Only the implicit 0%/100% keyframes would need it; sampling reports that case.
             return attribute, None
@@ -1001,42 +1092,10 @@ def interpolate_value(prop, start, end, factor):
 
 def format_property_value(prop, value):
     if prop == "transform":
-        pieces = []
-        for kind, params in value:
-            if kind == "translate":
-                pieces.append("translate(%s, %s)" % (format_number(params[0]), format_number(params[1])))
-            elif kind == "scale":
-                pieces.append("scale(%s, %s)" % (format_number(params[0]), format_number(params[1])))
-            else:
-                pieces.append("rotate(%sdeg)" % format_number(params[0]))
-        return " ".join(pieces) if pieces else "none"
+        return format_transform_list(value)
     if prop == "opacity":
         return format_number(value)
     return format_color(value)
-
-
-def smil_value(prop, value):
-    """The SMIL `values` entry for one sample (a transform is one function per SMIL animation)."""
-    if prop == "transform":
-        kind, params = value[0]
-        if kind == "rotate":
-            return format_number(params[0])
-        return " ".join(format_number(parameter) for parameter in params)
-    if prop == "opacity":
-        return format_number(value)
-    return format_color(value)
-
-
-def smil_transform_type(prop, start, end):
-    if prop != "transform":
-        return None
-    if not start or not end:
-        raise UnsupportedValue("empty transform")
-    if len(start) != 1 or len(end) != 1:
-        raise UnsupportedValue("multiple transform functions in one animation")
-    if start[0][0] != end[0][0]:
-        raise UnsupportedValue("mixed transform functions in one animation")
-    return start[0][0]
 
 
 def sample_frames(prop, frames, base_raw, base_parsed, animation, warnings, samples_per_second,
@@ -1049,7 +1108,7 @@ def sample_frames(prop, frames, base_raw, base_parsed, animation, warnings, samp
     """
     if base_parsed is not None and not base_parsed and identity_value is not None:
         base_parsed = identity_value
-        base_raw = format_property_value("transform", base_parsed)
+        base_raw = format_transform_list(base_parsed)
     processed = []
     for offset, declarations, declarations_by_prop in frames:
         raw = declarations_by_prop.get(prop)
@@ -1061,9 +1120,12 @@ def sample_frames(prop, frames, base_raw, base_parsed, animation, warnings, samp
             warnings.warn("%s: unsupported '%s' value '%s'; the animation is skipped"
                           % (animation.css_name, prop, raw))
             return None
-        if prop == "transform" and identity_value is not None and not value:
-            value = identity_value  # `transform: none` interpolates as the matching identity
-            raw = format_property_value("transform", value)
+        if prop == "transform":
+            if not value and identity_value is not None:
+                value = identity_value  # `transform: none` interpolates as the matching identity
+            else:
+                value = merge_same_kind(value)
+            raw = format_transform_list(value)
         timing_text = declarations_by_prop.get("animation-timing-function")
         processed.append((offset, raw, value, timing_text))
     if not processed:
@@ -1146,7 +1208,8 @@ def build_timeline(sampled_iteration, direction, iterations):
         remaining = baked_iterations - index
         fraction = min(1.0, remaining)
         forward = iteration_is_forward(direction, index)
-        source = sampled_iteration if forward else [(1.0 - offset, value) for offset, value in reversed(sampled_iteration)]
+        source = sampled_iteration if forward \
+            else [(1.0 - offset, value) for offset, value in reversed(sampled_iteration)]
         for offset, value in source:
             if offset > fraction + 1e-9:
                 continue
@@ -1164,6 +1227,114 @@ def build_timeline(sampled_iteration, direction, iterations):
     return ([time / total for time in times], values, repeat_count, total)
 
 
+def smil_value(prop, value):
+    """One SMIL `values` entry for a non-transform property."""
+    if prop == "opacity":
+        return format_number(value)
+    return format_color(value)
+
+
+def set_animation_attributes(animation, values_text, times, duration, begin, repeat_count):
+    animation.set("values", values_text)
+    animation.set("keyTimes", ";".join(format_number(time) for time in times))
+    animation.set("dur", format_seconds(max(duration, 1e-6)))
+    animation.set("begin", format_seconds(begin))
+    if repeat_count:
+        animation.set("repeatCount", repeat_count)
+
+
+def resolve_transform_animation(declarations_by_prop, base_functions, warnings, label):
+    """The common transform chain of one CSS animation and the value of its implicit keyframes.
+
+    Returns `(shape, base, drop_attribute)`: `shape` is the tuple of function kinds shared by every
+    frame (`None` when the animation cannot be expressed), `base` the list used for implicit
+    `0%`/`100%` keyframes, and `drop_attribute` whether the element's `transform` attribute has to
+    go (a wrapper chain would otherwise compose with it).
+    """
+    declared = []
+    for _, _, merged in declarations_by_prop:
+        raw = merged.get("transform")
+        if raw is None:
+            continue
+        try:
+            declared.append(merge_same_kind(parse_transform_functions(raw, css=True)))
+        except UnsupportedValue as error:
+            warnings.warn("%s: unsupported transform value '%s' (%s); the transform part is skipped"
+                          % (label, raw, error))
+            return None, None, False
+    shape = None
+    for functions in declared:
+        if not functions:
+            continue  # `transform: none` is padded with identities once the shape is known
+        kinds = tuple(kind for kind, _ in functions)
+        if shape is None:
+            shape = kinds
+        elif kinds != shape:
+            warnings.warn("%s: the keyframes use different transform lists (%s vs %s); the transform "
+                          "part is skipped" % (label, " ".join(shape), " ".join(kinds)))
+            return None, None, False
+    if shape is None:
+        return None, None, False  # every frame says `transform: none`: nothing moves
+    identity = [(kind, TRANSFORM_IDENTITIES[kind]) for kind in shape]
+    base = merge_same_kind(base_functions) if base_functions else []
+    if not base:
+        base = identity
+    elif tuple(kind for kind, _ in base) != shape:
+        offsets = [offset for offset, _, merged in declarations_by_prop if "transform" in merged]
+        covers = bool(offsets) and min(offsets) <= 1e-9 and max(offsets) >= 1.0 - 1e-9
+        if not covers:
+            warnings.warn("%s: the static transform does not match the animated function list and "
+                          "the keyframes do not cover 0%%/100%%; the transform part is skipped"
+                          % label)
+            return None, None, False
+        base = identity  # the animation replaces the attribute for its whole active duration
+    return shape, base, len(shape) > 1
+
+
+def wrap_with_transform_animations(element, parents, shape, values, times, duration, begin,
+                                   repeat_count, warnings):
+    """Nests one `<g>` per CSS transform function and attaches its SMIL animation.
+
+    The runtime animates one transform function per layer, so a CSS list such as
+    `translate(...) scale(...)` becomes a chain of wrapper layers (the first function is the
+    outermost composition, matching how CSS applies the list).
+    """
+    parent = parents.get(element)
+    if parent is None:
+        warnings.warn("%s: the animated transform cannot be wrapped (the element has no parent); "
+                      "skipped" % describe(element))
+        return False
+    if element.get("transform") is not None:
+        # The CSS `transform` property replaces the attribute; keeping it would compose twice.
+        del element.attrib["transform"]
+        if begin > 0 or repeat_count != "indefinite":
+            warnings.warn("%s: the static transform attribute is dropped (the CSS animation replaces "
+                          "it); the state outside the animation may differ" % describe(element))
+    ns = namespace_of(parent.tag)
+    tag = "{%s}g" % ns if ns else "g"
+    index = list(parent).index(element)
+    parent.remove(element)
+    wrappers = []
+    outermost = ET.Element(tag)
+    parent.insert(index, outermost)
+    wrappers.append(outermost)
+    for _ in range(len(shape) - 1):
+        child = ET.Element(tag)
+        wrappers[-1].append(child)
+        wrappers.append(child)
+    wrappers[-1].append(element)
+    for position, kind in enumerate(shape):
+        animation = ET.Element("{%s}animateTransform" % ns if ns else "animateTransform")
+        animation.set("attributeName", "transform")
+        animation.set("type", kind)
+        set_animation_attributes(
+            animation,
+            ";".join(transform_function_value(kind, value[position][1]) for value in values),
+            times, duration, begin, repeat_count)
+        wrappers[position].append(animation)
+    return True
+
+
 def convert_element_animations(element, animation_records, keyframes, parents, style_props,
                                base_transforms, warnings, samples_per_second):
     """Builds `<animate>`/`<animateTransform>` children for one element; returns their count."""
@@ -1179,9 +1350,10 @@ def convert_element_animations(element, animation_records, keyframes, parents, s
                           "shapes and <g> only)" % (describe(element), tag))
         return 0
 
-    emitted, animated_props = 0, {}
     ns = namespace_of(element.tag)
+    base_transform_raw, base_transform_functions = base_transforms
 
+    prepared = []
     for record in animation_records:
         css_name = record["name"]
         if css_name in (None, "none"):
@@ -1201,11 +1373,10 @@ def convert_element_animations(element, animation_records, keyframes, parents, s
         if not math.isinf(record["iterations"]) and record["iterations"] > MAX_BAKED_ITERATIONS:
             warnings.warn("%s: animation '%s' repeats %g times; whole cycles are baked and the "
                           "partial remainder is dropped" % (describe(element), css_name,
-                                                          record["iterations"]))
+                                                           record["iterations"]))
 
-        frames = keyframes[css_name]
         declarations_by_prop = []
-        for offset, declarations in frames:
+        for offset, declarations in keyframes[css_name]:
             merged = OrderedDict()
             for prop, value, _ in declarations:
                 merged[prop] = value
@@ -1222,44 +1393,51 @@ def convert_element_animations(element, animation_records, keyframes, parents, s
         if not animated:
             continue
 
-        base_transform_raw, base_transform_functions = base_transforms
-        transform_identity = None
+        shape, base_parsed, drop_attribute = None, None, False
         if "transform" in animated:
-            kinds, unsupported = set(), False
-            for _, _, merged in declarations_by_prop:
-                raw = merged.get("transform")
-                if raw is None:
-                    continue
-                try:
-                    functions = parse_transform_functions(raw, css=True)
-                except UnsupportedValue:
-                    unsupported = True
-                    break
-                if not functions:
-                    continue
-                if len(functions) != 1:
-                    unsupported = True
-                    break
-                kinds.add(functions[0][0])
-            if unsupported or len(kinds) > 1:
-                warnings.warn("%s: animation '%s' transform is not a single transform "
-                              "function; the transform part is skipped"
-                              % (describe(element), css_name))
+            shape, base_parsed, drop_attribute = resolve_transform_animation(
+                declarations_by_prop, base_transform_functions, warnings, describe(element))
+            if shape is None:
                 animated = [prop for prop in animated if prop != "transform"]
-            elif kinds:
-                kind = kinds.pop()
-                identity = {"translate": (0.0, 0.0), "scale": (1.0, 1.0),
-                            "rotate": (0.0,)}[kind]
-                transform_identity = [(kind, identity)]
+                if not animated:
+                    continue
+        prepared.append({
+            "record": record,
+            "frames": declarations_by_prop,
+            "animated": animated,
+            "shape": shape,
+            "identity": [(kind, TRANSFORM_IDENTITIES[kind]) for kind in shape] if shape else None,
+            "base": base_parsed,
+            "drop_attribute": drop_attribute,
+        })
+
+    if not prepared:
+        return 0
+
+    # CSS: when several animations of one element target the same property, the later one wins.
+    winners = {}
+    for index, preparation in enumerate(prepared):
+        for prop in preparation["animated"]:
+            winners[prop] = index
+
+    emitted = 0
+    for index, preparation in enumerate(prepared):
+        record = preparation["record"]
+        css_name = record["name"]
+        lost = sorted(prop for prop in preparation["animated"] if winners.get(prop) != index)
+        if lost:
+            warnings.warn("%s: another CSS animation targets %s; the later one wins in the runtime"
+                          % (describe(element), ", ".join(lost)))
+        animated = [prop for prop in preparation["animated"] if winners.get(prop) == index]
         if not animated:
             continue
+
         for prop in animated:
-            base_raw, base_parsed = None, None
+            shape = preparation["shape"] if prop == "transform" else None
+            identity = preparation["identity"] if prop == "transform" else None
             if prop == "transform":
-                base_raw = base_transform_raw or format_property_value("transform", transform_identity)
-                base_parsed = base_transform_functions or transform_identity
-                if base_parsed is None:
-                    continue
+                base_parsed = preparation["base"]
+                base_raw = format_transform_list(base_parsed) if base_parsed is not None else None
             else:
                 base_raw, _ = base_value(element, prop, parents, style_props, base_transforms)
                 base_parsed = None
@@ -1269,12 +1447,12 @@ def convert_element_animations(element, animation_records, keyframes, parents, s
                     except UnsupportedValue:
                         base_parsed = None
 
-            sampled = sample_frames(prop, declarations_by_prop, base_raw, base_parsed,
+            sampled = sample_frames(prop, preparation["frames"], base_raw, base_parsed,
                                     PropertyAnimation(css_name, prop, record["duration"],
                                                       record["timing"], record["delay"],
                                                       record["iterations"], record["direction"],
                                                       record["fill"], record["play"]),
-                                    warnings, samples_per_second, transform_identity)
+                                    warnings, samples_per_second, identity)
             if sampled is None:
                 continue
             timeline = build_timeline(sampled, record["direction"], record["iterations"])
@@ -1287,12 +1465,12 @@ def convert_element_animations(element, animation_records, keyframes, parents, s
                               % (describe(element), css_name, len(values)))
                 # Re-sample at a lower rate once; a hostile document cannot grow unbounded.
                 scaled_rate = max(2, int(samples_per_second * MAX_SAMPLES / len(values)))
-                sampled = sample_frames(prop, declarations_by_prop, base_raw, base_parsed,
+                sampled = sample_frames(prop, preparation["frames"], base_raw, base_parsed,
                                         PropertyAnimation(css_name, prop, record["duration"],
                                                           record["timing"], record["delay"],
                                                           record["iterations"], record["direction"],
                                                           record["fill"], record["play"]),
-                                        warnings, scaled_rate, transform_identity)
+                                        warnings, scaled_rate, identity)
                 if sampled is None:
                     continue
                 timeline = build_timeline(sampled, record["direction"], record["iterations"])
@@ -1302,23 +1480,16 @@ def convert_element_animations(element, animation_records, keyframes, parents, s
                 total_duration = record["duration"] * total_iterations
             if len(values) < 2 or len(times) != len(values):
                 continue
-            try:
-                transform_type = smil_transform_type(prop, values[0], values[-1])
-            except UnsupportedValue as error:
-                warnings.warn("%s: animation '%s' transform (%s) is not expressible as one SMIL "
-                              "animation; skipped" % (describe(element), css_name, error))
+            if prop == "transform" and any(len(value) != len(shape) for value in values):
+                warnings.warn("%s: animation '%s' produced a transform list of a different shape; "
+                              "skipped" % (describe(element), css_name))
                 continue
-
-            if prop in animated_props:
-                warnings.warn("%s: two CSS animations target '%s'; the later one wins in the runtime"
-                              % (describe(element), prop))
-            animated_props[prop] = True
 
             # `fill-mode: forwards/both` cannot be expressed: the runtime does not freeze a
             # finished animation. Only worth a warning when the final value differs from the base.
             if not math.isinf(record["iterations"]) and record["fill"] in ("forwards", "both"):
                 if prop == "transform":
-                    final_base = base_parsed
+                    final_base = preparation["base"]
                 elif base_raw is not None:
                     try:
                         final_base = parse_property_value(prop, base_raw)
@@ -1343,18 +1514,28 @@ def convert_element_animations(element, animation_records, keyframes, parents, s
                 warnings.warn("%s: animation '%s' has a delay with fill-mode '%s'; the runtime shows "
                               "the base value during the delay" % (describe(element), css_name,
                                                                    record["fill"]))
-            name = "animateTransform" if prop == "transform" else "animate"
-            child = ET.Element("{%s}%s" % (ns, name) if ns else name)
-            child.set("attributeName", "transform" if prop == "transform" else prop)
             if prop == "transform":
-                child.set("type", transform_type)
-            child.set("values", ";".join(smil_value(prop, value) for value in values))
-            child.set("keyTimes", ";".join(format_number(time) for time in times))
-            child.set("dur", format_seconds(max(total_duration, 1e-6)))
-            child.set("begin", format_seconds(begin_seconds))
-            if repeat_count:
-                child.set("repeatCount", repeat_count)
-            element.append(child)
+                if len(shape) == 1:
+                    kind = shape[0]
+                    animation = ET.Element("{%s}animateTransform" % ns if ns else "animateTransform")
+                    animation.set("attributeName", "transform")
+                    animation.set("type", kind)
+                    set_animation_attributes(
+                        animation,
+                        ";".join(transform_function_value(kind, value[0][1]) for value in values),
+                        times, total_duration, begin_seconds, repeat_count)
+                    element.append(animation)
+                elif not wrap_with_transform_animations(element, parents, shape, values, times,
+                                                        total_duration, begin_seconds, repeat_count,
+                                                        warnings):
+                    continue
+            else:
+                animation = ET.Element("{%s}animate" % ns if ns else "animate")
+                animation.set("attributeName", prop)
+                set_animation_attributes(animation, ";".join(smil_value(prop, value)
+                                                             for value in values),
+                                         times, total_duration, begin_seconds, repeat_count)
+                element.append(animation)
             emitted += 1
     return emitted
 
@@ -1448,7 +1629,7 @@ def convert_document(root, warnings, samples_per_second):
             try:
                 functions = parse_transform_functions(raw, css=True)
                 if functions:
-                    element.set("transform", format_property_value("transform", functions))
+                    element.set("transform", format_transform_list(functions))
             except UnsupportedValue:
                 warnings.warn("%s: static CSS transform '%s' is not representable"
                               % (describe(element), raw))
@@ -1552,6 +1733,49 @@ def self_test():
     check(not root.findall(".//{%s}style" % SVG_NS), "the consumed <style> is removed")
     # No CSS animation leftovers on the element.
     check("animation" not in (root.find(".//{%s}path" % SVG_NS).get("style") or ""), "animation removed")
+    # Transform extensions: CSS 3D aliases are flattened and same-kind lists collapse, so the
+    # common designer chains fit one SMIL animation.
+    check(parse_transform_functions("scale3d(1.25,.75,1)", css=True) == [("scale", (1.25, 0.75))],
+          "scale3d alias")
+    check(parse_transform_functions("translate3d(10px,4px,0)", css=True)
+          == [("translate", (10.0, 4.0))], "translate3d alias")
+    check(parse_transform_functions("rotateZ(90deg)", css=True) == [("rotate", (90.0,))],
+          "rotateZ alias")
+    merged = merge_same_kind(parse_transform_functions("translateY(-2px) translateX(3px)", css=True))
+    check(merged == [("translate", (3.0, -2.0))], "same-kind translate merging")
+    merged = merge_same_kind(parse_transform_functions("scale(2) scale(.5, 3)", css=True))
+    check(merged == [("scale", (1.0, 6.0))], "same-kind scale merging")
+
+    # A mixed chain (`translate` + `scale`) is not one SMIL function: it becomes nested wrappers.
+    source = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<style>@keyframes pop{0%{transform:translate(0,0) scale(1)}'
+        '100%{transform:translate(10px,0) scale(2)}}</style>'
+        '<rect width="2" height="2" fill="#f00" style="animation:pop 2s linear infinite"/></svg>')
+    root = ET.fromstring(source)
+    warnings = Warnings()
+    animated, emitted = convert_document(root, warnings, 24)
+    check((animated, emitted) == (1, 1), "mixed-chain element converted")
+    wrappers = [element for element in root.iter()
+                if local_name(element.tag) == "g"
+                and any(local_name(child.tag) == "animateTransform" for child in element)]
+    check(len(wrappers) == 2, "one wrapper per transform function")
+    outer = [child.get("type") for child in wrappers[0]
+             if local_name(child.tag) == "animateTransform"]
+    inner = [child.get("type") for child in wrappers[-1]
+             if local_name(child.tag) == "animateTransform"]
+    check(outer == ["translate"] and inner == ["scale"], "wrapper order matches the CSS list")
+    rect = root.find(".//{%s}rect" % SVG_NS)
+    check(rect is not None, "the animated element is still in the document")
+    parents = {child: parent for parent in root.iter() for child in parent}
+    check(parents.get(rect) is wrappers[-1], "the element sits inside the innermost wrapper")
+    translate_values = [child for child in wrappers[0]
+                        if local_name(child.tag) == "animateTransform"][0].get("values").split(";")
+    check(translate_values[0] == "0 0" and translate_values[-1] == "10 0", "translation values")
+    scale_values = [child for child in wrappers[-1]
+                    if local_name(child.tag) == "animateTransform"][0].get("values").split(";")
+    check(scale_values[0] == "1 1" and scale_values[-1] == "2 2", "scale values")
+
     print("self-test: OK")
 
 

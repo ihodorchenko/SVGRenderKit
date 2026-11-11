@@ -5,12 +5,15 @@ Status: **proposal**, not started for the runtime. Depends on the two animation 
 
 Update: a *build-time* converter for the common export class now exists — `Scripts/css-to-smil.py`
 (Unreleased). It inlines the matched CSS, translates `@keyframes`/`animation` into the SMIL profile
-with the timing function sampled, and covers `folder_9/1_29.svg` and the light variant of the original
-logo, which unblocks assets without the runtime engine. It does not replace this plan: the runtime
-still cannot play arbitrary CSS (cascade, `@media`, `transform-origin`/`fill-box`, dynamic appearance,
-`prefers-reduced-motion`), and converted output inherits the SMIL subset's limits (no `keySplines`, so
-easing is sampled; a finite `fill-mode` cannot freeze; a positive delay with `fill-mode: backwards/both`
-on an infinite animation shows the base value during the delay).
+with the timing function sampled, normalises transform lists (same-kind functions merged, CSS 3D
+aliases flattened, a mixed chain split into nested wrapper `<g>` layers), and covers
+`folder_9/1_29.svg`, the light variant of the original logo and most of the dsgnmax icon set
+(`folder_9/fixed`), which unblocks assets without the runtime engine. It does not replace this plan:
+the runtime still cannot play arbitrary CSS (cascade, `@media`, `transform-origin`/`fill-box`,
+dynamic appearance, `prefers-reduced-motion`), and converted output inherits the SMIL subset's limits
+(no `keySplines`, so easing is sampled; a finite `fill-mode` cannot freeze; a positive delay with
+`fill-mode: backwards/both` on an infinite animation shows the base value during the delay;
+`stroke-dashoffset` and other paint-only properties cannot be expressed at all).
 
 ## 1. Goal
 
