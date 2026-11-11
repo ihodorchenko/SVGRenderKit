@@ -98,9 +98,10 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
   (`view-box`, the default, and `fill-box`) on shapes and `<g>` ✅: the property replaces the
   `transform` attribute, percentages in `translate()`/`transform-origin` resolve against the
   reference box, a missing `transform-origin` keeps the SVG initial `0 0`, and the same origin/box
-  is composed into every `transform` keyframe. Animated `transform-origin` (an origin declared in
-  a keyframe), and the CSS `transform` property on `<use>`/`<image>` (the attribute works there)
-  are out of scope
+  is composed into every `transform` keyframe. A `transform-origin` declared only in keyframes is
+  animated over the iteration like CSS does, by sampling the pivot into the matrix keyframes (a
+  component-wise approximation for large turns and moving origins); the CSS `transform` property
+  on `<use>`/`<image>` (the attribute works there) is out of scope
 - `@media` for `prefers-color-scheme` (`light`/`dark`) and `prefers-reduced-motion`
   (`reduce`/`no-preference`) ✅, including `and` chains, comma alternatives and nested blocks;
   anything else in a media query makes that alternative never match

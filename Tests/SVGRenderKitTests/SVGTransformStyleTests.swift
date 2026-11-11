@@ -171,6 +171,20 @@ final class SVGTransformStyleTests: XCTestCase {
         XCTAssertEqual(center.y, 25, accuracy: 1e-6)
     }
 
+    func testGroupFullTurnIsSampled() throws {
+        let root = try layer("""
+        <style>
+            @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+            .g{animation:spin 1s linear infinite}
+        </style>
+        <g class="g"><rect x="20" y="20" width="20" height="20"/></g>
+        """)
+        let animation = try animation(root, key: "transform")
+        let values = try matrices(animation)
+        XCTAssertGreaterThan(values.count, 20, "a group's full turn must be sampled too")
+        XCTAssertEqual(try XCTUnwrap(values.last).m11, 1, accuracy: 0.01)
+    }
+
     func testGroupStaticTransform() throws {
         let root = try layer("""
         <style>.g{transform:translate(10px, 0)}</style>
@@ -208,9 +222,108 @@ final class SVGTransformStyleTests: XCTestCase {
         <rect class="r" x="10" y="20" width="20" height="10"/>
         """), key: "transform")
         let values = try matrices(animation)
-        let fixed = point(values[1], 20, 25)
+        let fixed = point(try XCTUnwrap(values.last), 20, 25)
         XCTAssertEqual(fixed.x, 20, accuracy: 1e-6)
         XCTAssertEqual(fixed.y, 25, accuracy: 1e-6)
+    }
+
+    func testFullTurnRotationIsSampled() throws {
+        let animation = try animation(try layer("""
+        <style>
+            @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+            .r{animation:spin 1s linear infinite}
+        </style>
+        <path class="r" d="M0 0h10v10z"/>
+        """), key: "transform")
+        let values = try matrices(animation)
+        XCTAssertGreaterThan(values.count, 20, "a full turn must be sampled, not identity→identity")
+        let quarter = values[6] // 24 samples: 90°
+        XCTAssertEqual(quarter.m11, 0, accuracy: 0.01)
+        XCTAssertEqual(quarter.m12, 1, accuracy: 0.01)
+        let end = try XCTUnwrap(values.last)
+        XCTAssertEqual(end.m11, 1, accuracy: 0.01)
+        XCTAssertEqual(end.m12, 0, accuracy: 0.01)
+    }
+
+    func testFullTurnAroundAnOffsetOriginIsSampled() throws {
+        let animation = try animation(try layer("""
+        <style>
+            @keyframes spin{0%{transform:translate(24px, 24px) rotate(0deg) translate(-24px, -24px)}
+                            100%{transform:translate(24px, 24px) rotate(360deg) translate(-24px, -24px)}}
+            .r{animation:spin 1s linear infinite}
+        </style>
+        <path class="r" d="M0 0h10v10z"/>
+        """), key: "transform")
+        let values = try matrices(animation)
+        XCTAssertGreaterThan(values.count, 20)
+        let quarter = values[6]
+        XCTAssertEqual(point(quarter, 24, 24).x, 24, accuracy: 0.01, "the pivot stays fixed")
+        XCTAssertEqual(point(quarter, 24, 24).y, 24, accuracy: 0.01)
+    }
+
+    func testTransformOriginDeclaredInAKeyframeIsThePivot() throws {
+        let animation = try animation(try layer("""
+        <style>
+            @keyframes spin{0%{transform:rotate(0deg);transform-origin:50% 0%}100%{transform:rotate(90deg);transform-origin:50% 0%}}
+            .r{animation:spin 1s linear infinite}
+        </style>
+        <path class="r" d="M0 0h10v10z"/>
+        """), key: "transform")
+        let values = try matrices(animation)
+        let fixed = point(values[1], 50, 0)
+        XCTAssertEqual(fixed.x, 50, accuracy: 1e-6, "the keyframe origin must be the pivot")
+        XCTAssertEqual(fixed.y, 0, accuracy: 1e-6)
+    }
+
+    func testKeyframeOriginIsAnimated() throws {
+        let animation = try animation(try layer("""
+        <style>
+            @keyframes spin{0%{transform:rotate(0deg);transform-origin:50% 0%}
+                            100%{transform:rotate(90deg);transform-origin:0 0}}
+            .r{animation:spin 1s linear infinite}
+        </style>
+        <path class="r" d="M0 0h10v10z"/>
+        """), key: "transform")
+        let values = try matrices(animation)
+        XCTAssertGreaterThan(values.count, 20, "a moving transform-origin must be sampled")
+        let end = try XCTUnwrap(values.last)
+        XCTAssertEqual(end.m11, 0, accuracy: 0.01, "the origin animates to 0 0 at the end")
+        XCTAssertEqual(end.m12, 1, accuracy: 0.01)
+        XCTAssertEqual(end.m41, 0, accuracy: 0.01)
+        XCTAssertEqual(end.m42, 0, accuracy: 0.01)
+    }
+
+    func testImplicitEndpointIsSampledComponentWise() throws {
+        let animation = try animation(try layer("""
+        <style>
+            @keyframes half{0%{transform:rotate(0deg)}50%{transform:rotate(180deg)}}
+            .r{animation:half 1s linear infinite}
+        </style>
+        <path class="r" d="M0 0h10v10z"/>
+        """), key: "transform")
+        let values = try matrices(animation)
+        XCTAssertGreaterThan(values.count, 20, "the implicit 100% endpoint must be sampled too")
+        let end = try XCTUnwrap(values.last)
+        XCTAssertEqual(end.m11, 1, accuracy: 0.01)
+        XCTAssertEqual(end.m12, 0, accuracy: 0.01)
+    }
+
+    func testSingleKeyframeScaleIsInterpolated() throws {
+        let animation = try animation(try layer("""
+        <style>
+            @keyframes pop{0%{transform:scale(0)}}
+            .r{animation:pop 1s linear infinite}
+        </style>
+        <path class="r" d="M0 0h10v10z"/>
+        """), key: "transform")
+        let values = try matrices(animation)
+        // A pure scale interpolates the same whether Core Animation decomposes the matrix or not,
+        // so two keyframes are enough; the point is that the implicit identity endpoint exists.
+        XCTAssertEqual(values.count, 2)
+        XCTAssertEqual(try XCTUnwrap(values.first).m11, 0, accuracy: 0.01)
+        let end = try XCTUnwrap(values.last)
+        XCTAssertEqual(end.m11, 1, accuracy: 0.01)
+        XCTAssertEqual(end.m22, 1, accuracy: 0.01)
     }
 
     func testStaticCSSTransformIsTheImplicitAnimationEndpoint() throws {

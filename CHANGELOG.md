@@ -61,6 +61,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   subset gained the `stroke-dashoffset` target, so `Scripts/css-to-smil.py` converts it as well.
 
 ### Fixed
+- CSS transform animation now matches the browser for the patterns the frame oracle exposed:
+  - `translate3d()`/`scale3d()`/`rotate3d()` names were not parsed at all (the tokenizer stopped
+    at the digit), so several icons had no animation; they now animate.
+  - A full turn (`rotate(0deg)` → `rotate(360deg)`) collapsed to identity→identity and never moved
+    (refresh/reload icons); segments with a large rotation are sampled from the CSS functions, so
+    the winding and direction are preserved.
+  - A `transform-origin` declared only in a keyframe is animated like CSS does (the browser moves
+    the pivot over the iteration, which also translates the element); the origin is interpolated
+    over the animation and baked into the sampled matrices.
+  - Segments with an implicit keyframe (the underlying `none`) are sampled component-wise when
+    their base is identity, so a 180°→0° return takes the same path as the browser.
 - A CSS animation that paints a `stroke` on an element whose static `stroke` is `none` now applies
   `stroke-width`; it used to be drawn at Core Animation's default width of 1.
 - A `fill`/`stroke` animation whose keyframes define both endpoints no longer requires a colour

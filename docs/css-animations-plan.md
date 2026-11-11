@@ -12,8 +12,10 @@ direction, easing, delay, iteration count and `fill-mode` mapped to Core Animati
 `transform` property honours `transform-origin` (`px`, `%`, keywords) and `transform-box`
 (`view-box`/`fill-box`) on shapes and groups, statically and inside every keyframe; CSS
 `filter: drop-shadow()` renders as a layer shadow; `steps()`, CSS `linear()` and overshooting
-`cubic-bezier()` are sampled into keyframes. Remaining: the M4 frame oracle and the documented
-small gaps (an origin animated inside a keyframe, seeking a paused animation, CSS transitions).
+`cubic-bezier()` are sampled into keyframes, a `transform-origin` declared only inside keyframes is
+animated by sampling the pivot into the matrices, and large turns are sampled so the winding is
+preserved. Remaining: extending the M4 fixture set / deciding its gate, a seek of a paused
+animation and CSS transitions.
 Depends on the two animation fixes released in 2.0.1 (see "Prerequisites").
 
 Update: a *build-time* converter for the common export class now exists — `Scripts/css-to-smil.py`

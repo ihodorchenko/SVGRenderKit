@@ -155,17 +155,19 @@ enum SVGCSSAnimations {
                                   spec: SVGCSSAnimationSpec,
                                   base: BaseValues,
                                   transformContextProvider: (() -> SVGTransformStyle.Context)?) -> SVGAnimation? {
-        var frames: [(offset: Double, raw: String, timing: String?)] = []
+        var frames: [(offset: Double, raw: String, timing: String?, origin: String?, box: String?)] = []
         for frame in block.frames {
             guard let raw = frame.declarations[property.rawValue] else { continue }
             let timing = frame.declarations["animation-timing-function"]?
                 .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            frames.append((frame.offset, raw, timing))
+            frames.append((frame.offset, raw, timing,
+                           frame.declarations["transform-origin"],
+                           frame.declarations["transform-box"]))
         }
         guard !frames.isEmpty else { return nil }
         // A keyframe that does not mention the property is ignored for it (CSS Animations L1).
         frames.sort { $0.offset < $1.offset }
-        var deduped: [(offset: Double, raw: String, timing: String?)] = []
+        var deduped: [(offset: Double, raw: String, timing: String?, origin: String?, box: String?)] = []
         for frame in frames {
             if let last = deduped.last, abs(last.offset - frame.offset) < 1e-9 {
                 deduped[deduped.count - 1] = frame
@@ -175,10 +177,32 @@ enum SVGCSSAnimations {
         }
         frames = deduped
 
+        // Some designers declare `transform-origin`/`transform-box` inside the keyframes only
+        // (usually in the 0% frame). Without a static declaration the whole rotation/scale would
+        // otherwise pivot around the SVG initial 0 0; use the first keyframe value as the pivot
+        // for every sampled matrix. (CSS would animate the origin itself; a constant pivot is the
+        // closer, documented approximation.)
+        var effectiveContextProvider = transformContextProvider
+        if property == .transform, let provider = transformContextProvider {
+            let frameOrigin = block.frames.compactMap { $0.declarations["transform-origin"] }.first
+            let frameBox = block.frames.compactMap { $0.declarations["transform-box"] }.first
+            if frameOrigin != nil || frameBox != nil {
+                effectiveContextProvider = {
+                    let base = provider()
+                    let staticOrigin = (base.origin?.isEmpty == false) ? base.origin : nil
+                    return SVGTransformStyle.Context(
+                        viewBox: base.viewBox,
+                        bbox: base.bbox,
+                        origin: staticOrigin ?? frameOrigin,
+                        box: base.box ?? frameBox)
+                }
+            }
+        }
+
         var values: [Value] = []
         for frame in frames {
             guard let value = parseValue(frame.raw, property: property,
-                                         transformContextProvider: transformContextProvider) else {
+                                         transformContextProvider: effectiveContextProvider) else {
                 SVGLog.addSLog(errorStr: "CSS animation '\(spec.name)': unsupported "
                     + "\(property.rawValue) value '\(frame.raw)'; skipped")
                 return nil
@@ -197,11 +221,11 @@ enum SVGCSSAnimations {
                 return nil
             }
             if needsImplicitStart {
-                frames.insert((0, "", nil), at: 0)
+                frames.insert((0, "", nil, nil, nil), at: 0)
                 values.insert(baseValue, at: 0)
             }
             if needsImplicitEnd {
-                frames.append((1, "", nil))
+                frames.append((1, "", nil, nil, nil))
                 values.append(baseValue)
             }
         }
@@ -210,6 +234,41 @@ enum SVGCSSAnimations {
         var keyTimes = frames.map { $0.offset }
         var easings = (0..<(values.count - 1)).map { index in
             easing(frames[index].timing ?? spec.timingFunction, animationName: spec.name)
+        }
+        // A transform list is converted to matrices for Core Animation; a 0°→360° rotation would
+        // then be identity at both ends and never move. Sample those segments component-wise,
+        // exactly as CSS interpolates the transform functions.
+        if property == .transform, let context = transformContextProvider?() {
+            let raws = frames.map { $0.raw }
+            let easingTexts = frames.map { $0.timing ?? spec.timingFunction }
+            func originPoint(_ text: String?) -> CGPoint? {
+                guard let text = text, !text.isEmpty else { return nil }
+                return SVGTransformStyle.transformOrigin(text, context: context)
+            }
+            let staticOrigin = originPoint(context.origin)
+            let startOrigin = originPoint(frames.first { abs($0.offset) < 1e-9 }?.origin) ?? staticOrigin
+            let endOrigin = originPoint(frames.first { abs($0.offset - 1) < 1e-9 }?.origin) ?? staticOrigin
+            // CSS animates `transform-origin` itself: a declaration at 0% animates towards the
+            // underlying value at 100% over the whole iteration, wherever the transform keyframes
+            // are. Only the transform functions follow the per-keyframe segments.
+            let originEasing = frames.first { abs($0.offset) < 1e-9 }?.timing
+                ?? spec.timingFunction
+            // An implicit endpoint is the element's computed transform (`none` in practice);
+            // when that base is identity it can be synthesized as an identity function list and
+            // sampled exactly like an explicit keyframe.
+            var baseIsIdentity = false
+            if case .transform(let baseMatrix)? = baseValue(for: .transform, base: base) {
+                baseIsIdentity = CATransform3DIsIdentity(baseMatrix)
+            }
+            if let sampled = sampledTransform(values: values, raws: raws, keyTimes: keyTimes,
+                                              easings: easings, easingTexts: easingTexts,
+                                              originStart: startOrigin, originEnd: endOrigin,
+                                              originEasingText: originEasing,
+                                              baseIsIdentity: baseIsIdentity, context: context) {
+                values = sampled.values
+                keyTimes = sampled.keyTimes
+                easings = sampled.easings
+            }
         }
         // `steps()`, `linear()` and an overshooting `cubic-bezier()` are not expressible as a
         // Core Animation timing function: sample them into extra keyframes instead.
@@ -399,6 +458,141 @@ enum SVGCSSAnimations {
         }
         guard let number = number else { return nil }
         return min(1, max(0, number))
+    }
+
+    // MARK: - Component-wise transform sampling
+
+    /// Samples the transform segments Core Animation would get wrong: a large rotation (its
+    /// matrix decomposition loses the winding) or an animated `transform-origin` (CSS moves the
+    /// pivot over the whole iteration, so the element also translates). Transform functions are
+    /// interpolated per keyframe segment; the origin follows the animation-wide 0%→100% track.
+    private static func sampledTransform(values: [Value], raws: [String], keyTimes: [Double],
+                                         easings: [Easing], easingTexts: [String],
+                                         originStart: CGPoint?, originEnd: CGPoint?,
+                                         originEasingText: String, baseIsIdentity: Bool,
+                                         context: SVGTransformStyle.Context)
+        -> (values: [Value], keyTimes: [Double], easings: [Easing])? {
+        guard values.count >= 2, values.count == raws.count, values.count == keyTimes.count,
+              values.count == easings.count + 1, easingTexts.count == values.count else { return nil }
+        var components: [[SVGTransformStyle.Component]?] = []
+        for raw in raws {
+            components.append(raw.isEmpty ? nil : SVGTransformStyle.components(raw, context: context))
+        }
+        if baseIsIdentity {
+            for index in components.indices where components[index] == nil {
+                let neighbor = index > 0 ? components[index - 1] : components[index + 1]
+                if let neighbor = neighbor {
+                    components[index] = SVGTransformStyle.identityComponents(matching: neighbor)
+                }
+            }
+        }
+        let baseContext = SVGTransformStyle.Context(viewBox: context.viewBox, bbox: context.bbox)
+        let originAnimated = originStart != originEnd
+        let steps = 24
+        var outValues: [Value] = [values[0]]
+        var outTimes: [Double] = [keyTimes[0]]
+        var outEasings: [Easing] = []
+        var sampledAnything = false
+        for index in 0..<(values.count - 1) {
+            let fromComponents = components[index]
+            let toComponents = components[index + 1]
+            var needsSampling = originAnimated
+            if let fromComponents = fromComponents, let toComponents = toComponents,
+               let delta = SVGTransformStyle.rotationDelta(fromComponents, toComponents), delta >= 180 {
+                needsSampling = true
+            }
+            guard needsSampling, let fromComponents = fromComponents, let toComponents = toComponents else {
+                outValues.append(values[index + 1])
+                outTimes.append(keyTimes[index + 1])
+                outEasings.append(easings[index])
+                continue
+            }
+            sampledAnything = true
+            let t0 = keyTimes[index]
+            let t1 = keyTimes[index + 1]
+            for step in 1...steps {
+                let progress = Double(step) / Double(steps)
+                let eased = easedFraction(easingTexts[index], progress)
+                guard let raw = SVGTransformStyle.interpolatedTransform(fromComponents, toComponents,
+                                                                        progress: CGFloat(eased)),
+                      let base = SVGTransformStyle.matrix(raw, context: baseContext) else { return nil }
+                let matrix: CATransform3D
+                if originStart != nil || originEnd != nil {
+                    let global = t0 + (t1 - t0) * progress
+                    let originProgress = easedFraction(originEasingText, global)
+                    let from = originStart ?? .zero
+                    let to = originEnd ?? .zero
+                    let origin = CGPoint(x: from.x + (to.x - from.x) * CGFloat(originProgress),
+                                         y: from.y + (to.y - from.y) * CGFloat(originProgress))
+                    matrix = SVGTransformStyle.composed(around: base, origin: origin)
+                } else {
+                    matrix = base
+                }
+                outValues.append(.transform(matrix))
+                outTimes.append(t0 + (t1 - t0) * progress)
+                outEasings.append(.timing(CAMediaTimingFunction(name: .linear)))
+            }
+        }
+        guard sampledAnything else { return nil }
+        return (outValues, outTimes, outEasings)
+    }
+
+    /// The eased progress of a CSS timing function, used when a transform segment is sampled.
+    private static func easedFraction(_ text: String, _ progress: Double) -> Double {
+        let p = min(1, max(0, progress))
+        switch text {
+        case "linear": return p
+        case "ease": return cubicBezierY(p, 0.25, 0.1, 0.25, 1)
+        case "ease-in": return cubicBezierY(p, 0.42, 0, 1, 1)
+        case "ease-out": return cubicBezierY(p, 0, 0, 0.58, 1)
+        case "ease-in-out": return cubicBezierY(p, 0.42, 0, 0.58, 1)
+        default: break
+        }
+        if text.hasPrefix("cubic-bezier("), text.hasSuffix(")") {
+            let body = text.dropFirst("cubic-bezier(".count).dropLast()
+            let numbers = body.split(separator: ",").compactMap {
+                Double($0.trimmingCharacters(in: .whitespaces))
+            }
+            if numbers.count == 4 {
+                return cubicBezierY(p, numbers[0], numbers[1], numbers[2], numbers[3])
+            }
+        }
+        if text.hasPrefix("steps("), text.hasSuffix(")") {
+            let body = text.dropFirst("steps(".count).dropLast()
+            let parts = body.split(separator: ",").map {
+                $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            }
+            if let count = parts.first.flatMap({ Int($0) }), count > 0 {
+                if p >= 1 { return 1 }
+                let position = parts.count > 1 ? parts[1] : "jump-end"
+                let value = Double(count) * p
+                switch position {
+                case "start", "jump-start":
+                    return min(1, (floor(value) + 1) / Double(count))
+                case "jump-none":
+                    return min(1, floor(value) / Double(max(1, count - 1)))
+                case "jump-both":
+                    return min(1, (floor(value) + 1) / Double(count + 1))
+                default:
+                    return floor(value) / Double(count)
+                }
+            }
+        }
+        if text.hasPrefix("linear("), text.hasSuffix(")") {
+            let body = String(text.dropFirst("linear(".count).dropLast())
+            if let samples = linearEasingSamples(body), let first = samples.first, let last = samples.last {
+                if p <= first.time { return first.fraction }
+                if p >= last.time { return last.fraction }
+                for index in 1..<samples.count where p <= samples[index].time {
+                    let a = samples[index - 1]
+                    let b = samples[index]
+                    let span = b.time - a.time
+                    guard span > 0 else { return b.fraction }
+                    return a.fraction + (b.fraction - a.fraction) * (p - a.time) / span
+                }
+            }
+        }
+        return p
     }
 
     // MARK: - Easing (Core Animation timing functions and CSS-only curves)
