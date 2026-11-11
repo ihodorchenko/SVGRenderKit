@@ -8,11 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
-- Added the animation frame oracle harness: `Scripts/animation-oracle.sh` dumps a small fixture
-  set at known times with both the browser (`WKWebView`, CSS animations paused/seeking) and the kit
-  (Core Animation timeline frozen) and `SVGAnimationFrameOracleTests` prints per-frame differences.
-  It is report-only; the trajectory tests stay the gate. A SPI hook exposes the timeline
-  epoch/ready callback to the Example runner only.
+- Added the animation frame oracle harness: `Scripts/animation-oracle.sh` dumps a fixture set at
+  known times with both the browser (`WKWebView`, CSS animations paused/seeking, SMIL seeked with
+  `setCurrentTime`, per-fixture appearance) and the kit (Core Animation timeline frozen) and
+  `SVGAnimationFrameOracleTests` prints per-frame differences. The set now covers translate,
+  rotate-origin, steps, paused, fill/stroke colour, CSS and SMIL dashoffset, `<use>`/`<image>`,
+  a dark media palette and drop-shadow. It is report-only; the trajectory tests stay the gate. A
+  SPI hook exposes the timeline epoch/ready callback to the Example runner only.
 - CSS animations now also play on `<image>` and `<use>` (`opacity` and `transform`; the static CSS
   transform replaces the attribute there too), and `animation-play-state: paused` renders the
   animation's frame at t = 0 statically instead of being skipped (direction and the
@@ -57,6 +59,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (paint properties are inherited and cannot be animated on a group layer). The known divergences
   are Core Animation's matrix decomposition and color interpolation (CONFORMANCE.md). The SMIL
   subset gained the `stroke-dashoffset` target, so `Scripts/css-to-smil.py` converts it as well.
+
+### Fixed
+- A CSS animation that paints a `stroke` on an element whose static `stroke` is `none` now applies
+  `stroke-width`; it used to be drawn at Core Animation's default width of 1.
+- A `fill`/`stroke` animation whose keyframes define both endpoints no longer requires a colour
+  base, so a gradient (or `none`) base does not suppress it. The implicit 0%/100% keyframes still
+  need an interpolable colour and keep skipping the animation otherwise.
 
 ### Internal
 - `Scripts/css-to-smil.py` — a build-time converter that rewrites a CSS-animated SVG into the SMIL

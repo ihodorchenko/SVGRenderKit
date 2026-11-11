@@ -12,7 +12,7 @@
 #   SKIP_DUMP=1      reuse the rasters already in $RASTERS
 #   SKIP_TESTS=1     only produce the rasters
 #   RASTERS=<dir>    dump directory (default /tmp/svgrkit-animation-rasters)
-#   FIXTURES=<dir>   fixture directory (default Example/Example/data/animation-oracle)
+#   FIXTURES=<dir>   fixture directory (default Example/Example/AnimationOracleFixtures)
 #   DUMP_TIMEOUT=<s> how long the app may take (default 300)
 #
 # Exit code 0 when the dump is complete (the frame report never fails the build), 1 otherwise.
@@ -20,7 +20,7 @@ set -uo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RASTERS="${RASTERS:-/tmp/svgrkit-animation-rasters}"
-FIXTURES="${FIXTURES:-$REPO_DIR/Example/Example/data/animation-oracle}"
+FIXTURES="${FIXTURES:-$REPO_DIR/Example/Example/AnimationOracleFixtures}"
 POINTER="$REPO_DIR/.animation-rasters"
 DUMP_TIMEOUT="${DUMP_TIMEOUT:-300}"
 DERIVED_DATA="${DERIVED_DATA:-/tmp/svgrkit-example-dd}"
@@ -90,7 +90,7 @@ UDID="${UDID:-$(Scripts/pick-simulator.sh)}" || exit 1
 echo "comparing kit and browser frames…"
 SVGRENDERKIT_ANIMATION_RASTERS="$RASTERS" LOG="$TEST_LOG" DESTINATION="id=$UDID" \
   Scripts/run-tests.sh -only-testing:SVGRenderKitTests/SVGAnimationFrameOracleTests > /dev/null 2>&1
-grep -aE "^ANIMATION_FRAME(_SUMMARY|_MISSING)? " "$TEST_LOG" | tail -30
+grep -aE "^ANIMATION_FRAME(_SUMMARY|_MISSING)? " "$TEST_LOG" | tail -90
 if ! grep -aq "^ANIMATION_FRAME_SUMMARY " "$TEST_LOG"; then
   echo "::error::the frame report did not run (see $TEST_LOG)"
   status=1

@@ -145,7 +145,7 @@ original's light-mode look is unaffected.
 
 | # | Work item | Eng-days |
 |---|---|---|
-| 1 | Animation-frame oracle: Example app seeks `document.getAnimations()` to `currentTime = t` in WKWebView and snapshots; the kit raster freezes the Core Animation timeline at `epoch + t`. ✅ framework: `AnimationOracleRunner` + `Scripts/animation-oracle.sh` + `SVGAnimationFrameOracleTests`; first four fixtures (`translate`, `rotate-origin`, `steps`, `paused`) report translate/paused as exact, `steps` at ~0.009 differing, `rotate-origin` at 0.198–0.255 (the known CA matrix-decomposition divergence) | 1.5–3.5 |
+| 1 | Animation-frame oracle: Example app seeks `document.getAnimations()` (or SMIL `setCurrentTime`) to `t` in WKWebView and snapshots; the kit raster freezes the Core Animation timeline at `epoch + t`. ✅ framework: `AnimationOracleRunner` + `Scripts/animation-oracle.sh` + `SVGAnimationFrameOracleTests`; 13 fixtures. Report: translate, paused, fill/stroke colour, CSS/SMIL dashoffset, `<use>`, `<image>` and the dark palette are exact; `steps`/media `no-preference` differ on 0.9% of pixels; `rotate-origin` on 19.8–25.4% (known CA matrix decomposition); `shadow-fade` on 7.7–16.2% (CALayer shadow vs CSS drop-shadow) | 1.5–3.5 |
 | 2 | Gate strategy: trajectory tests as the CI gate; frame oracle run-on-demand (report-only, no baseline yet); extend the fixture set (fill/stroke color, dashoffset, SMIL, `use`/`image`, dark/Reduce Motion); docs, CHANGELOG | 1.5–3 |
 
 ## 5. Test strategy

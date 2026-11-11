@@ -332,12 +332,14 @@ live in a temporary directory (recorded in `.webkit-rasters`, so later test runs
 them up too) and nothing is committed.
 
 Animation behaviour can be checked the same way: `Scripts/animation-oracle.sh` dumps a small
-fixture set (`Example/Example/data/animation-oracle`) at known times twice — the browser pauses and
+fixture set (`Example/Example/AnimationOracleFixtures`) at known times twice — the browser pauses and
 seeks every CSS animation, while the kit freezes its Core Animation timeline at the same time — and
 `SVGAnimationFrameOracleTests` prints a per-frame difference report. It is **report-only**: the
-trajectory unit tests remain the CI gate; the oracle answers "does it look like the browser" (for
-the original logo the browser and the kit agree exactly on translate and paused frames, while a
-rotate-with-`transform-origin` frame shows the known Core Animation decomposition difference).
+trajectory unit tests remain the CI gate; the oracle answers "does it look like the browser". The
+13-fixture set covers transform, origin/`fill-box`, steps, paused, fill/stroke colour, CSS and SMIL
+dashoffset, `<use>`/`<image>`, a dark media palette and drop-shadow: most frames are pixel-exact,
+`steps`/media differ on ~0.9% of pixels, `rotate-origin` on 19.8–25.4% (the known Core Animation
+matrix decomposition) and the layer shadow on 7.7–16.2% (CALayer shadow vs CSS `drop-shadow`).
 
 ### CSS-animated assets
 

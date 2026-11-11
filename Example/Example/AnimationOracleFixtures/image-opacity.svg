@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <style>
+        @keyframes fade { 0% { opacity: 0.2; } 100% { opacity: 1; } }
+        .i { animation: fade 1s linear infinite; }
+    </style>
+    <image class="i" x="20" y="20" width="60" height="60"
+           href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=="/>
+</svg>

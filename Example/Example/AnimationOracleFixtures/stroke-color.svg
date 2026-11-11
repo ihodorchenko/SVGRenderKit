@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <style>
+        @keyframes ink { 0% { stroke: #ff0000; } 100% { stroke: #0000ff; } }
+        .line { animation: ink 1s linear infinite; }
+    </style>
+    <circle class="line" cx="50" cy="50" r="30" fill="none" stroke-width="10"/>
+</svg>

@@ -554,6 +554,11 @@ enum AnimationOracleRunner {
     /// Sample times in seconds from the start of the document timeline.
     private static let times: [TimeInterval] = [0, 0.25, 0.5, 0.75, 1]
 
+    /// Per-fixture knobs from `options.json` (`appearance`: `light`/`dark`).
+    private struct FixtureOptions: Decodable {
+        var appearance: String?
+    }
+
     static func runIfRequested() -> Bool {
         let arguments = ProcessInfo.processInfo.arguments
         guard let flag = arguments.firstIndex(of: "-animationOracle") else { return false }
@@ -595,6 +600,7 @@ enum AnimationOracleRunner {
             print("ANIMATION_ORACLE_ERROR no key window to attach the views to")
             return 1
         }
+        let options = fixtureOptions(in: fixtures)
 
         let container = UIView(frame: CGRect(origin: .zero, size: size))
         container.backgroundColor = .white
@@ -614,8 +620,12 @@ enum AnimationOracleRunner {
                 continue
             }
             let paused = name.lowercased().contains("paused")
-            let kit = await kitFrames(markup: markup, name: name, container: container)
-            let web = await webFrames(markup: markup, name: name, container: container, paused: paused)
+            let appearance = options[name]?.appearance ?? options["\(name).svg"]?.appearance
+            let kit = await kitFrames(markup: markup, name: name, container: container,
+                                      appearance: appearance == "dark" ? .dark : .light)
+            let web = await webFrames(markup: markup, name: name, container: container,
+                                      paused: paused,
+                                      appearance: appearance == "dark" ? .dark : .light)
             var dumped = 0
             for index in times.indices {
                 if let data = kit[index], write(data, kind: "kit", name: name, index: index, into: directory) {
@@ -648,10 +658,11 @@ enum AnimationOracleRunner {
 
     // MARK: - The kit side
 
-    private static func kitFrames(markup: String, name: String, container: UIView) async -> [Int: Data] {
+    private static func kitFrames(markup: String, name: String, container: UIView,
+                                  appearance: SVGAppearance) async -> [Int: Data] {
         let view = SVGView(frame: CGRect(origin: .zero, size: size))
         view.backgroundColor = .clear
-        view.appearanceOverride = .light
+        view.appearanceOverride = appearance
         view.motionPreference = .allow
         container.addSubview(view)
         defer { view.removeFromSuperview() }
@@ -685,11 +696,11 @@ enum AnimationOracleRunner {
     // MARK: - The browser side
 
     private static func webFrames(markup: String, name: String, container: UIView,
-                                  paused: Bool) async -> [Int: Data] {
+                                  paused: Bool, appearance: SVGAppearance) async -> [Int: Data] {
         let webView = WKWebView(frame: CGRect(origin: .zero, size: size))
         webView.isOpaque = false
         webView.backgroundColor = .white
-        webView.overrideUserInterfaceStyle = .light
+        webView.overrideUserInterfaceStyle = appearance == .dark ? .dark : .light
         // The canvas is a fixed 256×256 box: a safe-area content inset would shift the page and
         // make the two rasters incomparable (the kit view has no such inset).
         webView.scrollView.contentInsetAdjustmentBehavior = .never
@@ -710,20 +721,37 @@ enum AnimationOracleRunner {
         """
         webView.loadHTMLString(html, baseURL: nil)
 
-        // Wait until the document has animations (a paused fixture still has a CSS animation).
-        var animationCount = 0
+        // Wait for the document to be laid out; a static fixture (a media-query palette) has no
+        // animations at all and is still comparable frame by frame.
+        var isReady = false
         let deadline = Date().addingTimeInterval(15)
         while Date() < deadline {
-            if let value = try? await webView.evaluateJavaScript("document.getAnimations().length"),
-               let count = value as? Int, count > 0 {
-                animationCount = count
+            if let value = try? await webView.evaluateJavaScript(
+                "document.readyState === 'complete' && document.querySelector('svg') !== null"),
+               (value as? Bool) == true {
+                isReady = true
                 break
             }
             try? await Task.sleep(nanoseconds: 100_000_000)
         }
-        guard animationCount > 0 else {
-            print("ANIMATION_DUMP_FAIL \(name) (browser document has no animations)")
+        guard isReady else {
+            print("ANIMATION_DUMP_FAIL \(name) (browser document did not load)")
             return [:]
+        }
+        // CSS animations (even paused ones) show up in `getAnimations()`, a SMIL animation does
+        // not and is detected by tag; zero is a valid static fixture, not a failure.
+        let animationDeadline = Date().addingTimeInterval(2)
+        while Date() < animationDeadline {
+            if let value = try? await webView.evaluateJavaScript("""
+                (() => {
+                    const svg = document.querySelector('svg');
+                    const smil = svg ? svg.querySelector('animate, animateTransform, set') : null;
+                    return document.getAnimations().length + (smil ? 1 : 0);
+                })()
+                """), let count = value as? Int, count > 0 {
+                break
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000)
         }
 
         var result: [Int: Data] = [:]
@@ -731,11 +759,18 @@ enum AnimationOracleRunner {
             // The kit models a paused animation only at t = 0; seek the browser to the same frame.
             let milliseconds = (paused ? 0 : time) * 1000
             await callAsyncJavaScript(webView, """
-                const animations = document.getAnimations();
-                animations.forEach(animation => {
-                    animation.pause();
-                    animation.currentTime = \(milliseconds);
-                });
+                const svg = document.querySelector('svg');
+                const smil = svg ? svg.querySelector('animate, animateTransform, set') : null;
+                if (smil && svg.pauseAnimations) {
+                    svg.pauseAnimations();
+                    svg.setCurrentTime(\(milliseconds / 1000));
+                } else {
+                    const animations = document.getAnimations();
+                    animations.forEach(animation => {
+                        animation.pause();
+                        animation.currentTime = \(milliseconds);
+                    });
+                }
                 // Force a synchronous style/layout flush for every animated subtree before the
                 // snapshot: WebKit may otherwise hand back a partly stale tile cache.
                 document.querySelectorAll('svg *').forEach(element => {
@@ -792,6 +827,15 @@ enum AnimationOracleRunner {
             try? await Task.sleep(nanoseconds: 50_000_000)
         }
         return flag.isReady
+    }
+
+    private static func fixtureOptions(in directory: URL) -> [String: FixtureOptions] {
+        let url = directory.appendingPathComponent("options.json")
+        guard let data = try? Data(contentsOf: url),
+              let options = try? JSONDecoder().decode([String: FixtureOptions].self, from: data) else {
+            return [:]
+        }
+        return options
     }
 
     private static func waitForKeyWindowRootView() async -> UIView? {

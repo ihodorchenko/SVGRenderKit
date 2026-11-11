@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <style>
+        @keyframes draw { 0% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 0; } }
+        .line { animation: draw 1s linear infinite; }
+    </style>
+    <line class="line" x1="15" y1="50" x2="85" y2="50" stroke="#0153e5" stroke-width="10"
+          stroke-dasharray="70 100" stroke-dashoffset="100"/>
+</svg>
