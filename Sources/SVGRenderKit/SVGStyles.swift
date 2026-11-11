@@ -200,24 +200,34 @@ public class SVGSourceStyleElement {
         if let str = attributeDict["style"] { try set(styleStr: str) }
     }
 
-    /// Parses an inline `style` or a CSS declaration block into `(property, value)` pairs in
-    /// source order. CSS animations need the order (`animation` vs `animation-*`), so it is kept.
-    /// Per CSS: a value may itself contain `:`, and a trailing `!important` is not part of the
-    /// value.
-    static func orderedDeclarations(from styleStr: String) -> [(property: String, value: String)] {
-        var result: [(property: String, value: String)] = []
+    /// Parses an inline `style` or a CSS declaration block into declarations in source order,
+    /// keeping the `!important` flag. CSS animations and the cascade need both the order
+    /// (`animation` vs `animation-*`) and the priority.
+    static func declarationsWithImportance(from styleStr: String)
+        -> [(property: String, value: String, important: Bool)] {
+        var result: [(property: String, value: String, important: Bool)] = []
         for declaration in splitDeclarations(stripComments(styleStr)) {
             let parts = declaration.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
             guard parts.count == 2 else { continue }
             let key = SVGUtils.trimmed(string: String(parts[0])).lowercased()
             guard !key.isEmpty else { continue }
             var value = SVGUtils.trimmed(string: String(parts[1]))
+            var important = false
             if value.lowercased().hasSuffix("!important") {
+                important = true
                 value = SVGUtils.trimmed(string: String(value.dropLast("!important".count)))
             }
-            result.append((property: key, value: value))
+            result.append((property: key, value: value, important: important))
         }
         return result
+    }
+
+    /// Parses an inline `style` or a CSS declaration block into `(property, value)` pairs in
+    /// source order (duplicates included), dropping the `!important` flag.
+    static func orderedDeclarations(from styleStr: String) -> [(property: String, value: String)] {
+        return declarationsWithImportance(from: styleStr).map {
+            (property: $0.property, value: $0.value)
+        }
     }
 
     /// Parses an inline `style` or a CSS declaration block into a property dictionary.
@@ -229,6 +239,25 @@ public class SVGSourceStyleElement {
             result[declaration.property] = declaration.value
         }
         return result
+    }
+
+    /// Splits an inline `style` (or a declaration block) into its normal and `!important` parts,
+    /// so the cascade can put the important declarations after every normal one.
+    static func styles(from styleStr: String) -> (normal: SVGSourceStyleElement, important: SVGSourceStyleElement) {
+        var normal: [String: String] = [:]
+        var important: [String: String] = [:]
+        for declaration in declarationsWithImportance(from: styleStr) {
+            if declaration.important {
+                important[declaration.property] = declaration.value
+            } else {
+                normal[declaration.property] = declaration.value
+            }
+        }
+        let normalStyle = SVGSourceStyleElement()
+        let importantStyle = SVGSourceStyleElement()
+        try? normalStyle.set(attributeDict: normal)
+        try? importantStyle.set(attributeDict: important)
+        return (normalStyle, importantStyle)
     }
 
     /// Removes CSS `/* … */` comments (an unterminated one runs to the end).

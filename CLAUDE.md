@@ -105,8 +105,10 @@ with two oracles; the test is `SVGRenderParityTests.testCorpusParity`.
 
 Scripts/DOM/events; external resources (`url(...)` over the network); `@font-face`/glyphs; `@media`;
 interactive links (`<a>`); full SMIL (event `begin`, `additive`, `calcMode`, `fill="freeze"`); `textPath`,
-per-glyph `x`/`y` lists; the CSS cascade (specificity, combinators, pseudo-classes; `inherit` only for
-`visibility`, `clip-rule`, `fill-rule`, `text-anchor`); nested `<svg>`; `paint-order`,
+per-glyph `x`/`y` lists; child/sibling combinators, pseudo-classes and attribute selectors (the
+selector model itself covers tag/class/id, compound and descendant selectors with specificity and
+`!important`); `inherit` only for `visibility`, `clip-rule`, `fill-rule`, `text-anchor`; nested
+`<svg>`; `paint-order`,
 `vector-effect`, `non-scaling-stroke`; `overflow`/`<view>`; font micro-properties, rendering hints;
 `spreadMethod` `reflect`/`repeat` (rendered as `pad`); the relative units `ex`/`rem`/`ch`/`vw`/`vh`/
 `vmin`/`vmax` (`em` is supported for `font-size`; on the root `em`/`auto` fall back to the `viewBox`); the
@@ -145,8 +147,6 @@ SMIL subset; the rest of the runtime CSS engine remains the separate plan in
 
 Do these only on a user complaint or after a measurement.
 
-- `<style>` is looked up along the ancestor chain, not across the whole document (needs a registry of
-  rules in document order).
 - A `radialGradient` with `gradientUnits="userSpaceOnUse"` still rasterizes its window as the `viewBox`
   (the same limitation the linear gradient had: an element moved by an ancestor `transform` gets the part
   outside the window unpainted). Uncovered by the linear-gradient fix in `Unreleased`.

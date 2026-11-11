@@ -4,8 +4,10 @@ import UIKit
 class SVGShapeObject: SVGObject, SVGRendering {
     /// Presentation attributes only (no inline `style`); these rank below `<style>` rules.
     var presentationStyle: SVGSourceStyleElement!
-    /// Inline `style` attribute only; ranks above `<style>` rules.
+    /// Inline `style` attribute only (normal priority).
     var inlineStyle: SVGSourceStyleElement!
+    /// The `!important` declarations of the inline `style`; they outrank every rule.
+    var inlineImportantStyle: SVGSourceStyleElement!
     /// The owning parent. `unowned`: the parent owns this shape and always outlives
     /// it, so a strong reference would retain-cycle the document.
     unowned var parent: SVGShapesContainer
@@ -19,6 +21,8 @@ class SVGShapeObject: SVGObject, SVGRendering {
     /// (`animation`/`animation-*`). They are not presentation properties, so `inlineStyle`
     /// does not keep them; the runtime CSS subset resolves them separately.
     private var cssAnimationDeclarations: [(property: String, value: String)] = []
+    /// The `!important` animation declarations of the inline `style`.
+    private var cssImportantAnimationDeclarations: [(property: String, value: String)] = []
 
     /// Initializes a shape object from an XML element and its parent shapes container.
     required init(xmlElement: XMLElement, addDict: [String: String]? = nil, parent: SVGShapesContainer) throws {
@@ -30,12 +34,21 @@ class SVGShapeObject: SVGObject, SVGRendering {
         try presentation.set(attributeDict: attributeDict)
         self.presentationStyle = presentation
 
-        let inline = SVGSourceStyleElement()
+        let inlineParts = attributeDict["style"].map { SVGSourceStyleElement.styles(from: $0) }
+            ?? (normal: SVGSourceStyleElement(), important: SVGSourceStyleElement())
+        inlineStyle = inlineParts.normal
+        inlineImportantStyle = inlineParts.important
         if let str = attributeDict["style"] {
-            try inline.set(styleStr: str)
-            self.cssAnimationDeclarations = SVGSourceStyleElement.orderedDeclarations(from: str)
+            for declaration in SVGSourceStyleElement.declarationsWithImportance(from: str)
+            where declaration.property == "animation" || declaration.property.hasPrefix("animation-") {
+                let pair = (property: declaration.property, value: declaration.value)
+                if declaration.important {
+                    cssImportantAnimationDeclarations.append(pair)
+                } else {
+                    cssAnimationDeclarations.append(pair)
+                }
+            }
         }
-        self.inlineStyle = inline
 
         if let str = attributeDict["transform"] {
             transform = try SVGTransform.get(string: str)
@@ -58,6 +71,8 @@ class SVGShapeObject: SVGObject, SVGRendering {
             .combine(child: presentationStyle)
             .combine(child: parent.selectorStyle(forObject: self))
             .combine(child: inlineStyle)
+            .combine(child: parent.importantSelectorStyle(forObject: self))
+            .combine(child: inlineImportantStyle)
     }
 
     /// Builds and returns the `CALayer` that renders this shape's path with the combined styles applied.
@@ -109,6 +124,7 @@ class SVGShapeObject: SVGObject, SVGRendering {
     /// the rest are logged and skipped there.
     private func cssAnimations(style: SVGSourceStyleElement) -> [SVGAnimation] {
         let declarations = parent.animationDeclarations(forObject: self) + cssAnimationDeclarations
+            + parent.importantAnimationDeclarations(forObject: self) + cssImportantAnimationDeclarations
         guard !declarations.isEmpty else { return [] }
         return SVGCSSAnimations.animations(
             specs: SVGCSSAnimations.specs(from: declarations),

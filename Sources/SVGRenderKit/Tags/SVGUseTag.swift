@@ -9,8 +9,10 @@ class SVGUseTag: SVGObject, SVGRendering {
 
     /// Presentation attributes only (no inline `style`); these rank below `<style>` rules.
     var presentationStyle: SVGSourceStyleElement = SVGSourceStyleElement()
-    /// Inline `style` attribute only; ranks above `<style>` rules.
+    /// Inline `style` attribute only (normal priority).
     var inlineStyle: SVGSourceStyleElement = SVGSourceStyleElement()
+    /// The `!important` declarations of the inline `style`.
+    var inlineImportantStyle: SVGSourceStyleElement = SVGSourceStyleElement()
 
     var transform: CATransform3D?
 
@@ -45,11 +47,10 @@ class SVGUseTag: SVGObject, SVGRendering {
         try presentation.set(attributeDict: attributeDict)
         presentationStyle = presentation
 
-        let inline: SVGSourceStyleElement = SVGSourceStyleElement()
-        if let str = attributeDict["style"] {
-            try inline.set(styleStr: str)
-        }
-        inlineStyle = inline
+        let inlineParts = attributeDict["style"].map { SVGSourceStyleElement.styles(from: $0) }
+            ?? (normal: SVGSourceStyleElement(), important: SVGSourceStyleElement())
+        inlineStyle = inlineParts.normal
+        inlineImportantStyle = inlineParts.important
 
         // `x`/`y`/`width`/`height` are lengths (units and percentages allowed); a malformed
         // value is treated as absent rather than failing the document (B108, B129).
@@ -68,10 +69,15 @@ class SVGUseTag: SVGObject, SVGRendering {
     /// `style` (B108, B119-12).
     private func ownStyle() -> SVGSourceStyleElement {
         var style = presentationStyle
-        if let selectorStyle = (parent as? SVGGroupObject)?.selectorStyle(for: self) {
-            style = style.combine(child: selectorStyle)
+        if let sheet = parent.getSvgOptions().stylesheet {
+            style = style.combine(child: sheet.selectorStyle(for: self))
+                .combine(child: inlineStyle)
+                .combine(child: sheet.importantSelectorStyle(for: self))
+                .combine(child: inlineImportantStyle)
+        } else {
+            style = style.combine(child: inlineStyle)
         }
-        return style.combine(child: inlineStyle)
+        return style
     }
 
     /// The `<use>`'s own style with the caller's per-element overrides on top.

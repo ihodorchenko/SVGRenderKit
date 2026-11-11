@@ -177,10 +177,9 @@ final class SVGCSSDashoffsetAnimationTests: XCTestCase {
                      "the runtime CSS subset does not animate opacity yet")
     }
 
-    func testDescendantSelectorAnimationIsOutOfScope() throws {
-        // The current cascade matches simple selectors only; a descendant rule (`#root path`) is
-        // dropped, so its animation does not reach the path. `anim.svg` needs that, the build-time
-        // converter handles it by inlining the rule.
+    func testDescendantSelectorAnimationApplies() throws {
+        // M1: the document-wide stylesheet matches descendant selectors, so an animation declared
+        // as `#root path{...}` reaches the path (this is what `anim.svg` needs at runtime).
         let svg = """
         <svg id="root" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <style>
@@ -190,7 +189,9 @@ final class SVGCSSDashoffsetAnimationTests: XCTestCase {
             <path d="M0 0h10v10z" fill="none" stroke="#000" stroke-dasharray="5 5"/>
         </svg>
         """
-        XCTAssertNil(findLayerWithAnimation(try layer(svg), key: "lineDashPhase"))
+        let animation = try dashoffsetAnimation(try layer(svg))
+        XCTAssertEqual(animation.duration, 1, accuracy: 1e-9)
+        XCTAssertEqual(try numbers(animation), [0, 10])
     }
 
     func testSpecParsingCoversTheShorthand() {

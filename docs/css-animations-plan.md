@@ -1,11 +1,13 @@
 # Plan: render and animate the original CSS-driven SVG (`folder_9/original/logo-ghost-wave-effect.svg`)
 
-Status: **in progress**. M2 (CSS Animations core) started with the `stroke-dashoffset` property: the
-runtime parses `@keyframes`/`animation` from `<style>` blocks reachable through the ancestor chain and
-inline `style`, and plays the property through `CAShapeLayer.lineDashPhase` (`SVGCSSAnimations`,
-tests in `SVGCSSDashoffsetAnimationTests`). Direction, easing, delay, iteration count and
-`fill-mode` are mapped to Core Animation; other properties, the full cascade/selectors, `@media` and
-appearance plumbing remain. Depends on the two animation fixes released in 2.0.1 (see "Prerequisites").
+Status: **M1 done; M2 in progress**. The document-wide stylesheet (`SVGStyleSheet`) now resolves
+every `<style>` block in document order with compound and descendant selectors, specificity and
+`!important` — the original logo's `.wA path`/`.wB path`/`.shine rect` rules apply, and the runtime
+CSS animation subset (`stroke-dashoffset`, `SVGCSSAnimations`) reads `@keyframes` from the same
+registry, including animations declared through a descendant selector. Direction, easing, delay,
+iteration count and `fill-mode` are mapped to Core Animation; other animated properties, `@media`,
+appearance plumbing and the frame oracle remain. Depends on the two animation fixes released in 2.0.1
+(see "Prerequisites").
 
 Update: a *build-time* converter for the common export class now exists — `Scripts/css-to-smil.py`
 (Unreleased). It inlines the matched CSS, translates `@keyframes`/`animation` into the SMIL profile

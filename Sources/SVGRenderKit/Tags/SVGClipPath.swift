@@ -185,6 +185,22 @@ extension SVGClipPath: SVGShapesContainer {
         return parent.selectorStyle(forObject: forObject)
     }
 
+    func importantSelectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
+        return parent.importantSelectorStyle(forObject: forObject)
+    }
+
+    func animationDeclarations(forObject anObject: SVGShapeObject) -> [(property: String, value: String)] {
+        return parent.animationDeclarations(forObject: anObject)
+    }
+
+    func importantAnimationDeclarations(forObject anObject: SVGShapeObject) -> [(property: String, value: String)] {
+        return parent.importantAnimationDeclarations(forObject: anObject)
+    }
+
+    func keyframes(named name: String) -> SVGStyleSheet.Keyframes? {
+        return parent.keyframes(named: name)
+    }
+
     func getSvgOptions() -> SVGOptions {
         return parent.getSvgOptions()
     }

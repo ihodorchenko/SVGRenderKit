@@ -23,15 +23,20 @@ extension SVGRendering {
 protocol SVGShapesContainer: AnyObject {
     /// Returns the resolved style for a shape, combining inherited and override styles.
     func getStyle(forObject: SVGShapeObject, overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement
-    /// Returns only the `<style>`-block rules (tag/class/id selectors) matching a shape.
+    /// Returns only the `<style>`-block rules matching a shape, normal priority.
     ///
     /// Per SVG, these outrank presentation attributes; inline `style` outranks them both.
     func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement
-    /// The CSS `animation`/`animation-*` declarations of the `<style>` blocks matching a shape,
-    /// in cascade order. They are not presentation properties and are resolved separately.
+    /// The `!important` declarations of the `<style>`-block rules matching a shape; they outrank
+    /// every normal declaration, including the element's inline `style`.
+    func importantSelectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement
+    /// The CSS `animation`/`animation-*` declarations of the rules matching a shape, in cascade
+    /// order. They are not presentation properties and are resolved separately.
     func animationDeclarations(forObject: SVGShapeObject) -> [(property: String, value: String)]
-    /// The `@keyframes` block for a CSS animation name, searched through the ancestor chain.
-    func keyframes(named name: String) -> SVGStyleTag.Keyframes?
+    /// The `!important` animation declarations of the rules matching a shape.
+    func importantAnimationDeclarations(forObject: SVGShapeObject) -> [(property: String, value: String)]
+    /// The `@keyframes` block for a CSS animation name in the document stylesheet.
+    func keyframes(named name: String) -> SVGStyleSheet.Keyframes?
     /// Returns the rendering options for the SVG document.
     func getSvgOptions() -> SVGOptions
 
@@ -121,13 +126,22 @@ extension SVGShapesContainer {
         return SVGSourceStyleElement()
     }
 
+    /// The `!important` rules are empty for containers without a stylesheet.
+    func importantSelectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
+        return SVGSourceStyleElement()
+    }
+
     /// Containers without `<style>` support contribute no CSS animations.
     func animationDeclarations(forObject: SVGShapeObject) -> [(property: String, value: String)] {
         return []
     }
 
+    func importantAnimationDeclarations(forObject: SVGShapeObject) -> [(property: String, value: String)] {
+        return []
+    }
+
     /// Containers without `<style>` support define no keyframes.
-    func keyframes(named name: String) -> SVGStyleTag.Keyframes? {
+    func keyframes(named name: String) -> SVGStyleSheet.Keyframes? {
         return nil
     }
 }

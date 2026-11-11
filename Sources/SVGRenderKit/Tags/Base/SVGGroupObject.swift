@@ -14,10 +14,10 @@ class SVGGroupObject: SVGChildObject, SVGGroupProtocol {
     /// The group's presentation attributes, kept apart from its inline `style` so a
     /// `<style>`-block rule can slot between them in the cascade (B91).
     private(set) var presentationStyle: SVGSourceStyleElement = SVGSourceStyleElement()
-    /// The group's inline `style` attribute value (the highest priority of its own styles).
+    /// The group's inline `style` attribute value (normal priority).
     private(set) var inlineStyle: SVGSourceStyleElement = SVGSourceStyleElement()
-    /// All `<style>` children; a group may carry more than one.
-    private(set) var styleTagsList: [SVGStyleTag] = []
+    /// The `!important` declarations of the group's inline `style` (they outrank every rule).
+    private(set) var inlineImportantStyle: SVGSourceStyleElement = SVGSourceStyleElement()
 
     var animations: [SVGAnimation] = []
 
@@ -31,11 +31,10 @@ class SVGGroupObject: SVGChildObject, SVGGroupProtocol {
         try presentation.set(attributeDict: attributeDict)
         presentationStyle = presentation
 
-        let inline: SVGSourceStyleElement = SVGSourceStyleElement()
-        if let str = attributeDict["style"] {
-            try inline.set(styleStr: str)
-        }
-        inlineStyle = inline
+        let inlineParts = attributeDict["style"].map { SVGSourceStyleElement.styles(from: $0) }
+            ?? (normal: SVGSourceStyleElement(), important: SVGSourceStyleElement())
+        inlineStyle = inlineParts.normal
+        inlineImportantStyle = inlineParts.important
 
         if let str = attributeDict["transform"] {
             transform = try SVGTransform.get(string: str)
@@ -78,10 +77,6 @@ extension SVGGroupObject {
             break
         case SVGRadialGradientTag.key:
             try addIfNeedRadialGradient(children: children)
-            break
-        case SVGStyleTag.key:
-            let styleTag: SVGStyleTag = try SVGStyleTag(xmlElement: children, parent: self)
-            self.styleTagsList.append(styleTag)
             break
         case SVGGTag.key:
             let newGroup: SVGGTag = try SVGGTag(xmlElement: children, parent: self)
@@ -355,58 +350,59 @@ extension SVGGroupObject {
         return style.combine(child: selectorStyle(forObject: forObject))
     }
 
-    /// Resolves the `<style>`-block rules (tag/class/id) matching any object, so a
-    /// selector can target a container such as `<g class="st0">`, not only a shape (B91),
-    /// or an element that is not a shape at all, like `<use>` (B119-12). Each block applies
-    /// its own rules in document order (B119-7).
+    /// Resolves the document stylesheet's rules matching any object, so a selector can target a
+    /// container such as `<g class="st0">`, not only a shape (B91), or an element that is not a
+    /// shape at all, like `<use>` (B119-12). Specificity and document order decide the cascade.
     func selectorStyle(for object: SVGObject) -> SVGSourceStyleElement {
-        var style = SVGSourceStyleElement()
-        for styleTag in styleTags() {
-            style = style.combine(child: styleTag.style(for: object))
-        }
-        return style
+        return getSvgOptions().stylesheet?.selectorStyle(for: object) ?? SVGSourceStyleElement()
     }
 
-    /// `<style>`-block selectors target the shape itself, so they override inherited
-    /// group styles. Applied root→leaf so a nested `<style>` wins.
+    /// The `!important` declarations of the rules matching `object`.
+    func importantSelectorStyle(for object: SVGObject) -> SVGSourceStyleElement {
+        return getSvgOptions().stylesheet?.importantSelectorStyle(for: object) ?? SVGSourceStyleElement()
+    }
+
+    /// Selector rules target the shape itself, so they override inherited group styles.
     func selectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
         return selectorStyle(for: forObject)
     }
 
-    /// CSS animation declarations of the `<style>` blocks matching a shape, in cascade order.
-    /// Unlike presentation properties they are not inherited: a rule on a `<g>` animates the
-    /// group, not its children.
+    func importantSelectorStyle(forObject: SVGShapeObject) -> SVGSourceStyleElement {
+        return importantSelectorStyle(for: forObject)
+    }
+
+    /// CSS animation declarations of the rules matching a shape, in cascade order. They are not
+    /// inherited: a rule on a `<g>` animates the group, not its children.
     func animationDeclarations(forObject anObject: SVGShapeObject) -> [(property: String, value: String)] {
         return animationDeclarations(for: anObject)
     }
 
+    func importantAnimationDeclarations(forObject anObject: SVGShapeObject) -> [(property: String, value: String)] {
+        return importantAnimationDeclarations(for: anObject)
+    }
+
     func animationDeclarations(for object: SVGObject) -> [(property: String, value: String)] {
-        var declarations: [(property: String, value: String)] = []
-        for styleTag in styleTags() {
-            declarations.append(contentsOf: styleTag.animationDeclarations(for: object))
-        }
-        return declarations
+        return getSvgOptions().stylesheet?.animationDeclarations(for: object) ?? []
     }
 
-    /// The `@keyframes` block for a CSS animation name; the document's `<style>` blocks are
-    /// searched root→leaf, so a nested block can override a top-level name.
-    func keyframes(named name: String) -> SVGStyleTag.Keyframes? {
-        for styleTag in styleTags() {
-            if let keyframes = styleTag.keyframes[name] {
-                return keyframes
-            }
-        }
-        return nil
+    func importantAnimationDeclarations(for object: SVGObject) -> [(property: String, value: String)] {
+        return getSvgOptions().stylesheet?.importantAnimationDeclarations(for: object) ?? []
     }
 
-    /// This group's own effective style: presentation attributes, then the `<style>`-block
-    /// rules that target the group itself (`<g class="st0">` with `.st0{…}`), then its
-    /// inline `style`. A selector outranks a presentation attribute; inline `style`
-    /// outranks both (B91).
+    /// The `@keyframes` block for a CSS animation name (the last definition wins, as in CSS).
+    func keyframes(named name: String) -> SVGStyleSheet.Keyframes? {
+        return getSvgOptions().stylesheet?.keyframes(named: name)
+    }
+
+    /// This group's own effective style in cascade order: presentation attributes, normal
+    /// selector rules, normal inline `style`, `!important` selector rules and finally
+    /// `!important` inline declarations (B91).
     func ownStyle() -> SVGSourceStyleElement {
         return presentationStyle
             .combine(child: selectorStyle(for: self))
             .combine(child: inlineStyle)
+            .combine(child: importantSelectorStyle(for: self))
+            .combine(child: inlineImportantStyle)
     }
 
     /// This group's own style with the group-compositing properties removed: those are
@@ -455,26 +451,6 @@ extension SVGGroupObject {
             }
         }
         return style
-    }
-
-    /// Returns the `<style>` blocks in the ancestor chain, root first.
-    private func styleTags() -> [SVGStyleTag] {
-        var tags: [SVGStyleTag] = []
-        if let groupParent = parent as? SVGGroupObject {
-            tags = groupParent.styleTags()
-        }
-        tags.append(contentsOf: ownStyleTags())
-        return tags
-    }
-
-    /// The `<style>` blocks declared directly on this element and inside its own
-    /// `<defs>` (recursively), without walking up the parent chain.
-    private func ownStyleTags() -> [SVGStyleTag] {
-        var tags = styleTagsList
-        for defs in defsList {
-            tags.append(contentsOf: defs.ownStyleTags())
-        }
-        return tags
     }
 
     /// Returns the gradient (linear or radial) matching the key, optionally searching parent groups.

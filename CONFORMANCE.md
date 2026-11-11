@@ -86,10 +86,15 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 ### CSS
 
 - Inline `style="…"` ✅
-- `<style>` blocks with id / class / tag selectors ✅ (matched on the element itself,
-  so a matched `<g>` styles itself and is inherited by its descendants)
-- Cascade, specificity, `inherit` resolution, descendant/combinator selectors,
-  pseudo-classes, `@media`, `@font-face` ❌ out of scope
+- **Document-wide** `<style>` blocks: every block of the document, in document order (including a
+  block inside `<defs>`, `<mask>`, `<clipPath>` or `<pattern>`), applies to every matching element,
+  not only to its own subtree
+- Selectors: tag / `.class` / `#id`, compound (`path.a#b`), descendant lists (`.wA path`), `*` ✅
+- Cascade: specificity (id > class > tag, more classes/compounds first) and source order;
+  `!important` in a stylesheet rule or inline `style` outranks every normal declaration ✅
+- `inherit` resolution stays limited to `visibility`, `clip-rule`, `fill-rule`, `text-anchor` ✅
+- Child/sibling combinators (`>`, `+`, `~`), pseudo-classes, attribute selectors, `@media`,
+  `@font-face` ❌ out of scope (such a selector is dropped with its declarations)
 
 ### Animation (SMIL subset)
 

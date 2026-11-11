@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
+- **M1 of the CSS plan: the document-wide stylesheet.** Every `<style>` block of a document is now
+  collected in document order (including blocks inside `<defs>`, `<mask>`, `<clipPath>` and
+  `<pattern>`) and matched against every element, instead of looking up style blocks along the
+  ancestor chain only. Selectors support tag/class/id, compound (`path.a#b`), descendant
+  (`.wA path`) and `*`; the cascade honours specificity and source order, and `!important`
+  declarations (stylesheet or inline) outrank every normal declaration. Child/sibling combinators,
+  pseudo-classes, attribute selectors and `@media` stay out of scope (CONFORMANCE). The same
+  registry feeds the runtime CSS animation subset, so `@keyframes`/`animation` declared through a
+  descendant selector now animate (`SVGStyleSheet`, `SVGStyleSheetTests`).
 - The runtime now plays a first slice of **CSS Animations**: `@keyframes` in `<style>` blocks
   reachable through the ancestor chain and the `animation` shorthand/longhands (inline `style` or a
   simple tag/class/id rule) for `stroke-dashoffset`, mapped to `CAShapeLayer.lineDashPhase`.

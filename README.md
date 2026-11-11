@@ -331,8 +331,9 @@ them up too) and nothing is committed.
 
 ### CSS-animated assets
 
-Designer tools export motion as CSS (`<style>` with `@keyframes` and `animation`). The runtime plays
-the SMIL subset plus a first slice of CSS Animations: `@keyframes`/`animation` for
+Designer tools export motion as CSS (`<style>` with `@keyframes` and `animation`). The runtime parses
+every `<style>` block document-wide with compound/descendant selectors, specificity and
+`!important`, and plays a first slice of CSS Animations: `@keyframes`/`animation` for
 `stroke-dashoffset` (see CONFORMANCE); other CSS-animated properties still render their base frame,
 and `Scripts/css-to-smil.py` is the build-time step for them: it inlines the matched CSS
 declarations, rewrites every CSS animation as `<animate>`/`<animateTransform>` (the timing function

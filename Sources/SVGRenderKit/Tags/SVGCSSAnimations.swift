@@ -80,7 +80,7 @@ enum SVGCSSAnimations {
     /// the document, `baseDashoffset` is the element's resolved `stroke-dashoffset` (the implicit
     /// `0%`/`100%` keyframe value).
     static func animations(specs: [SVGCSSAnimationSpec],
-                           keyframes: (String) -> SVGStyleTag.Keyframes?,
+                           keyframes: (String) -> SVGStyleSheet.Keyframes?,
                            baseDashoffset: CGFloat) -> [SVGAnimation] {
         var result: [SVGAnimation] = []
         for spec in specs {
@@ -109,7 +109,7 @@ enum SVGCSSAnimations {
 
     /// The `stroke-dashoffset` animation of one `@keyframes` block, or `nil` when the block does
     /// not animate it (the runtime subset logs and skips it).
-    private static func dashoffsetAnimation(block: SVGStyleTag.Keyframes,
+    private static func dashoffsetAnimation(block: SVGStyleSheet.Keyframes,
                                             spec: SVGCSSAnimationSpec,
                                             baseDashoffset: Double) -> SVGAnimation? {
         var frames: [(offset: Double, value: Double, timing: String?)] = []

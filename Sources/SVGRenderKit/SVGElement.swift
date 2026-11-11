@@ -144,6 +144,10 @@ class SVGOptions {
         }
     }
 
+    /// The document-wide CSS stylesheet: every `<style>` block in document order. Parsed once by
+    /// the root element; style resolution and CSS animations read the rules from here.
+    var stylesheet: SVGStyleSheet?
+
     /// The `version` attribute of the root `<svg>` element (e.g. `"1.1"`).
     var version: String?
     /// The `baseProfile` attribute of the root `<svg>` element (e.g. `"tiny"`).
@@ -255,6 +259,10 @@ class SVGSVGTag: SVGGroupObject {
             }
         }
         options = try SVGOptions(attributeDict: attributeDict)
+        // The stylesheet must cover the whole document (including `<style>` inside `<defs>`,
+        // `<mask>`, `<clipPath>` and `<pattern>`), so it is collected from the XML before the
+        // object tree is built.
+        options.stylesheet = SVGStyleSheet(root: xmlElement)
         try super.init(xmlElement: xmlElement, addDict: addDict, parent: parent)
 
 

@@ -13,14 +13,21 @@ class SVGImage: SVGObject, SVGRendering {
 
     private let presentationStyle = SVGSourceStyleElement()
     private let inlineStyle = SVGSourceStyleElement()
+    private let inlineImportantStyle = SVGSourceStyleElement()
 
-    /// Presentation attributes → `<style>`-block rules matching this element → inline `style`.
+    /// Presentation attributes → normal selector rules → normal inline `style` → `!important`
+    /// selector rules → `!important` inline declarations.
     private func effectiveStyle() -> SVGSourceStyleElement {
         var style = presentationStyle
-        if let selectorStyle = (parent as? SVGGroupObject)?.selectorStyle(for: self) {
-            style = style.combine(child: selectorStyle)
+        if let sheet = parent.getSvgOptions().stylesheet {
+            style = style.combine(child: sheet.selectorStyle(for: self))
+                .combine(child: inlineStyle)
+                .combine(child: sheet.importantSelectorStyle(for: self))
+                .combine(child: inlineImportantStyle)
+        } else {
+            style = style.combine(child: inlineStyle)
         }
-        return style.combine(child: inlineStyle)
+        return style
     }
     var transform: CATransform3D?
     /// How the raster is fitted into the `x`/`y`/`width`/`height` box (default `xMidYMid meet`).
@@ -47,7 +54,11 @@ class SVGImage: SVGObject, SVGRendering {
         // Presentation attributes, then `<style>`-block rules (resolved at render time), then
         // the inline `style`, which outranks both (B124).
         try presentationStyle.set(attributeDict: attributeDict)
-        if let str = attributeDict["style"] { try inlineStyle.set(styleStr: str) }
+        if let str = attributeDict["style"] {
+            let parts = SVGSourceStyleElement.styles(from: str)
+            inlineStyle.set(element: parts.normal)
+            inlineImportantStyle.set(element: parts.important)
+        }
 
         if let str = attributeDict["x"] {
             x = try SVGLength.get(string: str)
