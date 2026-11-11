@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
+- Added the animation frame oracle harness: `Scripts/animation-oracle.sh` dumps a small fixture
+  set at known times with both the browser (`WKWebView`, CSS animations paused/seeking) and the kit
+  (Core Animation timeline frozen) and `SVGAnimationFrameOracleTests` prints per-frame differences.
+  It is report-only; the trajectory tests stay the gate. A SPI hook exposes the timeline
+  epoch/ready callback to the Example runner only.
 - CSS animations now also play on `<image>` and `<use>` (`opacity` and `transform`; the static CSS
   transform replaces the attribute there too), and `animation-play-state: paused` renders the
   animation's frame at t = 0 statically instead of being skipped (direction and the

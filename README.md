@@ -331,6 +331,14 @@ hides — then shows up next to the CoreSVG report in the same run; the browser 
 live in a temporary directory (recorded in `.webkit-rasters`, so later test runs pick
 them up too) and nothing is committed.
 
+Animation behaviour can be checked the same way: `Scripts/animation-oracle.sh` dumps a small
+fixture set (`Example/Example/data/animation-oracle`) at known times twice — the browser pauses and
+seeks every CSS animation, while the kit freezes its Core Animation timeline at the same time — and
+`SVGAnimationFrameOracleTests` prints a per-frame difference report. It is **report-only**: the
+trajectory unit tests remain the CI gate; the oracle answers "does it look like the browser" (for
+the original logo the browser and the kit agree exactly on translate and paused frames, while a
+rotate-with-`transform-origin` frame shows the known Core Animation decomposition difference).
+
 ### CSS-animated assets
 
 Designer tools export motion as CSS (`<style>` with `@keyframes` and `animation`). The runtime parses

@@ -113,6 +113,10 @@ open class SVGView: UIView {
     /// is in a window (see `attachPendingAnimations`). Empty for static documents.
     private var pendingAnimations: [SVGDeferredAnimation] = []
 
+    /// Called on the main thread once the current document is installed and its animations are
+    /// attached; used by the animation frame oracle (M4) to freeze the timeline deterministically.
+    internal var onDocumentReady: (() -> Void)?
+
     /// The name of a bundled SVG resource to render. Setting this property triggers parsing.
     @IBInspectable open var SVGName: String? {
         get {
@@ -336,6 +340,11 @@ open class SVGView: UIView {
                     self.set(layer: result.layer)
                     self.pendingAnimations = result.animations
                     self.attachPendingAnimations()
+                    if self.pendingAnimations.isEmpty {
+                        let ready = self.onDocumentReady
+                        self.onDocumentReady = nil
+                        ready?()
+                    }
                 }
             } catch {
                 SVGLog.addSLog(errorStr: "SVG load error: \(error.localizedDescription)")
@@ -359,6 +368,10 @@ open class SVGView: UIView {
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         attachPendingAnimations()
+        if window != nil, pendingAnimations.isEmpty, let ready = onDocumentReady {
+            onDocumentReady = nil
+            ready()
+        }
     }
 
     /// A light/dark trait change re-renders the document when the appearance is not pinned.

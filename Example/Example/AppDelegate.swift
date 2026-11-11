@@ -8,6 +8,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // the app renders the corpus in a web view, writes the rasters and exits instead of
         // showing the gallery (B122). The work is asynchronous so launch is not blocked.
         if WebKitParityRunner.runIfRequested() { return true }
+        // `Scripts/animation-oracle.sh` drives the animation frame oracle (M4): with
+        // `-animationOracle <fixtures-dir>` the app dumps kit and browser frames and exits.
+        if AnimationOracleRunner.runIfRequested() { return true }
         return true
     }
 

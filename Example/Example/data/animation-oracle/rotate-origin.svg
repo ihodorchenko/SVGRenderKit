@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <style>
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(90deg); } }
+        .box { transform-box: fill-box; transform-origin: center; animation: spin 1s linear infinite; }
+    </style>
+    <rect class="box" x="25" y="25" width="50" height="50" fill="#4d8fff"/>
+</svg>

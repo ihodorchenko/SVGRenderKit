@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+@_spi(SVGRenderKitTesting) import SVGRenderKit
 
 /// Produces the *browser* oracle for the corpus parity test (B122): renders the whole SVG corpus
 /// with `WKWebView` and writes the rasters as PNGs, so the test bundle can judge the kit's raster
@@ -535,4 +536,301 @@ enum WebKitParityRunner {
     }
     return JSON.stringify(out);
     """
+}
+
+
+/// M4 animation frame oracle: dumps the *same* fixtures twice — a WKWebView raster with every CSS
+/// animation paused and seeked to a known time, and an `SVGView` raster with the Core Animation
+/// timeline frozen at the same time — so `SVGAnimationFrameOracleTests` can report how far apart
+/// the two renderers are. Report-only at first: the browser is the reference, the kit's known
+/// divergences (matrix decomposition, color interpolation) must show up as numbers, not as a gate.
+///
+/// Launch arguments: `-animationOracle <fixtures-dir> [dump-dir]`. The dump is written as
+/// `kit/<fixture>/<index>.png`, `web/<fixture>/<index>.png` and `manifest.json`.
+@MainActor
+enum AnimationOracleRunner {
+
+    private static let size = CGSize(width: 256, height: 256)
+    /// Sample times in seconds from the start of the document timeline.
+    private static let times: [TimeInterval] = [0, 0.25, 0.5, 0.75, 1]
+
+    static func runIfRequested() -> Bool {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let flag = arguments.firstIndex(of: "-animationOracle") else { return false }
+        let values = Array(arguments.dropFirst(flag + 1))
+        guard let fixturesPath = values.first, !fixturesPath.isEmpty else {
+            print("ANIMATION_ORACLE_ERROR usage: -animationOracle <fixtures-dir> [dump-dir]")
+            fflush(stdout)
+            exit(2)
+        }
+        let dumpDirectory = values.count > 1
+            ? URL(fileURLWithPath: values[1], isDirectory: true)
+            : FileManager.default.temporaryDirectory.appendingPathComponent("svgrkit-animation-oracle", isDirectory: true)
+        Task {
+            let failures = await run(fixtures: URL(fileURLWithPath: fixturesPath, isDirectory: true),
+                                     into: dumpDirectory)
+            fflush(stdout)
+            exit(failures == 0 ? 0 : 1)
+        }
+        return true
+    }
+
+    // MARK: - The pass
+
+    private static func run(fixtures: URL, into directory: URL) async -> Int {
+        let files = (try? FileManager.default.contentsOfDirectory(at: fixtures, includingPropertiesForKeys: nil))?
+            .filter { $0.pathExtension.lowercased() == "svg" }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent } ?? []
+        guard !files.isEmpty else {
+            print("ANIMATION_ORACLE_ERROR no .svg under \(fixtures.path)")
+            return 1
+        }
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        } catch {
+            print("ANIMATION_ORACLE_ERROR cannot create \(directory.path): \(error)")
+            return 1
+        }
+        guard let root = await waitForKeyWindowRootView() else {
+            print("ANIMATION_ORACLE_ERROR no key window to attach the views to")
+            return 1
+        }
+
+        let container = UIView(frame: CGRect(origin: .zero, size: size))
+        container.backgroundColor = .white
+        container.clipsToBounds = true
+        root.addSubview(container)
+        defer { container.removeFromSuperview() }
+
+        print("ANIMATION_DUMP_DIR \(directory.path)")
+        print("ANIMATION_DUMP_START fixtures=\(files.count) canvas=\(Int(size.width))x\(Int(size.height)) times=\(times.count)")
+
+        var failedFixtures = 0
+        for file in files {
+            let name = file.deletingPathExtension().lastPathComponent
+            guard let markup = try? String(contentsOf: file, encoding: .utf8) else {
+                print("ANIMATION_DUMP_FAIL \(name) (cannot read the fixture)")
+                failedFixtures += 1
+                continue
+            }
+            let paused = name.lowercased().contains("paused")
+            let kit = await kitFrames(markup: markup, name: name, container: container)
+            let web = await webFrames(markup: markup, name: name, container: container, paused: paused)
+            var dumped = 0
+            for index in times.indices {
+                if let data = kit[index], write(data, kind: "kit", name: name, index: index, into: directory) {
+                    dumped += 1
+                }
+                if let data = web[index], write(data, kind: "web", name: name, index: index, into: directory) {
+                    dumped += 1
+                }
+            }
+            let expected = times.count * 2
+            if dumped != expected {
+                failedFixtures += 1
+                print("ANIMATION_DUMP_FAIL \(name) (dumped \(dumped)/\(expected) rasters)")
+            }
+            print("ANIMATION_DUMP_PROGRESS \(name) kit=\(kit.count) web=\(web.count)")
+        }
+
+        let manifest: [String: Any] = [
+            "size": [Int(size.width), Int(size.height)],
+            "times": times,
+            "fixtures": files.map { $0.deletingPathExtension().lastPathComponent },
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted, .sortedKeys]) {
+            try? data.write(to: directory.appendingPathComponent("manifest.json"))
+        }
+        print("ANIMATION_DUMP_SUMMARY failed=\(failedFixtures) total=\(files.count) frames=\(files.count * times.count * 2)")
+        fflush(stdout)
+        return failedFixtures
+    }
+
+    // MARK: - The kit side
+
+    private static func kitFrames(markup: String, name: String, container: UIView) async -> [Int: Data] {
+        let view = SVGView(frame: CGRect(origin: .zero, size: size))
+        view.backgroundColor = .clear
+        view.appearanceOverride = .light
+        view.motionPreference = .allow
+        container.addSubview(view)
+        defer { view.removeFromSuperview() }
+
+        let flag = ReadyFlag()
+        view.onDocumentReadyForFrameOracle { flag.fulfill() }
+        view.set(svgString: markup, name: "animation-oracle-\(name)")
+        guard await wait(until: flag, timeout: 15) else {
+            print("ANIMATION_DUMP_FAIL \(name) (kit document did not become ready)")
+            return [:]
+        }
+        // Let the install/layout settle before freezing the timeline.
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        view.layoutIfNeeded()
+        let epoch = view.animationTimelineEpoch
+
+        var result: [Int: Data] = [:]
+        for (index, time) in times.enumerated() {
+            view.layer.speed = 0
+            view.layer.timeOffset = epoch + time
+            view.layoutIfNeeded()
+            if let png = snapshot(container) {
+                result[index] = png
+            }
+        }
+        view.layer.speed = 1
+        view.layer.timeOffset = 0
+        return result
+    }
+
+    // MARK: - The browser side
+
+    private static func webFrames(markup: String, name: String, container: UIView,
+                                  paused: Bool) async -> [Int: Data] {
+        let webView = WKWebView(frame: CGRect(origin: .zero, size: size))
+        webView.isOpaque = false
+        webView.backgroundColor = .white
+        webView.overrideUserInterfaceStyle = .light
+        // The canvas is a fixed 256×256 box: a safe-area content inset would shift the page and
+        // make the two rasters incomparable (the kit view has no such inset).
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+        if #available(iOS 26.0, *) {
+            // iOS 26's soft scroll-edge effect fades the top of the page under the status bar:
+            // the browser raster would be dimmed there while the kit's is not.
+            webView.scrollView.topEdgeEffect.isHidden = true
+            webView.scrollView.bottomEdgeEffect.isHidden = true
+        }
+        container.addSubview(webView)
+        defer { webView.removeFromSuperview() }
+
+        let html = """
+        <!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>html,body{margin:0;padding:0;width:\(Int(size.width))px;height:\(Int(size.height))px;overflow:hidden;background:#fff}
+        svg{display:block;width:\(Int(size.width))px;height:\(Int(size.height))px}</style>
+        </head><body>\(markup)</body></html>
+        """
+        webView.loadHTMLString(html, baseURL: nil)
+
+        // Wait until the document has animations (a paused fixture still has a CSS animation).
+        var animationCount = 0
+        let deadline = Date().addingTimeInterval(15)
+        while Date() < deadline {
+            if let value = try? await webView.evaluateJavaScript("document.getAnimations().length"),
+               let count = value as? Int, count > 0 {
+                animationCount = count
+                break
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        guard animationCount > 0 else {
+            print("ANIMATION_DUMP_FAIL \(name) (browser document has no animations)")
+            return [:]
+        }
+
+        var result: [Int: Data] = [:]
+        for (index, time) in times.enumerated() {
+            // The kit models a paused animation only at t = 0; seek the browser to the same frame.
+            let milliseconds = (paused ? 0 : time) * 1000
+            await callAsyncJavaScript(webView, """
+                const animations = document.getAnimations();
+                animations.forEach(animation => {
+                    animation.pause();
+                    animation.currentTime = \(milliseconds);
+                });
+                // Force a synchronous style/layout flush for every animated subtree before the
+                // snapshot: WebKit may otherwise hand back a partly stale tile cache.
+                document.querySelectorAll('svg *').forEach(element => {
+                    getComputedStyle(element).opacity;
+                    element.getBoundingClientRect();
+                });
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                return animations.length;
+                """)
+            // WebKit can hand back a stale first snapshot; a discarded warm-up followed by a
+            // second one after the compositor settles is the reliable sequence.
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            _ = await webSnapshot(webView)
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            if let png = await webSnapshot(webView) {
+                result[index] = png
+            }
+        }
+        return result
+    }
+
+    /// Runs a (possibly async) script in the page and waits for its completion. The synchronous
+    /// overload with a default completion handler would otherwise be picked by the compiler.
+    private static func callAsyncJavaScript(_ webView: WKWebView, _ script: String) async {
+        await withCheckedContinuation { continuation in
+            webView.callAsyncJavaScript(script, arguments: [:], in: nil, in: .page) { _ in
+                continuation.resume()
+            }
+        }
+    }
+
+    private static func webSnapshot(_ webView: WKWebView) async -> Data? {
+        await withCheckedContinuation { continuation in
+            let configuration = WKSnapshotConfiguration()
+            configuration.rect = CGRect(origin: .zero, size: size)
+            configuration.snapshotWidth = NSNumber(value: Double(size.width))
+            webView.takeSnapshot(with: configuration) { image, _ in
+                continuation.resume(returning: image?.pngData())
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private final class ReadyFlag: @unchecked Sendable {
+        private var ready = false
+        func fulfill() { ready = true }
+        var isReady: Bool { ready }
+    }
+
+    private static func wait(until flag: ReadyFlag, timeout: TimeInterval) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !flag.isReady, Date() < deadline {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+        return flag.isReady
+    }
+
+    private static func waitForKeyWindowRootView() async -> UIView? {
+        let deadline = Date().addingTimeInterval(15)
+        while Date() < deadline {
+            let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            for scene in scenes {
+                let window = scene.windows.first(where: \.isKeyWindow) ?? scene.windows.first
+                if let root = window?.rootViewController?.view {
+                    return root
+                }
+            }
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+        return nil
+    }
+
+    /// A 1× snapshot of the container in its frozen state; both sides are normalised by the test.
+    private static func snapshot(_ view: UIView) -> Data? {
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(bounds: view.bounds, format: format)
+        let image = renderer.image { _ in
+            view.drawHierarchy(in: view.bounds, afterScreenUpdates: true)
+        }
+        return image.pngData()
+    }
+
+    @discardableResult
+    private static func write(_ data: Data, kind: String, name: String, index: Int, into directory: URL) -> Bool {
+        let folder = directory.appendingPathComponent(kind, isDirectory: true)
+            .appendingPathComponent(name, isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try data.write(to: folder.appendingPathComponent("\(index).png"))
+            return true
+        } catch {
+            print("ANIMATION_DUMP_FAIL \(name) (cannot write \(kind)/\(index).png: \(error))")
+            return false
+        }
+    }
 }

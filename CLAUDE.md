@@ -41,6 +41,15 @@ with two oracles; the test is `SVGRenderParityTests.testCorpusParity`.
   (build → install → launch → tests → both gates; `SKIP_DUMP=1`, `SKIP_TESTS=1`, `RASTERS=…`).
   Gate: `.github/webkit-baseline.txt` (`check-parity.sh … WEBKIT_SUMMARY`). In CI it runs from `webkit-parity.yml`
   (pushes to main, manually, or on a PR with the `webkit` label — there is no nightly run).
+- **Animation frame oracle (M4, report-only)**: `Scripts/animation-oracle.sh` dumps
+  `Example/Example/data/animation-oracle` twice at known times — a WKWebView with every CSS
+  animation paused and seeked via `document.getAnimations()`, and an `SVGView` with its Core
+  Animation timeline frozen at the same time — and `SVGAnimationFrameOracleTests` prints the
+  per-frame differing fraction (`ANIMATION_FRAME*`). It is not a CI gate (the trajectory tests
+  are): it is the honest "does it look like the browser" check, and known CA decomposition/color
+  divergences must show up as numbers rather than fail the build. The dump location is recorded in
+  `.animation-rasters` (gitignored); the fixtures are excluded from the static corpus as animated
+  documents.
 - **Per fixture**: `check-parity.sh` only sees counts, so `Scripts/check-fixtures.sh <log> .github/parity-fixtures.txt`
   (CoreSVG, `CORPUS_FAIL`) and `.github/webkit-fixtures.txt` (`WEBKIT_FAIL`) keep the `differing` fraction of every
   failing fixture: a fixture that gets worse by more than `TOLERANCE` (0.01) or a new failing one fails the gate.

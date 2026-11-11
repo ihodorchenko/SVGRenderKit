@@ -102,3 +102,5 @@ Carthage/Build.rbenv-vars
 # Python (the build-time converter and perf tool)
 __pycache__/
 *.pyc
+
+.animation-rasters

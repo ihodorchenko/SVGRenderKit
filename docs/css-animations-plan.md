@@ -1,6 +1,6 @@
 # Plan: render and animate the original CSS-driven SVG (`folder_9/original/logo-ghost-wave-effect.svg`)
 
-Status: **M1, M2 and M3 done; M4 remains**. The document-wide stylesheet
+Status: **M1, M2 and M3 done; M4 framework done (report-only)**. The document-wide stylesheet
 (`SVGStyleSheet`) resolves every `<style>` block in document order with compound and descendant
 selectors, specificity and `!important`, and evaluates `@media (prefers-color-scheme)` /
 `@media (prefers-reduced-motion)` for the render's appearance and Reduce Motion state
@@ -145,8 +145,8 @@ original's light-mode look is unaffected.
 
 | # | Work item | Eng-days |
 |---|---|---|
-| 1 | Animation-frame oracle: Example app seeks `document.getAnimations()` to `currentTime = t` in WKWebView and snapshots; the kit raster uses `shapeLayer.speed = 0; timeOffset = t`. Small dedicated fixture set (NOT the parity corpus); report-only at first | 1.5–3.5 |
-| 2 | Gate strategy: trajectory tests as the CI gate; frame oracle run-on-demand; docs, CHANGELOG, MIGRATION | 1.5–3 |
+| 1 | Animation-frame oracle: Example app seeks `document.getAnimations()` to `currentTime = t` in WKWebView and snapshots; the kit raster freezes the Core Animation timeline at `epoch + t`. ✅ framework: `AnimationOracleRunner` + `Scripts/animation-oracle.sh` + `SVGAnimationFrameOracleTests`; first four fixtures (`translate`, `rotate-origin`, `steps`, `paused`) report translate/paused as exact, `steps` at ~0.009 differing, `rotate-origin` at 0.198–0.255 (the known CA matrix-decomposition divergence) | 1.5–3.5 |
+| 2 | Gate strategy: trajectory tests as the CI gate; frame oracle run-on-demand (report-only, no baseline yet); extend the fixture set (fill/stroke color, dashoffset, SMIL, `use`/`image`, dark/Reduce Motion); docs, CHANGELOG | 1.5–3 |
 
 ## 5. Test strategy
 
