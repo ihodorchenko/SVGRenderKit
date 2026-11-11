@@ -103,7 +103,8 @@ with two oracles; the test is `SVGRenderParityTests.testCorpusParity`.
 
 ## Out of scope (when met, degrade: skip with a log, do not implement)
 
-Scripts/DOM/events; external resources (`url(...)` over the network); `@font-face`/glyphs; `@media`;
+Scripts/DOM/events; external resources (`url(...)` over the network); `@font-face`/glyphs; media
+features other than `prefers-color-scheme`/`prefers-reduced-motion`;
 interactive links (`<a>`); full SMIL (event `begin`, `additive`, `calcMode`, `fill="freeze"`); `textPath`,
 per-glyph `x`/`y` lists; child/sibling combinators, pseudo-classes and attribute selectors (the
 selector model itself covers tag/class/id, compound and descendant selectors with specificity and
@@ -119,10 +120,13 @@ their content).
 CSS animations are supported in the runtime for `transform`, `opacity`, `fill`, `stroke` and
 `stroke-dashoffset` (`SVGCSSAnimations`, CONFORMANCE): `@keyframes`/`animation` from the document
 stylesheet or inline `style`, with direction, easing, delay, iteration count and fill mode; on a
-`<g>` only `opacity`/`transform` (the paint properties are inherited). Media queries, the
-appearance plumbing, `transform-origin`/`fill-box` and CSS transitions are still out of scope; for
-an asset that needs those use the build-time converter `Scripts/css-to-smil.py` (`--self-test`,
-`--strict`), which rewrites it into the SMIL subset. The remaining runtime CSS work is the plan in
+`<g>` only `opacity`/`transform` (the paint properties are inherited). `@media` is evaluated for
+`prefers-color-scheme` and `prefers-reduced-motion`; appearance/Reduce Motion come from the view's
+traits and `UIAccessibility` (`SVGView.appearanceOverride`/`motionPreference`, the SwiftUI
+environment, `SVGRenderer` parameters). `transform-origin`/`fill-box`, CSS transitions,
+`drop-shadow` and the frame oracle remain out of scope; for an asset that needs those use the
+build-time converter `Scripts/css-to-smil.py` (`--self-test`, `--strict`), which rewrites it into
+the SMIL subset. The remaining runtime CSS work is the plan in
 [docs/css-animations-plan.md](docs/css-animations-plan.md). Animated assets still go through
 `CorpusLoader.hasRenderingAnimation` and never enter the pixel corpus.
 

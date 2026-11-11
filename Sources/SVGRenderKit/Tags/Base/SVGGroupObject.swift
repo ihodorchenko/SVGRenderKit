@@ -368,12 +368,14 @@ extension SVGGroupObject {
     /// container such as `<g class="st0">`, not only a shape (B91), or an element that is not a
     /// shape at all, like `<use>` (B119-12). Specificity and document order decide the cascade.
     func selectorStyle(for object: SVGObject) -> SVGSourceStyleElement {
-        return getSvgOptions().stylesheet?.selectorStyle(for: object) ?? SVGSourceStyleElement()
+        return getSvgOptions().stylesheet?.selectorStyle(for: object, media: getSvgOptions().mediaContext)
+            ?? SVGSourceStyleElement()
     }
 
     /// The `!important` declarations of the rules matching `object`.
     func importantSelectorStyle(for object: SVGObject) -> SVGSourceStyleElement {
-        return getSvgOptions().stylesheet?.importantSelectorStyle(for: object) ?? SVGSourceStyleElement()
+        return getSvgOptions().stylesheet?.importantSelectorStyle(for: object, media: getSvgOptions().mediaContext)
+            ?? SVGSourceStyleElement()
     }
 
     /// Selector rules target the shape itself, so they override inherited group styles.
@@ -396,16 +398,16 @@ extension SVGGroupObject {
     }
 
     func animationDeclarations(for object: SVGObject) -> [(property: String, value: String)] {
-        return getSvgOptions().stylesheet?.animationDeclarations(for: object) ?? []
+        return getSvgOptions().stylesheet?.animationDeclarations(for: object, media: getSvgOptions().mediaContext) ?? []
     }
 
     func importantAnimationDeclarations(for object: SVGObject) -> [(property: String, value: String)] {
-        return getSvgOptions().stylesheet?.importantAnimationDeclarations(for: object) ?? []
+        return getSvgOptions().stylesheet?.importantAnimationDeclarations(for: object, media: getSvgOptions().mediaContext) ?? []
     }
 
     /// The `@keyframes` block for a CSS animation name (the last definition wins, as in CSS).
     func keyframes(named name: String) -> SVGStyleSheet.Keyframes? {
-        return getSvgOptions().stylesheet?.keyframes(named: name)
+        return getSvgOptions().stylesheet?.keyframes(named: name, media: getSvgOptions().mediaContext)
     }
 
     /// CSS animations of this group. A group can animate `opacity` and `transform`; `fill`,

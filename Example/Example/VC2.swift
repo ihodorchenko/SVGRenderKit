@@ -392,6 +392,9 @@ final class SVGCell: UICollectionViewCell {
         contentView.layer.borderColor = style.borderColor.cgColor
         label.textColor = style.textColor
         label.text = name
+        // The gallery's Dark backdrop also selects the asset's dark CSS palette (M3): a document
+        // with `@media (prefers-color-scheme: dark)` shows its designed dark variant.
+        svgView.appearanceOverride = style == .dark ? .dark : .light
         svgView.clear()
         svgView.set(SVGName: name)
     }
@@ -478,6 +481,7 @@ final class SVGDetailViewController: UIViewController {
 
     private func applyStyle() {
         let style = SubstrateStore.shared.style
+        svgView.appearanceOverride = style == .dark ? .dark : .light
         view.backgroundColor = style.screenColor
         cardView.backgroundColor = style.substrateColor
         cardView.layer.borderColor = style.borderColor.cgColor

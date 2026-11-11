@@ -38,13 +38,20 @@ public enum SVGRenderer {
     /// - parameter background: A color filled behind the SVG; `nil` keeps PNG/PDF transparent
     ///   (JPEG falls back to white).
     /// - parameter overrideElements: Optional per-element style overrides.
+    /// - parameter appearance: The appearance used for CSS `@media (prefers-color-scheme: …)`.
+    ///   Defaults to `.light`; pass `.dark` to render the dark variant of the asset.
+    /// - parameter reduceMotion: Whether CSS `@media (prefers-reduced-motion: reduce)` applies to
+    ///   this render. Defaults to `false` (full motion), which keeps offscreen output deterministic
+    ///   instead of following the device's accessibility setting.
     public static func render(
         _ source: SVGSource,
         size: CGSize? = nil,
         format: SVGRenderFormat = .png,
         scale: CGFloat = 1,
         background: UIColor? = nil,
-        overrideElements: [String: SVGSourceStyleElement]? = nil
+        overrideElements: [String: SVGSourceStyleElement]? = nil,
+        appearance: SVGAppearance = .light,
+        reduceMotion: Bool = false
     ) async throws -> Data {
         // Cancelling the awaiting task cancels the render cooperatively: queued work that
         // has not started yet is abandoned (B112).
@@ -52,7 +59,8 @@ public enum SVGRenderer {
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 start(source, size: size, format: format, scale: scale, background: background,
-                      overrideElements: overrideElements, token: token) { continuation.resume(with: $0) }
+                      overrideElements: overrideElements, appearance: appearance,
+                      reduceMotion: reduceMotion, token: token) { continuation.resume(with: $0) }
             }
         } onCancel: {
             token.cancelled.value = true
@@ -61,6 +69,8 @@ public enum SVGRenderer {
 
     /// Callback variant of `render(_:size:format:scale:background:overrideElements:)`.
     /// - parameter completion: Called once with the encoded data or the error, on a background queue.
+    /// - parameter appearance: The appearance used for CSS `@media (prefers-color-scheme: …)`.
+    /// - parameter reduceMotion: Whether CSS `@media (prefers-reduced-motion: reduce)` applies.
     public static func render(
         _ source: SVGSource,
         size: CGSize? = nil,
@@ -68,10 +78,13 @@ public enum SVGRenderer {
         scale: CGFloat = 1,
         background: UIColor? = nil,
         overrideElements: [String: SVGSourceStyleElement]? = nil,
+        appearance: SVGAppearance = .light,
+        reduceMotion: Bool = false,
         completion: @escaping @Sendable (Result<Data, Error>) -> Void
     ) {
         start(source, size: size, format: format, scale: scale, background: background,
-              overrideElements: overrideElements, token: CancelToken(), completion: completion)
+              overrideElements: overrideElements, appearance: appearance,
+              reduceMotion: reduceMotion, token: CancelToken(), completion: completion)
     }
 
     /// A cooperative cancellation flag, shared between the async wrapper and the queued work.
@@ -82,6 +95,7 @@ public enum SVGRenderer {
     private static func start(
         _ source: SVGSource, size: CGSize?, format: SVGRenderFormat, scale: CGFloat,
         background: UIColor?, overrideElements: [String: SVGSourceStyleElement]?,
+        appearance: SVGAppearance, reduceMotion: Bool,
         token: CancelToken, completion: @escaping @Sendable (Result<Data, Error>) -> Void
     ) {
         // Parsing and layer building share per-document state (`renderScale`, parser cache) with `SVGView`
@@ -93,7 +107,8 @@ public enum SVGRenderer {
             let prepared: Prepared
             do {
                 prepared = try prepare(source, size: size, format: format, scale: scale,
-                                       background: background, overrideElements: overrides.value)
+                                       background: background, overrideElements: overrides.value,
+                                       appearance: appearance, reduceMotion: reduceMotion)
             } catch {
                 completion(.failure(error))
                 return
@@ -128,7 +143,8 @@ public enum SVGRenderer {
 
     private static func prepare(
         _ source: SVGSource, size: CGSize?, format: SVGRenderFormat, scale: CGFloat,
-        background: UIColor?, overrideElements: [String: SVGSourceStyleElement]?
+        background: UIColor?, overrideElements: [String: SVGSourceStyleElement]?,
+        appearance: SVGAppearance, reduceMotion: Bool
     ) throws -> Prepared {
         let parser: SVGParser
         switch source {
@@ -138,6 +154,8 @@ public enum SVGRenderer {
         }
 
         let options = parser.root.getSvgOptions()
+        options.appearance = appearance
+        options.reduceMotion = reduceMotion
         let viewBox = options.viewBox
         let natural = options.size.width > 0 && options.size.height > 0 ? options.size : viewBox.size
         let outputSize = size ?? natural

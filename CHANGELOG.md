@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
+- CSS `@media` support for `prefers-color-scheme` (`light`/`dark`) and `prefers-reduced-motion`
+  (`reduce`/`no-preference`), with `and` chains, comma alternatives and nested blocks; other media
+  features make their alternative never match (`SVGStyleSheet`). Appearance and Reduce Motion are
+  per render and re-render the view when they change: `SVGView.appearanceOverride` and
+  `motionPreference` (defaults follow the trait collection and `UIAccessibility`), `SVGImageView`
+  follows the SwiftUI `colorScheme`/`accessibilityReduceMotion` environment with
+  `svgAppearance(_:)`/`svgMotionPreference(_:)` overrides, and
+  `SVGRenderer.render(..., appearance:reduceMotion:)` takes them explicitly. The Example gallery's
+  Dark backdrop now selects the asset's dark palette, so the original logo's dark variant applies.
 - **M1 of the CSS plan: the document-wide stylesheet.** Every `<style>` block of a document is now
   collected in document order (including blocks inside `<defs>`, `<mask>`, `<clipPath>` and
   `<pattern>`) and matched against every element, instead of looking up style blocks along the

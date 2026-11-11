@@ -55,6 +55,52 @@ open class SVGView: UIView {
         }
     }
 
+    /// The appearance used to evaluate CSS `@media (prefers-color-scheme: …)`.
+    ///
+    /// `nil` (the default) follows `traitCollection.userInterfaceStyle`, so a dark-mode app gets
+    /// the dark variant of the asset automatically; a non-`nil` value pins it (previews, tests and
+    /// screenshots). Changing it re-renders the current document when it changes.
+    public var appearanceOverride: SVGAppearance? {
+        didSet {
+            guard appearanceOverride != oldValue else { return }
+            reloadForMediaChange()
+        }
+    }
+
+    /// How CSS `@media (prefers-reduced-motion: reduce)` is evaluated.
+    ///
+    /// Defaults to `.system`, i.e. the view follows `UIAccessibility.isReduceMotionEnabled` and
+    /// re-renders when the setting changes. `.allow` opts out for a preview or a screenshot tool
+    /// that needs the full motion.
+    public var motionPreference: SVGMotionPreference = .system {
+        didSet {
+            guard motionPreference != oldValue else { return }
+            reloadForMediaChange()
+        }
+    }
+
+    /// The appearance this render resolves to: the override, or the view's trait collection.
+    private var resolvedAppearance: SVGAppearance {
+        if let appearanceOverride = appearanceOverride { return appearanceOverride }
+        return traitCollection.userInterfaceStyle == .dark ? .dark : .light
+    }
+
+    /// Whether `prefers-reduced-motion: reduce` is in effect for this render.
+    private var resolvedReduceMotion: Bool {
+        return motionPreference.reducesMotion
+    }
+
+    /// Re-renders the current source after an appearance or Reduce Motion change, keeping the
+    /// animation timeline (a theme switch must not restart a running animation).
+    private func reloadForMediaChange() {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in self?.reloadForMediaChange() }
+            return
+        }
+        guard let source = currentSource else { return }
+        load(source, overrideElements: overrideElements, restartsAnimation: false)
+    }
+
     private(set) var overrideElements: [String: SVGSourceStyleElement]?
 
     internal var _SVGName: String?
@@ -218,6 +264,10 @@ open class SVGView: UIView {
         pendingAnimations = []
         if restartsAnimation { animationEpoch = CACurrentMediaTime() }
         let epoch = animationEpoch
+        // Media queries are evaluated while the layers are built, so the inputs are captured on
+        // the main thread with the rest of the view state.
+        let appearance = resolvedAppearance
+        let reduceMotion = resolvedReduceMotion
         loadGeneration += 1
         let generation = loadGeneration
         let containerSize = bounds.size
@@ -246,6 +296,8 @@ open class SVGView: UIView {
                 // rather than 1 px per unit, so their anti-aliasing matches what the screen
                 // shows: points per unit times the destination scale (B92, B119-6).
                 let options = parser.root.getSvgOptions()
+                options.appearance = appearance
+                options.reduceMotion = reduceMotion
                 let viewBox = options.viewBox
                 var scale: CGFloat?
                 if containerSize.width > 0, containerSize.height > 0,
@@ -307,6 +359,20 @@ open class SVGView: UIView {
     open override func didMoveToWindow() {
         super.didMoveToWindow()
         attachPendingAnimations()
+    }
+
+    /// A light/dark trait change re-renders the document when the appearance is not pinned.
+    open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        guard appearanceOverride == nil, let previousTraitCollection = previousTraitCollection,
+              previousTraitCollection.hasDifferentColorAppearance(comparedTo: traitCollection) else { return }
+        reloadForMediaChange()
+    }
+
+    /// The system Reduce Motion switch changed: re-render only while following the system setting.
+    @objc private func handleReduceMotionChange() {
+        guard motionPreference == .system else { return }
+        reloadForMediaChange()
     }
 
     /// Attaches the animations collected during the build, if the view is ready to keep them.
@@ -405,6 +471,9 @@ open class SVGView: UIView {
         // notification must still reload later (B114).
         NotificationCenter.default.addObserver(self, selector: #selector(handleReloadNotification),
                                                name: SVGConfiguration.shared.updateSvgImagesNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleReduceMotionChange),
+                                               name: UIAccessibility.reduceMotionStatusDidChangeNotification,
+                                               object: nil)
         contentView.clipsToBounds = true
         self.addSubview(contentView)
     }

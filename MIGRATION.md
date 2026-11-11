@@ -1,5 +1,17 @@
 # Migration guide
 
+## 2.0.x → next
+
+Nothing to change: the release only adds API.
+
+- CSS media queries are evaluated per render, and the renderer/view gained the knobs that select
+  them: `SVGAppearance` and `SVGMotionPreference`, `SVGView.appearanceOverride` /
+  `motionPreference`, `SVGImageView.svgAppearance(_:)` / `svgMotionPreference(_:)`, and the
+  `appearance:`/`reduceMotion:` parameters of `SVGRenderer.render`.
+- `SVGView` follows the trait collection and `UIAccessibility.isReduceMotionEnabled` by default, so
+  an existing app automatically renders dark variants and honours Reduce Motion; set
+  `motionPreference = .allow` to keep the full motion regardless of the accessibility setting.
+
 ## 1.4.x → 2.0.0
 
 2.0 narrows the public API to what a client can actually use. The object model that the parser builds

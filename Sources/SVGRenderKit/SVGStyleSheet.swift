@@ -56,6 +56,46 @@ final class SVGStyleSheet {
         let selector: Selector
         let declarations: Declarations
         let order: Int
+        /// The `@media` condition of the enclosing block, `nil` when the rule is unconditional.
+        let media: MediaQuery?
+    }
+
+    /// A parsed media query list: comma-separated alternatives (logical OR), each an AND-list of
+    /// supported features.
+    struct MediaQuery {
+        enum Feature {
+            case colorScheme(SVGAppearance)
+            case reducedMotion(Bool)
+            /// A feature the profile does not support: its alternative never matches.
+            case never
+
+            func matches(_ context: SVGMediaContext) -> Bool {
+                switch self {
+                case .colorScheme(let appearance): return appearance == context.appearance
+                case .reducedMotion(let reduce): return reduce == context.reduceMotion
+                case .never: return false
+                }
+            }
+        }
+
+        /// One AND-list per alternative; an empty AND-list matches everything (`all`).
+        let alternatives: [[Feature]]
+
+        /// `@media all` / no condition.
+        static let all = MediaQuery(alternatives: [[]])
+
+        func matches(_ context: SVGMediaContext) -> Bool {
+            return alternatives.contains { alternative in
+                alternative.allSatisfy { $0.matches(context) }
+            }
+        }
+    }
+
+    /// One `@keyframes` definition; a definition inside `@media` is only available when the media
+    /// query matches, and the last matching definition wins (as in CSS).
+    struct KeyframesEntry {
+        let media: MediaQuery?
+        let keyframes: Keyframes
     }
 
     /// One keyframe of a `@keyframes` block.
@@ -70,7 +110,7 @@ final class SVGStyleSheet {
     }
 
     private(set) var rules: [Rule] = []
-    private(set) var keyframes: [String: Keyframes] = [:]
+    private(set) var keyframes: [String: [KeyframesEntry]] = [:]
 
     // MARK: - Parsing
 
@@ -95,26 +135,38 @@ final class SVGStyleSheet {
     }
 
     private func parse(styleText: String, order: inout Int) {
-        for block in SVGStyleSheet.blocks(in: SVGStyleSheet.removingComments(styleText)) {
+        parseBlocks(in: SVGStyleSheet.removingComments(styleText), media: nil, order: &order)
+    }
+
+    private func parseBlocks(in text: String, media: MediaQuery?, order: inout Int) {
+        for block in SVGStyleSheet.blocks(in: text) {
             if block.prelude.hasPrefix("@") {
-                parseAtRule(prelude: block.prelude, body: block.body)
+                parseAtRule(prelude: block.prelude, body: block.body, media: media, order: &order)
                 continue
             }
             let declarations = SVGStyleSheet.parseDeclarations(block.body)
             for selectorText in SVGStyleSheet.splitSelectors(block.prelude) {
                 guard let selector = SVGStyleSheet.parseSelector(selectorText) else { continue }
-                rules.append(Rule(selector: selector, declarations: declarations, order: order))
+                rules.append(Rule(selector: selector, declarations: declarations,
+                                  order: order, media: media))
                 order += 1
             }
         }
     }
 
-    /// `@keyframes` become a registry; every other at-rule (`@media`, `@font-face`, `@supports`,
-    /// …) stays out of scope and is skipped with its body.
-    private func parseAtRule(prelude: String, body: String) {
+    /// `@keyframes` become a registry, `@media (prefers-color-scheme/prefers-reduced-motion)`
+    /// blocks are parsed recursively with their condition attached; every other at-rule stays out
+    /// of scope and is skipped with its body.
+    private func parseAtRule(prelude: String, body: String, media: MediaQuery?, order: inout Int) {
         let withoutAt = prelude.dropFirst() // the leading '@'
         guard let separator = withoutAt.firstIndex(where: { $0.isWhitespace }) else { return }
         let name = String(withoutAt[..<separator]).lowercased()
+        if name == "media" {
+            let queryText = String(withoutAt[separator...])
+            guard let query = SVGStyleSheet.parseMediaQuery(queryText) else { return }
+            parseBlocks(in: body, media: SVGStyleSheet.combine(media, query), order: &order)
+            return
+        }
         guard name == "keyframes" || name.hasSuffix("-keyframes") else { return }
         let animationName = SVGUtils.trimmed(string: String(withoutAt[separator...]))
         guard !animationName.isEmpty else { return }
@@ -132,7 +184,8 @@ final class SVGStyleSheet {
             }
         }
         frames.sort { $0.offset < $1.offset }
-        keyframes[animationName] = Keyframes(frames: frames)
+        keyframes[animationName, default: []].append(
+            KeyframesEntry(media: media, keyframes: Keyframes(frames: frames)))
     }
 
     private static func parseDeclarations(_ body: String) -> Declarations {
@@ -160,9 +213,9 @@ final class SVGStyleSheet {
     // MARK: - Matching and the cascade
 
     /// The declarations of every rule matching `object`, normal priority only.
-    func selectorStyle(for object: SVGObject) -> SVGSourceStyleElement {
+    func selectorStyle(for object: SVGObject, media: SVGMediaContext) -> SVGSourceStyleElement {
         var style = SVGSourceStyleElement()
-        for rule in matchedRules(for: object) {
+        for rule in matchedRules(for: object, media: media) {
             style = style.combine(child: rule.declarations.normal)
         }
         return style
@@ -170,9 +223,9 @@ final class SVGStyleSheet {
 
     /// The `!important` declarations of every rule matching `object` (applied after every normal
     /// declaration, including the inline style).
-    func importantSelectorStyle(for object: SVGObject) -> SVGSourceStyleElement {
+    func importantSelectorStyle(for object: SVGObject, media: SVGMediaContext) -> SVGSourceStyleElement {
         var style = SVGSourceStyleElement()
-        for rule in importantMatchedRules(for: object) {
+        for rule in importantMatchedRules(for: object, media: media) {
             style = style.combine(child: rule.declarations.important)
         }
         return style
@@ -180,8 +233,8 @@ final class SVGStyleSheet {
 
     /// The `animation`/`animation-*` declarations of the normal rules matching `object`, in
     /// cascade order.
-    func animationDeclarations(for object: SVGObject) -> [(property: String, value: String)] {
-        return matchedRules(for: object).flatMap { rule in
+    func animationDeclarations(for object: SVGObject, media: SVGMediaContext) -> [(property: String, value: String)] {
+        return matchedRules(for: object, media: media).flatMap { rule in
             rule.declarations.rawNormal.filter {
                 $0.property == "animation" || $0.property.hasPrefix("animation-")
             }
@@ -189,23 +242,29 @@ final class SVGStyleSheet {
     }
 
     /// The `animation`/`animation-*` declarations of the `!important` rules matching `object`.
-    func importantAnimationDeclarations(for object: SVGObject) -> [(property: String, value: String)] {
-        return importantMatchedRules(for: object).flatMap { rule in
+    func importantAnimationDeclarations(for object: SVGObject, media: SVGMediaContext) -> [(property: String, value: String)] {
+        return importantMatchedRules(for: object, media: media).flatMap { rule in
             rule.declarations.rawImportant.filter {
                 $0.property == "animation" || $0.property.hasPrefix("animation-")
             }
         }
     }
 
-    func keyframes(named name: String) -> Keyframes? {
-        return keyframes[name]
+    func keyframes(named name: String, media: SVGMediaContext) -> Keyframes? {
+        var result: Keyframes?
+        for entry in keyframes[name] ?? [] where entry.media?.matches(media) ?? true {
+            result = entry.keyframes
+        }
+        return result
     }
 
     /// Matched rules in application order: specificity, then source order.
-    private func matchedRules(for object: SVGObject) -> [Rule] {
+    private func matchedRules(for object: SVGObject, media: SVGMediaContext) -> [Rule] {
         let chain = SVGStyleSheet.ancestorChain(of: object)
         return rules
-            .filter { SVGStyleSheet.matches($0.selector, chain: chain) }
+            .filter { rule in
+                (rule.media?.matches(media) ?? true) && SVGStyleSheet.matches(rule.selector, chain: chain)
+            }
             .sorted { left, right in
                 let a = left.selector.specificity
                 let b = right.selector.specificity
@@ -215,11 +274,13 @@ final class SVGStyleSheet {
     }
 
     /// The matched `!important` rules in application order.
-    private func importantMatchedRules(for object: SVGObject) -> [Rule] {
+    private func importantMatchedRules(for object: SVGObject, media: SVGMediaContext) -> [Rule] {
         let chain = SVGStyleSheet.ancestorChain(of: object)
         return rules
             .filter { rule in
-                !rule.declarations.rawImportant.isEmpty && SVGStyleSheet.matches(rule.selector, chain: chain)
+                (rule.media?.matches(media) ?? true)
+                    && !rule.declarations.rawImportant.isEmpty
+                    && SVGStyleSheet.matches(rule.selector, chain: chain)
             }
             .sorted { left, right in
                 let a = left.selector.specificity
@@ -423,6 +484,78 @@ final class SVGStyleSheet {
         }
         if !universal && tag == nil && classes.isEmpty && id == nil { return nil }
         return Compound(tag: tag, classes: classes, id: id)
+    }
+
+    /// Parses a media query list after `@media`: comma-separated alternatives (OR), each an
+    /// `and`-joined list of `(feature: value)` conditions. Only `prefers-color-scheme` and
+    /// `prefers-reduced-motion` are understood; anything else makes its alternative never match.
+    private static func parseMediaQuery(_ text: String) -> MediaQuery? {
+        let query = SVGUtils.trimmed(string: text)
+        guard !query.isEmpty else { return .all }
+        var alternatives: [[MediaQuery.Feature]] = []
+        for rawAlternative in splitMediaList(query) {
+            let alternative = SVGUtils.trimmed(string: rawAlternative).lowercased()
+            guard !alternative.isEmpty else { continue }
+            if alternative == "all" || alternative == "screen" {
+                alternatives.append([])
+                continue
+            }
+            var features: [MediaQuery.Feature] = []
+            for rawPart in alternative.components(separatedBy: " and ") {
+                let part = SVGUtils.trimmed(string: rawPart)
+                guard part.hasPrefix("("), part.hasSuffix(")") else {
+                    features.append(.never)
+                    continue
+                }
+                let body = part.dropFirst().dropLast()
+                let pieces = body.split(separator: ":", maxSplits: 1)
+                    .map { SVGUtils.trimmed(string: String($0)).lowercased() }
+                guard pieces.count == 2 else {
+                    features.append(.never)
+                    continue
+                }
+                switch (pieces[0], pieces[1]) {
+                case ("prefers-color-scheme", "dark"): features.append(.colorScheme(.dark))
+                case ("prefers-color-scheme", "light"): features.append(.colorScheme(.light))
+                case ("prefers-reduced-motion", "reduce"): features.append(.reducedMotion(true))
+                case ("prefers-reduced-motion", "no-preference"): features.append(.reducedMotion(false))
+                default: features.append(.never)
+                }
+            }
+            alternatives.append(features)
+        }
+        return alternatives.isEmpty ? nil : MediaQuery(alternatives: alternatives)
+    }
+
+    /// Splits a media query list on top-level commas.
+    private static func splitMediaList(_ text: String) -> [String] {
+        var parts: [String] = []
+        var current = ""
+        var depth = 0
+        for character in text {
+            if character == "(" { depth += 1 } else if character == ")" { depth = max(0, depth - 1) }
+            if character == ",", depth == 0 {
+                parts.append(current)
+                current = ""
+            } else {
+                current.append(character)
+            }
+        }
+        parts.append(current)
+        return parts
+    }
+
+    /// Nests a media condition: the inner block applies only when the outer one does too (AND of
+    /// the alternatives).
+    private static func combine(_ outer: MediaQuery?, _ inner: MediaQuery) -> MediaQuery {
+        guard let outer = outer else { return inner }
+        var alternatives: [[MediaQuery.Feature]] = []
+        for outerAlternative in outer.alternatives {
+            for innerAlternative in inner.alternatives {
+                alternatives.append(outerAlternative + innerAlternative)
+            }
+        }
+        return MediaQuery(alternatives: alternatives)
     }
 
     private static func keyframeOffsets(_ prelude: String) -> [Double] {

@@ -148,6 +148,16 @@ class SVGOptions {
     /// the root element; style resolution and CSS animations read the rules from here.
     var stylesheet: SVGStyleSheet?
 
+    /// The appearance used to evaluate `@media (prefers-color-scheme: …)` for this render.
+    var appearance: SVGAppearance = .light
+    /// Whether `@media (prefers-reduced-motion: reduce)` is in effect for this render.
+    var reduceMotion = false
+
+    /// The media-query inputs of this render (read by `SVGStyleSheet`).
+    var mediaContext: SVGMediaContext {
+        return SVGMediaContext(appearance: appearance, reduceMotion: reduceMotion)
+    }
+
     /// The `version` attribute of the root `<svg>` element (e.g. `"1.1"`).
     var version: String?
     /// The `baseProfile` attribute of the root `<svg>` element (e.g. `"tiny"`).

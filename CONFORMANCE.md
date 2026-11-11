@@ -93,8 +93,17 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 - Cascade: specificity (id > class > tag, more classes/compounds first) and source order;
   `!important` in a stylesheet rule or inline `style` outranks every normal declaration ✅
 - `inherit` resolution stays limited to `visibility`, `clip-rule`, `fill-rule`, `text-anchor` ✅
-- Child/sibling combinators (`>`, `+`, `~`), pseudo-classes, attribute selectors, `@media`,
-  `@font-face` ❌ out of scope (such a selector is dropped with its declarations)
+- `@media` for `prefers-color-scheme` (`light`/`dark`) and `prefers-reduced-motion`
+  (`reduce`/`no-preference`) ✅, including `and` chains, comma alternatives and nested blocks;
+  anything else in a media query makes that alternative never match
+- Appearance and Reduce Motion are per render: `SVGView.appearanceOverride` /
+  `motionPreference` (the view follows its trait collection and
+  `UIAccessibility.isReduceMotionEnabled` by default and re-renders on a change), `SVGImageView`
+  follows the SwiftUI `colorScheme` / `accessibilityReduceMotion` environment (with
+  `svgAppearance(_:)` / `svgMotionPreference(_:)` overrides), and
+  `SVGRenderer.render(..., appearance:reduceMotion:)` takes them explicitly for offscreen output
+- Child/sibling combinators (`>`, `+`, `~`), pseudo-classes, attribute selectors, media features
+  other than the two above, `@font-face` ❌ out of scope (such a selector/block is dropped)
 
 ### Animation (SMIL subset)
 
@@ -123,8 +132,8 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
   (`normal`/`reverse`/`alternate`/`alternate-reverse`), `animation-delay`, iteration counts and
   `animation-fill-mode` ✅ (`steps()` falls back to linear with a log; finite alternating counts are
   expanded, infinite ones use `autoreverses`)
-- paused animations, `@media`, child/sibling combinators, pseudo-classes and attribute selectors ❌
-  still out of scope (the plan in [docs/css-animations-plan.md](docs/css-animations-plan.md))
+- paused animations, child/sibling combinators, pseudo-classes and attribute selectors ❌ still out
+  of scope (the plan in [docs/css-animations-plan.md](docs/css-animations-plan.md))
 
 For every other CSS-animated asset the build-time route remains: `Scripts/css-to-smil.py` rewrites
 it into the SMIL subset above (CSS inlined; the timing function sampled into `values`/`keyTimes`;
@@ -138,9 +147,10 @@ function per layer).
 - `<a>`, `<foreignObject>`, `<font>`, `<solidColor>`, `<cursor>` (conditional-processing attributes on `<switch>` are not evaluated; the first child without them is rendered).
 - Full text model: `textPath`, per-glyph `x`/`y` lists,
   `alignment-baseline`/`dominant-baseline`, `textLength`/`lengthAdjust`.
-- CSS cascade: child/sibling combinators, pseudo-classes, attribute selectors, `@media`,
-  `@font-face` (specificity, compound and descendant selectors and `!important` are supported).
-  `inherit` is honoured for `visibility`, `clip-rule`, `fill-rule` and `text-anchor`.
+- CSS cascade: child/sibling combinators, pseudo-classes, attribute selectors, media features other
+  than `prefers-color-scheme`/`prefers-reduced-motion`, `@font-face` (specificity, compound and
+  descendant selectors and `!important` are supported). `inherit` is honoured for `visibility`,
+  `clip-rule`, `fill-rule` and `text-anchor`.
 - Nested `<svg>` viewports.
 - `paint-order`, `vector-effect`.
 - Full SMIL engine (event `begin`, `additive`/`accumulate`, `calcMode`, `fill="freeze"`).

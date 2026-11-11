@@ -13,9 +13,11 @@ and has since been rewritten around an object-tree parser (powered by
 The public surface is deliberately small: `SVGView` (UIKit) and `SVGImageView` (SwiftUI, the
 `SVGRenderKitSwiftUI` product), `SVGRenderer` (offscreen PNG/JPEG/PDF export, `SVGSource`,
 `SVGRenderFormat`), `SVGCache` and `SVGConfiguration` (caching, reload notifications, colour
-overrides), `SVGColors`, `SVGSourceStyleElement` (per-element style overrides) and a few value
-types and helpers (`SVGLength`, `SVGPaint`, `SVGFuncIRI`, `SVGError`, `SVGLog`, `SVGUtils`, `SVGParseString`). The parsed object tree is an
-implementation detail. Upgrading from 1.x: see [MIGRATION.md](MIGRATION.md).
+overrides), `SVGColors`, `SVGSourceStyleElement` (per-element style overrides), the CSS media
+inputs (`SVGAppearance`, `SVGMotionPreference`; see `SVGView.appearanceOverride`/
+`motionPreference` and the SwiftUI overrides) and a few value types and helpers (`SVGLength`,
+`SVGPaint`, `SVGFuncIRI`, `SVGError`, `SVGLog`, `SVGUtils`, `SVGParseString`). The parsed object
+tree is an implementation detail. Upgrading from 1.x: see [MIGRATION.md](MIGRATION.md).
 
 ## Documentation
 
@@ -334,8 +336,10 @@ them up too) and nothing is committed.
 Designer tools export motion as CSS (`<style>` with `@keyframes` and `animation`). The runtime parses
 every `<style>` block document-wide with compound/descendant selectors, specificity and
 `!important`, and plays CSS Animations for `transform`, `opacity`, `fill`, `stroke` and
-`stroke-dashoffset` (see CONFORMANCE); media queries, `transform-origin` and the remaining properties
-still render their base frame,
+`stroke-dashoffset` (see CONFORMANCE). `@media (prefers-color-scheme)` and
+`@media (prefers-reduced-motion)` are evaluated per render (dark assets and Reduce Motion work
+out of the box in `SVGView`/`SVGImageView`); `transform-origin`, `drop-shadow` and the remaining
+properties still render their base frame,
 and `Scripts/css-to-smil.py` is the build-time step for them: it inlines the matched CSS
 declarations, rewrites every CSS animation as `<animate>`/`<animateTransform>` (the timing function
 is sampled into

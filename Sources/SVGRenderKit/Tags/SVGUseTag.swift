@@ -70,9 +70,9 @@ class SVGUseTag: SVGObject, SVGRendering {
     private func ownStyle() -> SVGSourceStyleElement {
         var style = presentationStyle
         if let sheet = parent.getSvgOptions().stylesheet {
-            style = style.combine(child: sheet.selectorStyle(for: self))
+            style = style.combine(child: sheet.selectorStyle(for: self, media: parent.getSvgOptions().mediaContext))
                 .combine(child: inlineStyle)
-                .combine(child: sheet.importantSelectorStyle(for: self))
+                .combine(child: sheet.importantSelectorStyle(for: self, media: parent.getSvgOptions().mediaContext))
                 .combine(child: inlineImportantStyle)
         } else {
             style = style.combine(child: inlineStyle)

@@ -30,6 +30,32 @@ public struct SVGImageView: UIViewRepresentable {
     private let overrideElements: [String: SVGSourceStyleElement]?
     private var loadErrorHandler: ((Error) -> Void)?
 
+    /// An explicit appearance override; `nil` follows the SwiftUI `colorScheme` environment.
+    private var appearanceOverride: SVGAppearance?
+    /// An explicit motion preference; `nil` follows the SwiftUI `accessibilityReduceMotion` value.
+    private var motionPreference: SVGMotionPreference?
+
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Pins the appearance used for CSS `@media (prefers-color-scheme: …)`.
+    /// - parameter appearance: The appearance, or `nil` (the default) to follow the
+    ///   `colorScheme` environment.
+    public func svgAppearance(_ appearance: SVGAppearance?) -> SVGImageView {
+        var copy = self
+        copy.appearanceOverride = appearance
+        return copy
+    }
+
+    /// Overrides how `@media (prefers-reduced-motion: reduce)` is evaluated.
+    /// - parameter preference: The preference, or `nil` (the default) to follow the
+    ///   `accessibilityReduceMotion` environment.
+    public func svgMotionPreference(_ preference: SVGMotionPreference?) -> SVGImageView {
+        var copy = self
+        copy.motionPreference = preference
+        return copy
+    }
+
     /// Registers a handler called, on the main thread, when the document cannot be loaded or
     /// parsed — the SwiftUI counterpart of `SVGView.onLoadError` (B96/B124).
     public func onLoadError(_ handler: @escaping (Error) -> Void) -> SVGImageView {
@@ -100,11 +126,16 @@ public struct SVGImageView: UIViewRepresentable {
         view.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         // The SVG is decorative content by default; callers can use `.accessibilityLabel(_:)`.
         view.isAccessibilityElement = false
+        view.appearanceOverride = appearanceOverride ?? (colorScheme == .dark ? .dark : .light)
+        view.motionPreference = motionPreference ?? (reduceMotion ? .reduce : .system)
         return view
     }
 
     public func updateUIView(_ view: SVGView, context: Context) {
         let coordinator = context.coordinator
+        // Environment changes re-render through the view's own `didSet` when the value differs.
+        view.appearanceOverride = appearanceOverride ?? (colorScheme == .dark ? .dark : .light)
+        view.motionPreference = motionPreference ?? (reduceMotion ? .reduce : .system)
         view.onLoadError = loadErrorHandler
         guard coordinator.needsLoad(source: source, fillColors: fillColors, overrides: overrideElements) else { return }
         let overrides = resolvedOverrides()
