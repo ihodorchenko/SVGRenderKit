@@ -5,7 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 2.1.0 - 2026-11-11
+
+This release completes the runtime CSS animation work: designer-exported `@keyframes` animate in
+`SVGView`/`SVGImageView`, `@media` appearance and Reduce Motion are evaluated per render, CSS
+transforms honour `transform-origin`/`transform-box`, and CSS-only easings and `drop-shadow()` are
+supported. The browser/kit animation frame oracle (`Scripts/animation-oracle.sh`) verifies the
+trajectories against WebKit. No source changes are required; see [MIGRATION.md](MIGRATION.md).
 
 ### Added
 - Added the animation frame oracle harness: `Scripts/animation-oracle.sh` dumps a fixture set at

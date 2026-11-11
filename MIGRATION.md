@@ -1,13 +1,23 @@
 # Migration guide
 
-## 2.0.x → next
+## 2.0.x → 2.1.0
 
-Nothing to change: the release only adds API.
+2.1 is additive: no source changes are required. The new behaviour is that designer-exported CSS
+animations now play instead of rendering their base frame.
 
-- CSS media queries are evaluated per render, and the renderer/view gained the knobs that select
-  them: `SVGAppearance` and `SVGMotionPreference`, `SVGView.appearanceOverride` /
-  `motionPreference`, `SVGImageView.svgAppearance(_:)` / `svgMotionPreference(_:)`, and the
-  `appearance:`/`reduceMotion:` parameters of `SVGRenderer.render`.
+- **CSS Animations** (`@keyframes`/`animation`, document-wide or inline) play `transform`,
+  `opacity`, `fill`, `stroke` and `stroke-dashoffset` on shapes, groups, `<image>` and `<use>`,
+  with direction, easing (including `steps()`, CSS `linear()` and overshooting
+  `cubic-bezier()`), delay, iteration count, fill mode and paused frames. A document that used to
+  appear static may now animate; pass `motionPreference = .reduce`/`SVGView.motionPreference` or use
+  `SVGRenderer` for a frozen base frame if that is what an export wants.
+- **`@media`** is evaluated per render for `prefers-color-scheme` and `prefers-reduced-motion`; CSS
+  `transform` now honours `transform-origin`/`transform-box`, and `filter: drop-shadow()` renders
+  as a layer shadow.
+- Additive API for the media inputs: `SVGAppearance` and `SVGMotionPreference`,
+  `SVGView.appearanceOverride` / `motionPreference`, `SVGImageView.svgAppearance(_:)` /
+  `svgMotionPreference(_:)`, and the `appearance:`/`reduceMotion:` parameters of
+  `SVGRenderer.render`.
 - `SVGView` follows the trait collection and `UIAccessibility.isReduceMotionEnabled` by default, so
   an existing app automatically renders dark variants and honours Reduce Motion; set
   `motionPreference = .allow` to keep the full motion regardless of the accessibility setting.

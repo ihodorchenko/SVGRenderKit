@@ -2,7 +2,8 @@
 
 SVGRenderKit is a lightweight SVG renderer for iOS written in Swift. It parses
 SVG documents and renders them into `CALayer` hierarchies, so the result can be
-embedded into any `UIView` and re-colored at runtime.
+embedded into any `UIView`, re-colored and animated at runtime — including
+designer-exported CSS animations, `@media` appearance variants and Reduce Motion.
 
 The library originated as a fork of [SwiftSVG](https://github.com/mchoe/SwiftSVG)
 and has since been rewritten around an object-tree parser (powered by
@@ -48,7 +49,7 @@ https://github.com/ihodorchenko/SVGRenderKit.git
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ihodorchenko/SVGRenderKit.git", from: "2.0.0")
+    .package(url: "https://github.com/ihodorchenko/SVGRenderKit.git", from: "2.1.0")
 ]
 ```
 
@@ -219,15 +220,15 @@ SVGLog.logger = MyLogger()
 - Shapes: `<path>`, `<rect>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>`, `<text>`, `<image>` (inline data-URI)
 - Structure: `<g>`, `<defs>`, `<use>`, `<symbol>`, `<switch>` (fallback child)
 - Paint servers: `<linearGradient>`, `<radialGradient>`, `<pattern>`, `<mask>`, `<clipPath>`, `<marker>`
-- Filters: `feGaussianBlur` (baked into the layer), `feDropShadow`, and the `feOffset`/`feFlood`/`feColorMatrix` drop-shadow chain (Figma/Sketch)
-- Animation: SMIL subset (`<animate>`, `<animateTransform>`, `<set>`)
+- Filters: `feGaussianBlur` (baked into the layer), `feDropShadow`, the `feOffset`/`feFlood`/`feColorMatrix` drop-shadow chain (Figma/Sketch) and a CSS `filter: drop-shadow()`
+- Animation: SMIL subset (`<animate>`, `<animateTransform>`, `<set>`) and the runtime CSS Animations subset (`@keyframes`/`animation` for `transform`, `opacity`, `fill`, `stroke`, `stroke-dashoffset`; paused frames, steps/linear/overshoot easings, `@media (prefers-color-scheme)`/`(prefers-reduced-motion)`)
 
 ### Properties
 
 - `fill`, `stroke` (solid, gradient, pattern; with an optional fallback), `fill-rule`, `clip-rule`, `opacity`, `fill-opacity`, `stroke-opacity`
 - `stroke-width` (`px`/`%`), `stroke-linecap`/`linejoin`/`miterlimit`, `stroke-dasharray`/`dashoffset`
 - `clip-path`, `mask`, `filter` (local `url(#…)`)
-- `transform` (`matrix`, `translate`, `rotate`, `scale`, `skewX`, `skewY`) and `gradientTransform`
+- `transform` (`matrix`, `translate`, `rotate` with an optional centre, `scale`, `skewX`, `skewY`), CSS `transform` with `transform-origin`/`transform-box` (`view-box`/`fill-box`), and `gradientTransform`
 - `gradientUnits`, `spreadMethod` (`pad`; `reflect`/`repeat` render as `pad`, like CoreSVG), `xlink:href` inheritance
 - `display`, `visibility`, `currentColor` (resolved via `color`)
 
@@ -237,7 +238,13 @@ Hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba()`, `argb()`, 
 
 ### CSS
 
-Inline `style="…"` and `<style>` blocks with id / class / tag selectors, applied in document order to shapes, containers, `<use>`, `<text>` and `<image>`.
+Inline `style="…"` and document-wide `<style>` blocks with tag / `.class` / `#id`, compound and
+descendant selectors, specificity, source order and `!important`. `@media` is evaluated for
+`prefers-color-scheme` and `prefers-reduced-motion`; CSS Animations, `transform` (with
+`transform-origin`/`transform-box`) and `filter: drop-shadow()` are supported as described in
+[CSS-animated assets](#css-animated-assets) and [CONFORMANCE.md](CONFORMANCE.md). Appearance and
+Reduce Motion can be overridden through `SVGView.appearanceOverride`/`motionPreference`, the
+SwiftUI environment and the `SVGRenderer` parameters.
 
 ### Fonts
 
@@ -254,12 +261,17 @@ Inline `style="…"` and `<style>` blocks with id / class / tag selectors, appli
 
 - iOS only (no macOS, tvOS, watchOS, or visionOS).
 - External resources (web `url(...)` references) are not loaded.
-- CSS cascade is out of scope: specificity, `inherit` resolution, combinators,
-  pseudo-classes, `@media`, and `@font-face` are not evaluated.
+- The CSS cascade covers tag/class/id, compound and descendant selectors, specificity, source
+  order and `!important`; child/sibling combinators, pseudo-classes, attribute selectors, media
+  features other than `prefers-color-scheme`/`prefers-reduced-motion`, and `@font-face` are not
+  evaluated.
 - Full text model is out of scope: `textPath`, per-glyph `x`/`y` lists, and
   `alignment-baseline`/`dominant-baseline`.
 - SMIL is a subset: event-based `begin`, `additive`/`accumulate`, `calcMode`, and
   `fill="freeze"` are not supported.
+- CSS Animations are a documented runtime subset (see [CONFORMANCE.md](CONFORMANCE.md)): no CSS
+  transitions, no seeking a paused animation, and known interpolation differences for Core
+  Animation's matrix decomposition, color space and a sampled moving `transform-origin`.
 - Relative length units (`ex`/`rem`/`ch`/`vw`/`vh`) are not supported
   (`em` only for `font-size`; an `em`/`auto` root size falls back to the `viewBox`).
 - Gradient `spreadMethod` is `pad` only; a `<symbol>` does not clip to its viewport (`overflow`).
@@ -288,11 +300,13 @@ See [CONFORMANCE.md](CONFORMANCE.md) for the full icon-profile contract.
 The `Example` project is a gallery that renders every SVG bundled under
 `Example/Example/data` (`folder_1` … `folder_9`). Open `Example/Example.xcodeproj`
 and run the `Example` scheme — it consumes the library as a local Swift Package.
-The gallery supports a light/dark/gray substrate color picker and a full-screen
-detail view. The corpus is browsed as a folder tree: `folder_9` groups the animated demo in two
-subfolders — `folder_9/original` (the dsgnmax icon set as exported: CSS animations, frozen in the
-runtime) and `folder_9/fixed` (the same icons rewritten into the SMIL profile by
-`Scripts/css-to-smil.py`) — and the folder screen descends into them.
+The gallery supports a light/dark/gray substrate color picker (the Dark backdrop also selects the
+asset's `prefers-color-scheme: dark` palette) and a full-screen detail view. The corpus is browsed
+as a folder tree: `folder_9` groups the animated demo in two subfolders — `folder_9/original` (the
+dsgnmax icon set as exported, played by the runtime CSS engine) and `folder_9/fixed` (the same
+icons rewritten into the SMIL profile by `Scripts/css-to-smil.py`) — and the folder screen descends
+into them. The animation frame oracle fixtures live in `Example/Example/AnimationOracleFixtures`
+and are not part of the gallery corpus.
 
 ## Tests
 
@@ -303,7 +317,7 @@ harness. Run it from the repository root:
 ```sh
 xcodebuild test \
   -scheme SVGRenderKit-Package \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
   -skip-testing:SVGRenderKitTests/SVGPerformanceTests
 ```
 
@@ -361,9 +375,10 @@ is sampled into
 lists, splits a mixed one (`translate(...) scale(...)`) into nested wrapper groups, flattens CSS 3D
 aliases and drops `@media` blocks with a warning. `--self-test` checks the converter without Xcode; `--strict` turns every degradation
 into a failure for an asset pipeline. Converted documents animate through `SVGView` like any SMIL
-asset and stay out of the pixel corpus (`CorpusLoader.hasRenderingAnimation`). The runtime CSS
-engine — full cascade, media queries, `transform-origin`, dynamic appearance — remains a separate
-work item, see `docs/css-animations-plan.md`.
+asset and stay out of the pixel corpus (`CorpusLoader.hasRenderingAnimation`). The runtime engine
+implements the subset above directly, so the converter is an optimisation for pipelines that need
+SMIL (or a frozen static frame) rather than a prerequisite; the remaining gaps and the verification
+plan are tracked in [docs/css-animations-plan.md](docs/css-animations-plan.md).
 
 ## Performance
 
@@ -375,7 +390,7 @@ them in Release:
 xcodebuild test \
   -scheme SVGRenderKit-Package \
   -configuration Release ENABLE_TESTABILITY=YES \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
   -only-testing:SVGRenderKitTests/SVGPerformanceTests
 ```
 

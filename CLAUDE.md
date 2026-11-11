@@ -5,6 +5,16 @@ deliberate divergences live in [CONFORMANCE.md](CONFORMANCE.md) (not duplicated 
 [CHANGELOG.md](CHANGELOG.md), migrations in [MIGRATION.md](MIGRATION.md). Code, comments, docs and
 commit messages are in English.
 
+## Versioning and release
+
+- Semantic Versioning, tags without a `v` prefix (`2.1.0`); the tag name must match the
+  `## <version> - <date>` heading in CHANGELOG.md exactly — `.github/workflows/release.yml` extracts
+  the notes from that heading and creates the GitHub Release, `docs.yml` publishes DocC.
+- Bump the version in the README installation snippet, add the release section to CHANGELOG.md
+  (Keep a Changelog), update MIGRATION.md when API/behaviour changes, run the full suite and both
+  parity gates, then `git tag <version> && git push origin main <version>`. Release workflows test
+  the tag before publishing; do not move a pushed tag.
+
 ## Tests
 
 - **Never run the tests synchronously in the main thread/dialog** — it blocks the session. Run them
@@ -175,7 +185,7 @@ Do these only on a user complaint or after a measurement.
 
 - A `radialGradient` with `gradientUnits="userSpaceOnUse"` still rasterizes its window as the `viewBox`
   (the same limitation the linear gradient had: an element moved by an ancestor `transform` gets the part
-  outside the window unpainted). Uncovered by the linear-gradient fix in `Unreleased`.
+  outside the window unpainted). Uncovered by the linear-gradient fix in 2.1.0.
 - `marker-mid`: arcs (`A`) can produce extra mid vertices; Bézier curves and subpaths already follow tangents.
 - A gradient/pattern `stroke` on `<text>`/`<tspan>` is not supported (a solid stroke, opacity, clip, mask
   and filter are).

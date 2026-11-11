@@ -98,10 +98,12 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
   (`view-box`, the default, and `fill-box`) on shapes and `<g>` ✅: the property replaces the
   `transform` attribute, percentages in `translate()`/`transform-origin` resolve against the
   reference box, a missing `transform-origin` keeps the SVG initial `0 0`, and the same origin/box
-  is composed into every `transform` keyframe. A `transform-origin` declared only in keyframes is
-  animated over the iteration like CSS does, by sampling the pivot into the matrix keyframes (a
-  component-wise approximation for large turns and moving origins); the CSS `transform` property
-  on `<use>`/`<image>` (the attribute works there) is out of scope
+  is composed into every `transform` keyframe (the attribute form `rotate(angle cx cy)` keeps its
+  centre). A `transform-origin` declared only in keyframes is animated over the iteration like CSS
+  does, by sampling the pivot into the matrix keyframes; large turns are sampled component-wise so
+  Core Animation's matrix decomposition cannot flatten a `0°`→`360°` turn, and a degenerate
+  `scale(0)` segment is sampled as well. The CSS `transform` property on `<use>`/`<image>` (the
+  attribute works there) is out of scope
 - `@media` for `prefers-color-scheme` (`light`/`dark`) and `prefers-reduced-motion`
   (`reduce`/`no-preference`) ✅, including `and` chains, comma alternatives and nested blocks;
   anything else in a media query makes that alternative never match
@@ -136,8 +138,11 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 - on a `<g>` only `opacity` and `transform` are animated: `fill`/`stroke`/`stroke-dashoffset` are
   inherited, and an inherited animated value cannot be expressed with layer animations
 - known divergences: Core Animation interpolates matrices by decomposition (CSS interpolates the
-  transform list component-wise) and colors in its own space (CSS uses premultiplied sRGB);
-  `transform-origin` is not modelled (the SVG initial `0 0` is assumed)
+  transform list component-wise); the runtime samples large rotations, moving origins and
+  degenerate scales to keep the CSS path, but an unsampled small rotation or an interpolation
+  involving `none`/a matrix can still differ slightly. Colors are interpolated in Core Animation's
+  color space (CSS uses premultiplied sRGB), and the moving `transform-origin` is a sampled
+  approximation of CSS's own origin animation
 - `filter: drop-shadow()` (one shadow: offsets and blur in `px`/user units, a color or
   `currentColor`) on shapes and groups ✅ (a comma-separated shadow list is out of scope: the first
   shadow is used and the rest are logged)
@@ -149,9 +154,9 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 - `animation-play-state: paused` renders the frame at t = 0 statically (after direction folding,
   with the delay/fill-mode rule: before the active phase only `backwards`/`both` show a frame) ✅;
   a later paused current time (a seek) is not modelled
-- child/sibling combinators, pseudo-classes, attribute selectors and an animated
-  `transform-origin` inside a keyframe ❌ still out of scope (the plan in
-  [docs/css-animations-plan.md](docs/css-animations-plan.md))
+- child/sibling combinators, pseudo-classes and attribute selectors ❌ still out of scope (the
+  plan in [docs/css-animations-plan.md](docs/css-animations-plan.md)); a later paused current time,
+  CSS transitions and the full `@media` feature set remain out of scope as well
 
 For every other CSS-animated asset the build-time route remains: `Scripts/css-to-smil.py` rewrites
 it into the SMIL subset above (CSS inlined; the timing function sampled into `values`/`keyTimes`;

@@ -1,6 +1,6 @@
 # Plan: render and animate the original CSS-driven SVG (`folder_9/original/logo-ghost-wave-effect.svg`)
 
-Status: **M1, M2 and M3 done; M4 framework done (report-only)**. The document-wide stylesheet
+Status: **M1, M2 and M3 done, M4 framework done (report-only); released in 2.1.0**. The document-wide stylesheet
 (`SVGStyleSheet`) resolves every `<style>` block in document order with compound and descendant
 selectors, specificity and `!important`, and evaluates `@media (prefers-color-scheme)` /
 `@media (prefers-reduced-motion)` for the render's appearance and Reduce Motion state
@@ -14,8 +14,9 @@ direction, easing, delay, iteration count and `fill-mode` mapped to Core Animati
 `filter: drop-shadow()` renders as a layer shadow; `steps()`, CSS `linear()` and overshooting
 `cubic-bezier()` are sampled into keyframes, a `transform-origin` declared only inside keyframes is
 animated by sampling the pivot into the matrices, and large turns are sampled so the winding is
-preserved. Remaining: extending the M4 fixture set / deciding its gate, a seek of a paused
-animation and CSS transitions.
+preserved. Remaining: extending the M4 fixture set and deciding whether to baseline/gate it, a seek of a
+paused animation and CSS transitions. The runtime subset is documented in CONFORMANCE.md; the
+release notes are in CHANGELOG.md.
 Depends on the two animation fixes released in 2.0.1 (see "Prerequisites").
 
 Update: a *build-time* converter for the common export class now exists — `Scripts/css-to-smil.py`
