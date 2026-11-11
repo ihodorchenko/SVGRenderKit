@@ -340,8 +340,9 @@ every `<style>` block document-wide with compound/descendant selectors, specific
 `@media (prefers-reduced-motion)` are evaluated per render (dark assets and Reduce Motion work
 out of the box in `SVGView`/`SVGImageView`), and the CSS `transform` property honours
 `transform-origin`/`transform-box` (including animated keyframes), samples `steps()`/CSS
-`linear()`/overshooting `cubic-bezier()` into keyframes and renders a CSS `drop-shadow`; the
-remaining properties still render their base frame,
+`linear()`/overshooting `cubic-bezier()` into keyframes, renders a CSS `drop-shadow`, plays
+animations on `<image>`/`<use>` (opacity/transform), and shows a paused animation's t = 0 frame;
+the remaining properties still render their base frame,
 and `Scripts/css-to-smil.py` is the build-time step for them: it inlines the matched CSS
 declarations, rewrites every CSS animation as `<animate>`/`<animateTransform>` (the timing function
 is sampled into

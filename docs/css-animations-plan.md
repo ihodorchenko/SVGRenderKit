@@ -13,8 +13,8 @@ direction, easing, delay, iteration count and `fill-mode` mapped to Core Animati
 (`view-box`/`fill-box`) on shapes and groups, statically and inside every keyframe; CSS
 `filter: drop-shadow()` renders as a layer shadow; `steps()`, CSS `linear()` and overshooting
 `cubic-bezier()` are sampled into keyframes. Remaining: the M4 frame oracle and the documented
-small gaps (an origin animated inside a keyframe, `<use>`/`<image>` transforms, a paused
-animation). Depends on the two animation fixes released in 2.0.1 (see "Prerequisites").
+small gaps (an origin animated inside a keyframe, seeking a paused animation, CSS transitions).
+Depends on the two animation fixes released in 2.0.1 (see "Prerequisites").
 
 Update: a *build-time* converter for the common export class now exists — `Scripts/css-to-smil.py`
 (Unreleased). It inlines the matched CSS, translates `@keyframes`/`animation` into the SMIL profile

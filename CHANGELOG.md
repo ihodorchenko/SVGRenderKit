@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
+- CSS animations now also play on `<image>` and `<use>` (`opacity` and `transform`; the static CSS
+  transform replaces the attribute there too), and `animation-play-state: paused` renders the
+  animation's frame at t = 0 statically instead of being skipped (direction and the
+  delay/`fill-mode` rule are honoured; seeking a paused animation is not modelled).
 - CSS `filter: drop-shadow(offset-x offset-y blur-radius? color?)` renders as a layer shadow on
   shapes and `<g>` (one shadow; a shadow list uses the first entry and logs the rest), and the
   mutually exclusive URL/`none` forms keep the same cascade slot.

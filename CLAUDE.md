@@ -127,9 +127,10 @@ environment, `SVGRenderer` parameters). `steps()`, CSS `linear()` and an oversho
 `cubic-bezier()` are sampled into keyframes (Core Animation cannot express them), and
 `filter: drop-shadow()` renders as a layer shadow. The CSS `transform` property and
 `transform-origin`/`transform-box` (`view-box`/`fill-box`) are applied to shapes and `<g>`, both
-statically and inside every `transform` keyframe; an origin animated inside a keyframe, the CSS
-`transform` property on `<use>`/`<image>`, a paused animation, CSS transitions and the frame
-oracle remain out of scope; for an asset that needs those use the
+statically and inside every `transform` keyframe, and CSS animations also play on `<image>`/`<use>`
+(`opacity`/`transform`); `animation-play-state: paused` writes the t = 0 frame statically. An origin
+animated inside a keyframe, a seek of a paused animation, CSS transitions and the frame oracle
+remain out of scope; for an asset that needs those use the
 build-time converter `Scripts/css-to-smil.py` (`--self-test`, `--strict`), which rewrites it into
 the SMIL subset. The remaining runtime CSS work is the plan in
 [docs/css-animations-plan.md](docs/css-animations-plan.md). Animated assets still go through

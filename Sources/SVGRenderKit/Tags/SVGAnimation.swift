@@ -56,6 +56,9 @@ struct SVGAnimation {
 
     /// The parsed values of a `.css` animation (`nil` for a SMIL animation).
     var cssValues: CSSValues?
+    /// A `animation-play-state: paused` CSS animation: instead of a `CAAnimation` the current
+    /// frame (at t = 0) is written into the layer directly.
+    var paused = false
 
     /// Parses `<animate>`, `<animateTransform>`, and `<set>` children into animations.
     static func parse(children: [XMLElement]) -> [SVGAnimation] {
@@ -156,6 +159,11 @@ struct SVGAnimation {
         }
 
         let animation: CAAnimation
+        if paused {
+            applyPausedFrame(to: layer, pathLayer: pathLayer, targetLayer: targetLayer)
+            return
+        }
+
         if case .css = kind {
             guard let cssValues = cssValues else { return }
             let prepared: [Any]
@@ -277,6 +285,38 @@ struct SVGAnimation {
         let shear = tan(angle * .pi / 180)
         if type == "skewX" { transform.m21 = shear } else { transform.m12 = shear }
         return transform
+    }
+
+    /// Writes the paused CSS animation's frame at t = 0 (the first value after direction folding;
+    /// `SVGCSSAnimations` already folded `reverse`/`alternate` and applied the fill/delay rule).
+    private func applyPausedFrame(to layer: CALayer, pathLayer: CAShapeLayer?, targetLayer: CALayer) {
+        guard let cssValues = cssValues else { return }
+        switch cssValues {
+        case .numbers(let numbers):
+            guard let first = numbers.first else { return }
+            switch kind {
+            case .css(.opacity):
+                layer.opacity = Float(first)
+            case .css(.strokeDashoffset):
+                (pathLayer ?? layer as? CAShapeLayer)?.lineDashPhase = CGFloat(first)
+            default:
+                break
+            }
+        case .colors(let colors):
+            guard let first = colors.first else { return }
+            switch kind {
+            case .css(.fill):
+                pathLayer?.fillColor = first
+            case .css(.stroke):
+                pathLayer?.strokeColor = first
+            default:
+                break
+            }
+        case .transforms(let transforms):
+            if let first = transforms.first {
+                targetLayer.transform = first
+            }
+        }
     }
 
     private func applySet(to layer: CALayer, pathLayer: CAShapeLayer?, value: String) {

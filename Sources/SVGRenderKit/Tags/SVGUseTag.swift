@@ -16,6 +16,10 @@ class SVGUseTag: SVGObject, SVGRendering {
 
     var transform: CATransform3D?
 
+    /// Inline `style` declarations that belong to CSS animations (not presentation properties).
+    private var cssAnimationDeclarations: [(property: String, value: String)] = []
+    private var cssImportantAnimationDeclarations: [(property: String, value: String)] = []
+
     private var xLength: SVGLength?
     private var yLength: SVGLength?
     private var widthLength: SVGLength?
@@ -51,6 +55,17 @@ class SVGUseTag: SVGObject, SVGRendering {
             ?? (normal: SVGSourceStyleElement(), important: SVGSourceStyleElement())
         inlineStyle = inlineParts.normal
         inlineImportantStyle = inlineParts.important
+        if let styleStr = attributeDict["style"] {
+            for declaration in SVGSourceStyleElement.declarationsWithImportance(from: styleStr)
+            where declaration.property == "animation" || declaration.property.hasPrefix("animation-") {
+                let pair = (property: declaration.property, value: declaration.value)
+                if declaration.important {
+                    cssImportantAnimationDeclarations.append(pair)
+                } else {
+                    cssAnimationDeclarations.append(pair)
+                }
+            }
+        }
 
         // `x`/`y`/`width`/`height` are lengths (units and percentages allowed); a malformed
         // value is treated as absent rather than failing the document (B108, B129).
@@ -142,6 +157,29 @@ class SVGUseTag: SVGObject, SVGRendering {
         return transform
     }
 
+    /// CSS animations on the `<use>` itself: opacity and transform (the transform targets the
+    /// wrapper layer, so the clone's own transform and the placement stay intact).
+    private func cssAnimations(style: SVGSourceStyleElement,
+                               contextProvider: @escaping () -> SVGTransformStyle.Context,
+                               baseTransform: CATransform3D?) -> [SVGAnimation] {
+        let options = parent.getSvgOptions()
+        guard let sheet = options.stylesheet else { return [] }
+        let declarations = sheet.animationDeclarations(for: self, media: options.mediaContext)
+            + cssAnimationDeclarations
+            + sheet.importantAnimationDeclarations(for: self, media: options.mediaContext)
+            + cssImportantAnimationDeclarations
+        guard !declarations.isEmpty else { return [] }
+        let base = SVGCSSAnimations.BaseValues(
+            opacity: min(1, max(0, Double(style.opacity ?? 1))),
+            transform: baseTransform ?? CATransform3DIdentity)
+        return SVGCSSAnimations.animations(
+            specs: SVGCSSAnimations.specs(from: declarations),
+            keyframes: { [parent] name in parent.keyframes(named: name) },
+            base: base,
+            properties: [.opacity, .transform],
+            transformContextProvider: contextProvider)
+    }
+
     /// Resolves the referenced element and returns its layer, applying any `x`, `y`, and transform offsets.
     func createLayer(addStyle: SVGSourceStyleElement?, overrideElements: [String: SVGSourceStyleElement]?) throws -> CALayer {
         if let href = href {
@@ -182,6 +220,34 @@ class SVGUseTag: SVGObject, SVGRendering {
                     childStyle = childStyle.combine(child: own.withoutGroupCompositing())
                     let cloneLayer = try rendering.createLayer(addStyle: childStyle, overrideElements: overrideElements)
 
+                    // The CSS transform property replaces the `transform` attribute; a transform
+                    // animation must target a layer of its own (it replaces the whole transform),
+                    // so only then does the use's transform move out of `placement`.
+                    let usesFillBox = own.transformBox?
+                        .trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "fill-box"
+                    func makeTransformContext() -> SVGTransformStyle.Context {
+                        return SVGTransformStyle.Context(
+                            viewBox: parent.getSvgOptions().viewBox,
+                            bbox: usesFillBox ? contentBounds : nil,
+                            origin: own.transformOrigin, box: own.transformBox)
+                    }
+                    var resolvedUseTransform = transform
+                    if own.transform != nil || own.transformOrigin != nil || own.transformBox != nil {
+                        resolvedUseTransform = SVGTransformStyle.resolvedTransform(
+                            style: own, attributeTransform: transform, context: makeTransformContext())
+                    }
+                    let cssAnimations = cssAnimations(style: own, contextProvider: makeTransformContext,
+                                                      baseTransform: resolvedUseTransform)
+                    let transformAnimations = cssAnimations.filter {
+                        if case .css(.transform) = $0.kind { return true }
+                        return false
+                    }
+                    let otherAnimations = cssAnimations.filter {
+                        if case .css(.transform) = $0.kind { return false }
+                        return true
+                    }
+                    let needsTransformLayer = !transformAnimations.isEmpty
+
                     // Per SVG 1.1 §5.6 the referenced content is wrapped as
                     // `<g transform="[use.transform] translate(x,y)">`, with the
                     // viewBox fit innermost. CATransform3DConcat(a, b) applies `a` to
@@ -195,11 +261,19 @@ class SVGUseTag: SVGObject, SVGRendering {
                     if x != 0 || y != 0 {
                         placement = CATransform3DConcat(placement, CATransform3DMakeTranslation(x, y, 0))
                     }
-                    if let transform = transform {
-                        placement = CATransform3DConcat(placement, transform)
+                    if !needsTransformLayer, let resolvedUseTransform = resolvedUseTransform {
+                        placement = CATransform3DConcat(placement, resolvedUseTransform)
                     }
                     if !CATransform3DIsIdentity(placement) {
                         cloneLayer.transform = CATransform3DConcat(cloneLayer.transform, placement)
+                    }
+                    var effectLayer = cloneLayer
+                    if needsTransformLayer {
+                        let transformLayer = CALayer()
+                        transformLayer.addSublayer(cloneLayer)
+                        transformLayer.transform = resolvedUseTransform ?? CATransform3DIdentity
+                        parent.getSvgOptions().attach(transformAnimations, to: transformLayer, pathLayer: nil)
+                        effectLayer = transformLayer
                     }
 
                     // The `<use>`'s own opacity / clip-path / mask / filter composite the
@@ -207,16 +281,18 @@ class SVGUseTag: SVGObject, SVGRendering {
                     // a wrapper layer so that the clone keeps its own ones (B119-1, B119-3)
                     // and so that they resolve in the `<use>`'s user space, which the
                     // x/y translate and the `<use>`'s own transform only place in the
-                    // parent (B119-8, B119-12). A `<use>` without them is its clone.
-                    if !own.hasGroupCompositing {
-                        return cloneLayer
+                    // parent (B119-8, B119-12). A `<use>` without them and without
+                    // opacity/transform CSS animations is its clone.
+                    if !own.hasGroupCompositing && otherAnimations.isEmpty {
+                        return effectLayer
                     }
                     let wrapper = CAShapeLayer()
-                    wrapper.addSublayer(cloneLayer)
+                    wrapper.addSublayer(effectLayer)
                     // The wrapper carries the placement transforms on the clone inside it, so
                     // its own space is only scaled by the ancestors (B119-6).
                     let maskScale = (parent as? SVGGroupObject)?.accumulatedScale() ?? 1
                     try own.applyGroupComposite(to: wrapper, bbox: contentBounds ?? .zero, container: parent, overrideElements: overrideElements, maskScale: maskScale)
+                    parent.getSvgOptions().attach(otherAnimations, to: wrapper, pathLayer: nil)
                     return wrapper
                 } else {
                     SVGLog.addSLog(errorStr: "skipped <use> '\(key)': referenced element not found")

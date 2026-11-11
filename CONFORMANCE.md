@@ -126,7 +126,8 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 
 - `@keyframes` in any `<style>` block of the document (document-wide registry), plus `animation`
   shorthand and the `animation-*` longhands from inline `style` or a supported selector ✅
-  (resolved on shapes and `<g>`; an animation on `<image>`/`<use>` is not played)
+  (resolved on shapes, `<g>`, `<image>` and `<use>`; an `<image>`/`<use>` animates `opacity` and
+  `transform` only)
 - animated properties: `transform` (translate/scale/rotate/skew in the 2D plane, CSS units and
   3D aliases flattened), `opacity`, `fill`, `stroke` and `stroke-dashoffset`; other keyframe
   properties (e.g. `stroke-width`) are logged and skipped, the document keeps its base state for
@@ -144,8 +145,12 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
   `animation-fill-mode` ✅. `steps()`, CSS `linear()` and an overshooting `cubic-bezier()` (a
   control point's y outside 0…1) are sampled into keyframes, because Core Animation has no timing
   function for them; finite alternating counts are expanded, infinite ones use `autoreverses`
-- paused animations, child/sibling combinators, pseudo-classes and attribute selectors ❌ still out
-  of scope (the plan in [docs/css-animations-plan.md](docs/css-animations-plan.md))
+- `animation-play-state: paused` renders the frame at t = 0 statically (after direction folding,
+  with the delay/fill-mode rule: before the active phase only `backwards`/`both` show a frame) ✅;
+  a later paused current time (a seek) is not modelled
+- child/sibling combinators, pseudo-classes, attribute selectors and an animated
+  `transform-origin` inside a keyframe ❌ still out of scope (the plan in
+  [docs/css-animations-plan.md](docs/css-animations-plan.md))
 
 For every other CSS-animated asset the build-time route remains: `Scripts/css-to-smil.py` rewrites
 it into the SMIL subset above (CSS inlined; the timing function sampled into `values`/`keyTimes`;

@@ -114,8 +114,9 @@ enum SVGCSSAnimations {
         for spec in specs {
             let name = spec.name.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !name.isEmpty, name != "none" else { continue }
-            if spec.playState == "paused" {
-                SVGLog.addSLog(errorStr: "CSS animation '\(name)' is paused; skipped")
+            if spec.playState == "paused", spec.delay > 0,
+               spec.fillMode != "backwards", spec.fillMode != "both" {
+                // A paused animation before its active phase has no effect without a backwards fill.
                 continue
             }
             guard spec.iterationCount > 0 else { continue }
@@ -226,7 +227,8 @@ enum SVGCSSAnimations {
                             timingFunctions: arranged.timings,
                             autoreverses: arranged.autoreverses,
                             fillMode: caFillMode(spec.fillMode),
-                            cssValues: cssValues)
+                            cssValues: cssValues,
+                            paused: spec.playState == "paused")
     }
 
     // MARK: - Direction and iteration folding

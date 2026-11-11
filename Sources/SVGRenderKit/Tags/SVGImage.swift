@@ -14,6 +14,9 @@ class SVGImage: SVGObject, SVGRendering {
     private let presentationStyle = SVGSourceStyleElement()
     private let inlineStyle = SVGSourceStyleElement()
     private let inlineImportantStyle = SVGSourceStyleElement()
+    /// Inline `style` declarations that belong to CSS animations (not presentation properties).
+    private var cssAnimationDeclarations: [(property: String, value: String)] = []
+    private var cssImportantAnimationDeclarations: [(property: String, value: String)] = []
 
     /// Presentation attributes → normal selector rules → normal inline `style` → `!important`
     /// selector rules → `!important` inline declarations.
@@ -58,6 +61,15 @@ class SVGImage: SVGObject, SVGRendering {
             let parts = SVGSourceStyleElement.styles(from: str)
             inlineStyle.set(element: parts.normal)
             inlineImportantStyle.set(element: parts.important)
+            for declaration in SVGSourceStyleElement.declarationsWithImportance(from: str)
+            where declaration.property == "animation" || declaration.property.hasPrefix("animation-") {
+                let pair = (property: declaration.property, value: declaration.value)
+                if declaration.important {
+                    cssImportantAnimationDeclarations.append(pair)
+                } else {
+                    cssAnimationDeclarations.append(pair)
+                }
+            }
         }
 
         if let str = attributeDict["x"] {
@@ -146,20 +158,54 @@ class SVGImage: SVGObject, SVGRendering {
 
         // `clip-path` / `mask` / `filter` composite the image like any other element (B111).
         // The `objectBoundingBox` base is the image's own box.
+        let box = CGRect(x: resolvedX, y: resolvedY, width: resolvedWidth, height: resolvedHeight)
+        let transformContext = SVGTransformStyle.Context(
+            viewBox: viewBox, bbox: box,
+            origin: style.transformOrigin, box: style.transformBox)
+        let resolvedTransform = SVGTransformStyle.resolvedTransform(
+            style: style, attributeTransform: transform, context: transformContext)
         do {
-            let box = CGRect(x: resolvedX, y: resolvedY, width: resolvedWidth, height: resolvedHeight)
-            let maskScale = (transform?.svgScaleFactor ?? 1) * ((parent as? SVGGroupObject)?.accumulatedScale() ?? 1)
+            let maskScale = (resolvedTransform?.svgScaleFactor ?? 1)
+                * ((parent as? SVGGroupObject)?.accumulatedScale() ?? 1)
             try style.applyGroupComposite(to: layer, bbox: box, container: parent, overrideElements: overrideElements, maskScale: maskScale)
         }
 
-        if let transform = transform {
-            layer.transform = transform
+        if let resolvedTransform = resolvedTransform {
+            layer.transform = resolvedTransform
         }
         if let opacity = style.opacity {
             layer.opacity = (opacity >= 0 && opacity <= 1) ? opacity : 1
         }
 
+        // CSS animations on an `<image>` (opacity/transform) ride the same attach path as shapes.
+        let cssAnimations = cssAnimations(style: style, transformContext: transformContext,
+                                          baseTransform: resolvedTransform)
+        parent.getSvgOptions().attach(cssAnimations, to: layer, pathLayer: nil)
+
         return layer
+    }
+
+    /// CSS animations on the image: the document's `<style>` rules matching it plus its inline
+    /// `style`. Only `opacity` and `transform` apply to a raster element.
+    private func cssAnimations(style: SVGSourceStyleElement,
+                               transformContext: SVGTransformStyle.Context,
+                               baseTransform: CATransform3D?) -> [SVGAnimation] {
+        let options = parent.getSvgOptions()
+        guard let sheet = options.stylesheet else { return [] }
+        let declarations = sheet.animationDeclarations(for: self, media: options.mediaContext)
+            + cssAnimationDeclarations
+            + sheet.importantAnimationDeclarations(for: self, media: options.mediaContext)
+            + cssImportantAnimationDeclarations
+        guard !declarations.isEmpty else { return [] }
+        let base = SVGCSSAnimations.BaseValues(
+            opacity: min(1, max(0, Double(style.opacity ?? 1))),
+            transform: baseTransform ?? CATransform3DIdentity)
+        return SVGCSSAnimations.animations(
+            specs: SVGCSSAnimations.specs(from: declarations),
+            keyframes: { [parent] name in parent.keyframes(named: name) },
+            base: base,
+            properties: [.opacity, .transform],
+            transformContextProvider: { transformContext })
     }
 
     /// Decodes a `data:` URI into a `UIImage`, supporting base64 and percent-encoded payloads.
