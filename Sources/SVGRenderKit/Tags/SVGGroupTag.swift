@@ -36,7 +36,8 @@ extension SVGGTag: SVGRendering {
 
         try ownStyle.applyGroupComposite(to: mainLayer, bbox: contentBounds, container: self, overrideElements: overrideElements, maskScale: accumulatedScale())
 
-        getSvgOptions().attach(animations, to: mainLayer, pathLayer: nil)
+        let runtimeCSSAnimations = cssAnimations(style: ownStyle)
+        getSvgOptions().attach(animations + runtimeCSSAnimations, to: mainLayer, pathLayer: nil)
 
         return mainLayer
     }

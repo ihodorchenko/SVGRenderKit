@@ -107,19 +107,24 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 
 ### CSS Animations (runtime subset)
 
-- `@keyframes` in any `<style>` block the element's ancestor chain reaches, plus `animation`
-  shorthand and the `animation-*` longhands from inline `style` and simple tag/class/id rules ✅
-  (resolved on the shape itself; a CSS animation declared on a `<g>` is not inherited by its
-  children, and descendant/combinator selectors are still dropped)
-- animated properties: `stroke-dashoffset` only (the first property of the runtime CSS plan,
-  `SVGCSSAnimations.supportedProperties`); other keyframe properties are logged and skipped, the
-  document keeps its base state for them
+- `@keyframes` in any `<style>` block of the document (document-wide registry), plus `animation`
+  shorthand and the `animation-*` longhands from inline `style` or a supported selector ✅
+  (resolved on shapes and `<g>`; an animation on `<image>`/`<use>` is not played)
+- animated properties: `transform` (translate/scale/rotate/skew in the 2D plane, CSS units and
+  3D aliases flattened), `opacity`, `fill`, `stroke` and `stroke-dashoffset`; other keyframe
+  properties (e.g. `stroke-width`) are logged and skipped, the document keeps its base state for
+  them
+- on a `<g>` only `opacity` and `transform` are animated: `fill`/`stroke`/`stroke-dashoffset` are
+  inherited, and an inherited animated value cannot be expressed with layer animations
+- known divergences: Core Animation interpolates matrices by decomposition (CSS interpolates the
+  transform list component-wise) and colors in its own space (CSS uses premultiplied sRGB);
+  `transform-origin` is not modelled (the SVG initial `0 0` is assumed)
 - timing functions `linear`/`ease*`/`cubic-bezier()`, `animation-direction`
   (`normal`/`reverse`/`alternate`/`alternate-reverse`), `animation-delay`, iteration counts and
   `animation-fill-mode` ✅ (`steps()` falls back to linear with a log; finite alternating counts are
   expanded, infinite ones use `autoreverses`)
-- paused animations, `@media`, descendant/combinator selectors and the rest of the cascade ❌ still
-  out of scope (the plan in [docs/css-animations-plan.md](docs/css-animations-plan.md))
+- paused animations, `@media`, child/sibling combinators, pseudo-classes and attribute selectors ❌
+  still out of scope (the plan in [docs/css-animations-plan.md](docs/css-animations-plan.md))
 
 For every other CSS-animated asset the build-time route remains: `Scripts/css-to-smil.py` rewrites
 it into the SMIL subset above (CSS inlined; the timing function sampled into `values`/`keyTimes`;
@@ -133,10 +138,9 @@ function per layer).
 - `<a>`, `<foreignObject>`, `<font>`, `<solidColor>`, `<cursor>` (conditional-processing attributes on `<switch>` are not evaluated; the first child without them is rendered).
 - Full text model: `textPath`, per-glyph `x`/`y` lists,
   `alignment-baseline`/`dominant-baseline`, `textLength`/`lengthAdjust`.
-- CSS cascade: specificity, combinators, `@media`, `@font-face`. `inherit` is honoured for
-  `visibility`, `clip-rule`, `fill-rule` and `text-anchor` (the inherited value stays); an
-  `!important` flag is accepted but carries no priority — the value applies as an ordinary
-  declaration.
+- CSS cascade: child/sibling combinators, pseudo-classes, attribute selectors, `@media`,
+  `@font-face` (specificity, compound and descendant selectors and `!important` are supported).
+  `inherit` is honoured for `visibility`, `clip-rule`, `fill-rule` and `text-anchor`.
 - Nested `<svg>` viewports.
 - `paint-order`, `vector-effect`.
 - Full SMIL engine (event `begin`, `additive`/`accumulate`, `calcMode`, `fill="freeze"`).

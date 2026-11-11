@@ -18,6 +18,9 @@ class SVGGroupObject: SVGChildObject, SVGGroupProtocol {
     private(set) var inlineStyle: SVGSourceStyleElement = SVGSourceStyleElement()
     /// The `!important` declarations of the group's inline `style` (they outrank every rule).
     private(set) var inlineImportantStyle: SVGSourceStyleElement = SVGSourceStyleElement()
+    /// Inline `style` declarations that belong to CSS animations (not presentation properties).
+    private var cssAnimationDeclarations: [(property: String, value: String)] = []
+    private var cssImportantAnimationDeclarations: [(property: String, value: String)] = []
 
     var animations: [SVGAnimation] = []
 
@@ -38,6 +41,17 @@ class SVGGroupObject: SVGChildObject, SVGGroupProtocol {
 
         if let str = attributeDict["transform"] {
             transform = try SVGTransform.get(string: str)
+        }
+        if let style = attributeDict["style"] {
+            for declaration in SVGSourceStyleElement.declarationsWithImportance(from: style)
+            where declaration.property == "animation" || declaration.property.hasPrefix("animation-") {
+                let pair = (property: declaration.property, value: declaration.value)
+                if declaration.important {
+                    cssImportantAnimationDeclarations.append(pair)
+                } else {
+                    cssAnimationDeclarations.append(pair)
+                }
+            }
         }
         self.animations = SVGAnimation.parse(children: xmlElement.xmlChildren)
 
@@ -392,6 +406,25 @@ extension SVGGroupObject {
     /// The `@keyframes` block for a CSS animation name (the last definition wins, as in CSS).
     func keyframes(named name: String) -> SVGStyleSheet.Keyframes? {
         return getSvgOptions().stylesheet?.keyframes(named: name)
+    }
+
+    /// CSS animations of this group. A group can animate `opacity` and `transform`; `fill`,
+    /// `stroke` and `stroke-dashoffset` are inherited properties, so an animation on the group
+    /// would have to animate the value its children inherit, which Core Animation cannot do.
+    func cssAnimations(style: SVGSourceStyleElement) -> [SVGAnimation] {
+        let declarations = animationDeclarations(for: self) + cssAnimationDeclarations
+            + importantAnimationDeclarations(for: self) + cssImportantAnimationDeclarations
+        guard !declarations.isEmpty else { return [] }
+        let base = SVGCSSAnimations.BaseValues(
+            opacity: min(1, max(0, Double(style.opacity ?? 1))),
+            transform: transform ?? CATransform3DIdentity
+        )
+        return SVGCSSAnimations.animations(
+            specs: SVGCSSAnimations.specs(from: declarations),
+            keyframes: { self.keyframes(named: $0) },
+            base: base,
+            properties: [.opacity, .transform]
+        )
     }
 
     /// This group's own effective style in cascade order: presentation attributes, normal

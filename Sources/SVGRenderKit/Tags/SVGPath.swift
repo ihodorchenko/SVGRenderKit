@@ -120,17 +120,40 @@ class SVGShapeObject: SVGObject, SVGRendering {
     }
 
     /// The CSS animations of this shape: the document's `<style>` rules matching it plus its
-    /// inline `style`. Only the properties of `SVGCSSAnimations.supportedProperties` are built;
-    /// the rest are logged and skipped there.
+    /// inline `style`. The runtime animates transform/opacity/fill/stroke/stroke-dashoffset on a
+    /// shape; anything else is logged and skipped by `SVGCSSAnimations`.
     private func cssAnimations(style: SVGSourceStyleElement) -> [SVGAnimation] {
         let declarations = parent.animationDeclarations(forObject: self) + cssAnimationDeclarations
             + parent.importantAnimationDeclarations(forObject: self) + cssImportantAnimationDeclarations
         guard !declarations.isEmpty else { return [] }
+        let base = SVGCSSAnimations.BaseValues(
+            dashoffset: Double(style.strokeDashoffset ?? 0),
+            opacity: min(1, max(0, Double(style.opacity ?? 1))),
+            fill: Self.cssBaseColor(style.fill, currentColor: style.color, defaultColor: UIColor.black.cgColor),
+            stroke: Self.cssBaseColor(style.stroke, currentColor: style.color, defaultColor: nil),
+            transform: transform ?? CATransform3DIdentity
+        )
         return SVGCSSAnimations.animations(
             specs: SVGCSSAnimations.specs(from: declarations),
             keyframes: { [parent] name in parent.keyframes(named: name) },
-            baseDashoffset: style.strokeDashoffset ?? 0
+            base: base,
+            properties: Set(SVGCSSAnimations.Property.allCases)
         )
+    }
+
+    /// The computed color of a paint, for the implicit `0%`/`100%` keyframes of a `fill`/`stroke`
+    /// animation. A gradient/pattern or `none` is not a color and makes the animation skip (CSS
+    /// does not interpolate paint servers against colors). A missing `fill` means black, a missing
+    /// `stroke` means none.
+    private static func cssBaseColor(_ paint: SVGPaint?, currentColor: UIColor?,
+                                     defaultColor: CGColor?) -> CGColor? {
+        switch paint {
+        case .color(let color)?: return color.cgColor
+        case .currentColor?: return (currentColor ?? .black).cgColor
+        case .none?: return nil
+        case .funcIRI?, .funcIRIWithFallback?: return nil
+        case nil: return defaultColor
+        }
     }
 
     class func create(xml: XMLElement, parent: SVGShapesContainer) throws -> SVGShapeObject? {

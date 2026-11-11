@@ -164,7 +164,8 @@ final class SVGCSSDashoffsetAnimationTests: XCTestCase {
         XCTAssertEqual(animation.duration, 2, accuracy: 1e-9)
     }
 
-    func testUnsupportedAnimatedPropertyIsSkipped() throws {
+    func testOpacityKeyframesDoNotCreateADashPhaseAnimation() throws {
+        // `opacity` is part of the M2 property set, but it must not turn into a dash-phase animation.
         let svg = """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <style>@keyframes fade{0%{opacity:0}100%{opacity:1}}</style>
@@ -173,8 +174,7 @@ final class SVGCSSDashoffsetAnimationTests: XCTestCase {
         """
         let root = try layer(svg)
         XCTAssertNil(findLayerWithAnimation(root, key: "lineDashPhase"))
-        XCTAssertNil(findLayerWithAnimation(root, key: "opacity"),
-                     "the runtime CSS subset does not animate opacity yet")
+        XCTAssertNotNil(findLayerWithAnimation(root, key: "opacity"))
     }
 
     func testDescendantSelectorAnimationApplies() throws {

@@ -116,12 +116,14 @@ full filter pipeline (`feMorphology` etc.). If real icons start to need any of t
 separate decision (in particular `<a>` and a nested `<svg>` are currently dropped silently together with
 their content).
 
-CSS animations are outside the runtime profile except one property: the runtime plays
-`@keyframes`/`animation` for `stroke-dashoffset` (`SVGCSSAnimations`, CONFORMANCE), and everything
-else renders its base state. For a designer-exported asset with other animated properties use the
-build-time converter `Scripts/css-to-smil.py` (`--self-test`, `--strict`), which rewrites it into the
-SMIL subset; the rest of the runtime CSS engine remains the separate plan in
-[docs/css-animations-plan.md](docs/css-animations-plan.md). Converted assets still go through
+CSS animations are supported in the runtime for `transform`, `opacity`, `fill`, `stroke` and
+`stroke-dashoffset` (`SVGCSSAnimations`, CONFORMANCE): `@keyframes`/`animation` from the document
+stylesheet or inline `style`, with direction, easing, delay, iteration count and fill mode; on a
+`<g>` only `opacity`/`transform` (the paint properties are inherited). Media queries, the
+appearance plumbing, `transform-origin`/`fill-box` and CSS transitions are still out of scope; for
+an asset that needs those use the build-time converter `Scripts/css-to-smil.py` (`--self-test`,
+`--strict`), which rewrites it into the SMIL subset. The remaining runtime CSS work is the plan in
+[docs/css-animations-plan.md](docs/css-animations-plan.md). Animated assets still go through
 `CorpusLoader.hasRenderingAnimation` and never enter the pixel corpus.
 
 ## Decisions taken and rejected options

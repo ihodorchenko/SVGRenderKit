@@ -18,6 +18,26 @@ struct SVGAnimation {
         case transform(type: String)
         /// `stroke-dashoffset`, animated through `CAShapeLayer.lineDashPhase`.
         case strokeDashoffset
+        /// Runtime CSS animation: `cssValues` already holds the parsed per-keyframe values and the
+        /// property decides the layer key path.
+        case css(property: CSSProperty)
+    }
+
+    /// The CSS property an animation created by the runtime CSS subset targets.
+    enum CSSProperty {
+        case opacity
+        case fill
+        case stroke
+        case transform
+        case strokeDashoffset
+    }
+
+    /// Parsed per-keyframe values of a runtime CSS animation. SMIL animations keep their values as
+    /// strings in `values`; CSS animations need typed values (numbers, CGColors or matrices).
+    enum CSSValues {
+        case numbers([Double])
+        case colors([CGColor])
+        case transforms([CATransform3D])
     }
 
     var kind: Kind
@@ -33,6 +53,9 @@ struct SVGAnimation {
     var timingFunctions: [CAMediaTimingFunction]?
     var autoreverses = false
     var fillMode: CAMediaTimingFillMode?
+
+    /// The parsed values of a `.css` animation (`nil` for a SMIL animation).
+    var cssValues: CSSValues?
 
     /// Parses `<animate>`, `<animateTransform>`, and `<set>` children into animations.
     static func parse(children: [XMLElement]) -> [SVGAnimation] {
@@ -116,6 +139,14 @@ struct SVGAnimation {
         case .stroke: targetLayer = pathLayer ?? layer; keyPath = "strokeColor"
         case .strokeDashoffset: targetLayer = pathLayer ?? layer; keyPath = "lineDashPhase"
         case .transform: targetLayer = layer; keyPath = "transform"
+        case .css(let property):
+            switch property {
+            case .opacity: targetLayer = layer; keyPath = "opacity"
+            case .fill: targetLayer = pathLayer ?? layer; keyPath = "fillColor"
+            case .stroke: targetLayer = pathLayer ?? layer; keyPath = "strokeColor"
+            case .transform: targetLayer = layer; keyPath = "transform"
+            case .strokeDashoffset: targetLayer = pathLayer ?? layer; keyPath = "lineDashPhase"
+            }
         }
 
         // `<set>` (single value, no duration) applies the value immediately.
@@ -125,7 +156,28 @@ struct SVGAnimation {
         }
 
         let animation: CAAnimation
-        if case .transform(let type) = kind, Self.interpolatesAngle(type),
+        if case .css = kind {
+            guard let cssValues = cssValues else { return }
+            let prepared: [Any]
+            switch cssValues {
+            case .numbers(let numbers): prepared = numbers
+            case .colors(let colors): prepared = colors
+            case .transforms(let transforms): prepared = transforms.map { NSValue(caTransform3D: $0) }
+            }
+            if prepared.count == 2 {
+                let basic = CABasicAnimation(keyPath: keyPath)
+                basic.fromValue = prepared[0]
+                basic.toValue = prepared[1]
+                animation = basic
+            } else {
+                let keyframe = CAKeyframeAnimation(keyPath: keyPath)
+                keyframe.values = prepared
+                if let keyTimes = keyTimes, keyTimes.count == prepared.count {
+                    keyframe.keyTimes = keyTimes.map { NSNumber(value: $0) }
+                }
+                animation = keyframe
+            }
+        } else if case .transform(let type) = kind, Self.interpolatesAngle(type),
            let sampled = Self.sampledTransformKeyframes(type: type, values: values, keyTimes: keyTimes) {
             // Core Animation interpolates a transform by decomposing the two matrices, so a
             // large angular step cuts the corner: the pivot drifts off its circle, ≥180° is
@@ -237,6 +289,22 @@ struct SVGAnimation {
             pathLayer?.strokeColor = SVGColors.getColor(string: value).cgColor
         case .strokeDashoffset:
             if let offset = Self.parseDashoffset(value) { pathLayer?.lineDashPhase = CGFloat(offset) }
+        case .css(let property):
+            guard let cssValues = cssValues else { return }
+            switch (property, cssValues) {
+            case (.opacity, .numbers(let numbers)):
+                if let first = numbers.first { layer.opacity = Float(first) }
+            case (.fill, .colors(let colors)):
+                pathLayer?.fillColor = colors.first
+            case (.stroke, .colors(let colors)):
+                pathLayer?.strokeColor = colors.first
+            case (.transform, .transforms(let transforms)):
+                if let first = transforms.first { layer.transform = first }
+            case (.strokeDashoffset, .numbers(let numbers)):
+                if let first = numbers.first { pathLayer?.lineDashPhase = CGFloat(first) }
+            default:
+                break
+            }
         case .transform(let type):
             if let t = Self.transform(from: value, type: type) { layer.transform = t }
         }
@@ -250,6 +318,8 @@ struct SVGAnimation {
             return SVGColors.getColor(string: string).cgColor
         case .strokeDashoffset:
             return Self.parseDashoffset(string) ?? 0
+        case .css:
+            return 0
         case .transform(let type):
             return NSValue(caTransform3D: Self.transform(from: string, type: type) ?? CATransform3DIdentity)
         }

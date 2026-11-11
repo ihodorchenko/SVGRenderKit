@@ -17,15 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pseudo-classes, attribute selectors and `@media` stay out of scope (CONFORMANCE). The same
   registry feeds the runtime CSS animation subset, so `@keyframes`/`animation` declared through a
   descendant selector now animate (`SVGStyleSheet`, `SVGStyleSheetTests`).
-- The runtime now plays a first slice of **CSS Animations**: `@keyframes` in `<style>` blocks
-  reachable through the ancestor chain and the `animation` shorthand/longhands (inline `style` or a
-  simple tag/class/id rule) for `stroke-dashoffset`, mapped to `CAShapeLayer.lineDashPhase`.
-  Direction, easing (`linear`/`ease*`/`cubic-bezier()`), delay, iteration count and fill mode are
-  mapped to Core Animation, including finite alternating counts. Other animated properties stay
-  out of scope for now and keep their base state (`SVGCSSAnimations`, `CONFORMANCE.md`,
-  `SVGCSSDashoffsetAnimationTests`). The SMIL subset gained the same target
-  (`<animate attributeName="stroke-dashoffset">`), so `Scripts/css-to-smil.py` can now convert the
-  three icons that previously animated only the dash offset.
+- The runtime plays **CSS Animations** (`@keyframes`/`animation`, document-wide or inline) for
+  `transform` (translate/scale/rotate/skew, CSS units, 3D aliases flattened), `opacity`, `fill`,
+  `stroke` and `stroke-dashoffset` (`CAShapeLayer.lineDashPhase`). Direction, easing
+  (`linear`/`ease*`/`cubic-bezier()`), delay, iteration count and fill mode are mapped to Core
+  Animation, including finite alternating counts; a `<g>` animates `opacity`/`transform` only
+  (paint properties are inherited and cannot be animated on a group layer). The known divergences
+  are Core Animation's matrix decomposition and color interpolation (CONFORMANCE.md). The SMIL
+  subset gained the `stroke-dashoffset` target, so `Scripts/css-to-smil.py` converts it as well.
 
 ### Internal
 - `Scripts/css-to-smil.py` — a build-time converter that rewrites a CSS-animated SVG into the SMIL
