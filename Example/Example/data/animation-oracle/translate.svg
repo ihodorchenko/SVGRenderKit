@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <style>
-        @keyframes slide { 0% { transform: translateX(0); } 100% { transform: translateX(40px); } }
-        .box { animation: slide 1s linear infinite; }
-    </style>
-    <rect class="box" x="10" y="30" width="30" height="40" fill="#0153e5"/>
-</svg>
