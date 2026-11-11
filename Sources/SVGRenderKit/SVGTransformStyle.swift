@@ -55,11 +55,7 @@ enum SVGTransformStyle {
         guard let base = parseFunctions(raw, context: context) else { return nil }
         guard let origin = context.origin, !origin.isEmpty,
               let point = transformOrigin(origin, context: context) else { return base }
-        let moved = point.applying(CATransform3DGetAffineTransform(base))
-        let delta = CGPoint(x: point.x - moved.x, y: point.y - moved.y)
-        // `CATransform3DConcat(base, translation)` means "apply `base`, then translate" in the
-        // row-vector convention Core Animation uses: the same result as `T(o) · M · T(-o)`.
-        return CATransform3DConcat(base, CATransform3DMakeTranslation(delta.x, delta.y, 0))
+        return composed(around: base, origin: point)
     }
 
     // MARK: - transform-origin
@@ -237,12 +233,25 @@ enum SVGTransformStyle {
         }
     }
 
-    /// `matrix` composed so that it is applied around `origin` (the matrix is in the same
-    /// user-space convention as `matrix(_:context:)`).
+    /// `matrix` applied around `origin`: `T(-o) · M · T(o)` in the row-vector convention
+    /// (`CATransform3DConcat(a, b)` applies `a` first). Translating by `o` and back must not
+    /// cancel the matrix's own translation — the earlier delta formula did, so a `translateY`
+    /// animation around `transform-origin` was a no-op.
     static func composed(around matrix: CATransform3D, origin: CGPoint) -> CATransform3D {
-        let moved = origin.applying(CATransform3DGetAffineTransform(matrix))
-        let delta = CGPoint(x: origin.x - moved.x, y: origin.y - moved.y)
-        return CATransform3DConcat(matrix, CATransform3DMakeTranslation(delta.x, delta.y, 0))
+        let toOrigin = CATransform3DMakeTranslation(-origin.x, -origin.y, 0)
+        let fromOrigin = CATransform3DMakeTranslation(origin.x, origin.y, 0)
+        return CATransform3DConcat(CATransform3DConcat(toOrigin, matrix), fromOrigin)
+    }
+
+    /// Whether any scale component is zero (a singular matrix Core Animation cannot decompose
+    /// reliably; the segment is sampled from the CSS functions instead).
+    static func hasDegenerateScale(_ components: [Component]) -> Bool {
+        return components.contains { component in
+            if case .scale(let x, let y) = component.kind {
+                return abs(x) < 1e-6 || abs(y) < 1e-6
+            }
+            return false
+        }
     }
 
     /// The identity transform list with the same function kinds, so an implicit keyframe (the
@@ -393,6 +402,11 @@ enum SVGTransformStyle {
             return "scale(\(number(sx)), \(number(sy)))"
         case "rotate", "rotatez":
             guard let angle = angle(parts.first) else { return nil }
+            // The SVG `transform` attribute allows a rotation centre: `rotate(a cx cy)`.
+            if parts.count >= 3, let cx = length(parts[1], axis: box.width),
+               let cy = length(parts[2], axis: box.height) {
+                return "rotate(\(number(angle)), \(number(cx)), \(number(cy)))"
+            }
             return "rotate(\(number(angle)))"
         case "rotate3d":
             guard parts.count == 4, let x = numbers(parts[0]), let y = numbers(parts[1]),

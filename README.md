@@ -336,8 +336,9 @@ fixture set (`Example/Example/AnimationOracleFixtures`) at known times twice —
 seeks every CSS animation, while the kit freezes its Core Animation timeline at the same time — and
 `SVGAnimationFrameOracleTests` prints a per-frame difference report. It is **report-only**: the
 trajectory unit tests remain the CI gate; the oracle answers "does it look like the browser". The
-13-fixture set covers transform, origin/`fill-box`, steps, paused, fill/stroke colour, CSS and SMIL
-dashoffset, `<use>`/`<image>`, a dark media palette and drop-shadow: most frames are pixel-exact,
+15-fixture set covers transform, origin/`fill-box`, steps, paused, fill/stroke colour, CSS and SMIL
+dashoffset, `<use>`/`<image>`, a dark media palette, a translate hop around a static origin, an
+attribute rotate centre and drop-shadow: most frames are pixel-exact,
 `steps`/media differ on ~0.9% of pixels, `rotate-origin` on 19.8–25.4% (the known Core Animation
 matrix decomposition) and the layer shadow on 7.7–16.2% (CALayer shadow vs CSS `drop-shadow`).
 

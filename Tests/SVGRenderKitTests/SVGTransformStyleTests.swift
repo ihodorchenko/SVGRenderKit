@@ -93,6 +93,54 @@ final class SVGTransformStyleTests: XCTestCase {
         XCTAssertTrue(CATransform3DIsIdentity(none), "CSS `transform: none` replaces the attribute")
     }
 
+    func testTranslateAroundTheOriginKeepsItsTranslation() throws {
+        let staticTransform = try mainLayer(try layer("""
+        <style>.r{transform:translate(10px, 0);transform-origin:center}</style>
+        <path class="r" d="M0 0h10v10z"/>
+        """)).transform
+        XCTAssertEqual(staticTransform.m41, 10, accuracy: 1e-6,
+                       "the origin must not cancel a translation")
+
+        let animation = try animation(try layer("""
+        <style>
+            @keyframes hop{0%{transform:translateY(0)}100%{transform:translateY(-26px)}}
+            .r{transform-origin:center;animation:hop 1s linear infinite}
+        </style>
+        <path class="r" d="M0 0h10v10z"/>
+        """), key: "transform")
+        let values = try matrices(animation)
+        XCTAssertEqual(try XCTUnwrap(values.last).m42, -26, accuracy: 1e-6)
+    }
+
+    func testThreeDTransformAliasesAreParsed() throws {
+        let transform = try mainLayer(try layer("""
+        <style>.r{transform:translate3d(10px, 20px, 0) scale3d(2, 3, 1)}</style>
+        <path class="r" d="M0 0h10v10z"/>
+        """)).transform
+        XCTAssertEqual(transform.m41, 10, accuracy: 1e-6)
+        XCTAssertEqual(transform.m42, 20, accuracy: 1e-6)
+        XCTAssertEqual(transform.m11, 2, accuracy: 1e-6)
+        XCTAssertEqual(transform.m22, 3, accuracy: 1e-6)
+    }
+
+    func testNegativeDecimalTranslate3d() throws {
+        let transform = try mainLayer(try layer("""
+        <style>.r{transform:translate3d(-.5px, 0, 0)}</style>
+        <path class="r" d="M0 0h10v10z"/>
+        """)).transform
+        XCTAssertEqual(transform.m41, -0.5, accuracy: 1e-6)
+    }
+
+    func testRotateWithACentreInTheAttribute() throws {
+        let transform = try mainLayer(try layer("""
+        <path transform="rotate(180 12 12)" d="M0 0h10v10z"/>
+        """, viewBox: "0 0 24 24")).transform
+        XCTAssertEqual(transform.m11, -1, accuracy: 1e-6)
+        XCTAssertEqual(transform.m22, -1, accuracy: 1e-6)
+        XCTAssertEqual(transform.m41, 24, accuracy: 1e-6)
+        XCTAssertEqual(transform.m42, 24, accuracy: 1e-6)
+    }
+
     func testPercentTranslateUsesTheViewBox() throws {
         let transform = try mainLayer(try layer("""
         <style>.r{transform:translate(50%, 10%)}</style>
@@ -308,7 +356,7 @@ final class SVGTransformStyleTests: XCTestCase {
         XCTAssertEqual(end.m12, 0, accuracy: 0.01)
     }
 
-    func testSingleKeyframeScaleIsInterpolated() throws {
+    func testSingleKeyframeScaleIsSampled() throws {
         let animation = try animation(try layer("""
         <style>
             @keyframes pop{0%{transform:scale(0)}}
@@ -317,9 +365,9 @@ final class SVGTransformStyleTests: XCTestCase {
         <path class="r" d="M0 0h10v10z"/>
         """), key: "transform")
         let values = try matrices(animation)
-        // A pure scale interpolates the same whether Core Animation decomposes the matrix or not,
-        // so two keyframes are enough; the point is that the implicit identity endpoint exists.
-        XCTAssertEqual(values.count, 2)
+        // A singular scale(0) matrix cannot be decomposed by Core Animation, so the segment is
+        // sampled from the CSS functions.
+        XCTAssertGreaterThan(values.count, 20)
         XCTAssertEqual(try XCTUnwrap(values.first).m11, 0, accuracy: 0.01)
         let end = try XCTUnwrap(values.last)
         XCTAssertEqual(end.m11, 1, accuracy: 0.01)

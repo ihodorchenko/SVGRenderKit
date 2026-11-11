@@ -497,9 +497,14 @@ enum SVGCSSAnimations {
             let fromComponents = components[index]
             let toComponents = components[index + 1]
             var needsSampling = originAnimated
-            if let fromComponents = fromComponents, let toComponents = toComponents,
-               let delta = SVGTransformStyle.rotationDelta(fromComponents, toComponents), delta >= 180 {
-                needsSampling = true
+            if let fromComponents = fromComponents, let toComponents = toComponents {
+                if let delta = SVGTransformStyle.rotationDelta(fromComponents, toComponents), delta >= 180 {
+                    needsSampling = true
+                }
+                if SVGTransformStyle.hasDegenerateScale(fromComponents)
+                    || SVGTransformStyle.hasDegenerateScale(toComponents) {
+                    needsSampling = true
+                }
             }
             guard needsSampling, let fromComponents = fromComponents, let toComponents = toComponents else {
                 outValues.append(values[index + 1])

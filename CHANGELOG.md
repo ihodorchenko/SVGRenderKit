@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `setCurrentTime`, per-fixture appearance) and the kit (Core Animation timeline frozen) and
   `SVGAnimationFrameOracleTests` prints per-frame differences. The set now covers translate,
   rotate-origin, steps, paused, fill/stroke colour, CSS and SMIL dashoffset, `<use>`/`<image>`,
-  a dark media palette and drop-shadow. It is report-only; the trajectory tests stay the gate. A
+  a dark media palette, a translate hop around a static origin, an attribute rotate centre and
+  drop-shadow. It is report-only; the trajectory tests stay the gate. A
   SPI hook exposes the timeline epoch/ready callback to the Example runner only.
 - CSS animations now also play on `<image>` and `<use>` (`opacity` and `transform`; the static CSS
   transform replaces the attribute there too), and `animation-play-state: paused` renders the
@@ -71,7 +72,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the pivot over the iteration, which also translates the element); the origin is interpolated
     over the animation and baked into the sampled matrices.
   - Segments with an implicit keyframe (the underlying `none`) are sampled component-wise when
-    their base is identity, so a 180°→0° return takes the same path as the browser.
+    their base is identity, so a 180°→0° return takes the same path as the browser, and a
+    degenerate `scale(0)` segment is sampled too (Core Animation cannot decompose a singular
+    matrix reliably).
+  - `transform-origin` composition keeps a transform's own translation: the old delta formula
+    cancelled a `translateY` inside `T(origin)·M·T(-origin)`, so the logo's hopping dot (and any
+    translate keyframe with a static origin) stood still; it now moves like the browser.
+  - The SVG `transform` attribute's rotation centre (`rotate(angle cx cy)`) was dropped by the CSS
+    transform parser, so elements rotated around 0 0 — in `1_65` the face flew off the canvas while
+    the smile stayed. The centre is parsed now.
 - A CSS animation that paints a `stroke` on an element whose static `stroke` is `none` now applies
   `stroke-width`; it used to be drawn at Core Animation's default width of 1.
 - A `fill`/`stroke` animation whose keyframes define both endpoints no longer requires a colour

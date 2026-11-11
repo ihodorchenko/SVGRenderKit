@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <style>
+        @keyframes hop { 0%, 45%, 100% { transform: translateY(0); }
+                        12% { transform: translateY(-26px); }
+                        24% { transform: translateY(0); }
+                        31% { transform: translateY(-10px); }
+                        38% { transform: translateY(0); } }
+        .box { transform-box: fill-box; transform-origin: center; animation: hop 1s ease-in-out infinite; }
+    </style>
+    <circle class="box" cx="50" cy="50" r="20" fill="#0153e5"/>
+</svg>

@@ -46,8 +46,9 @@ with two oracles; the test is `SVGRenderParityTests.testCorpusParity`.
   animation paused and seeked via `document.getAnimations()`, and an `SVGView` with its Core
   Animation timeline frozen at the same time — and `SVGAnimationFrameOracleTests` prints the
   per-frame differing fraction (`ANIMATION_FRAME*`). The set covers transform/`fill-box`, steps,
-  paused, fill/stroke colour, CSS and SMIL dashoffset, `<use>`/`<image>`, a dark media palette and
-  drop-shadow (`options.json` selects a fixture's appearance). It is not a CI gate (the trajectory
+  paused, fill/stroke colour, CSS and SMIL dashoffset, `<use>`/`<image>`, a dark media palette,
+  a translate hop around a static origin, an attribute rotate centre and drop-shadow (`options.json`
+  selects a fixture's appearance). It is not a CI gate (the trajectory
   tests are): it is the honest "does it look like the browser" check, and known CA
   decomposition/color divergences must show up as numbers rather than fail the build. The dump
   location is recorded in `.animation-rasters` (gitignored); the fixtures are excluded from the
