@@ -1,4 +1,4 @@
-# Plan: render and animate the original CSS-driven SVG (`folder_9/logo-ghost-wave-effect.svg`)
+# Plan: render and animate the original CSS-driven SVG (`folder_9/original/logo-ghost-wave-effect.svg`)
 
 Status: **proposal**, not started for the runtime. Depends on the two animation fixes released in 2.0.1
 (see "Prerequisites").
@@ -7,8 +7,8 @@ Update: a *build-time* converter for the common export class now exists — `Scr
 (Unreleased). It inlines the matched CSS, translates `@keyframes`/`animation` into the SMIL profile
 with the timing function sampled, normalises transform lists (same-kind functions merged, CSS 3D
 aliases flattened, a mixed chain split into nested wrapper `<g>` layers), and covers
-`folder_9/1_29.svg`, the light variant of the original logo and most of the dsgnmax icon set
-(`folder_9/fixed`), which unblocks assets without the runtime engine. It does not replace this plan:
+`folder_9/original/1_29.svg`, the light variant of the original logo and most of the dsgnmax
+icon set (`folder_9/fixed`), which unblocks assets without the runtime engine. It does not replace this plan:
 the runtime still cannot play arbitrary CSS (cascade, `@media`, `transform-origin`/`fill-box`,
 dynamic appearance, `prefers-reduced-motion`), and converted output inherits the SMIL subset's limits
 (no `keySplines`, so easing is sampled; a finite `fill-mode` cannot freeze; a positive delay with
@@ -17,7 +17,7 @@ dynamic appearance, `prefers-reduced-motion`), and converted output inherits the
 
 ## 1. Goal
 
-`Example/Example/data/folder_9/logo-ghost-wave-effect.svg` is a designer logo whose styling and motion
+`Example/Example/data/folder_9/original/logo-ghost-wave-effect.svg` is a designer logo whose styling and motion
 are pure CSS: one `<style>` block inside `<defs>`, class rules plus descendant selectors
 (`.wA path`, `.wB path`, `.shine rect`), a gradient fill referenced from CSS, seven `@keyframes`,
 `animation` shorthands with delays/easing/infinite loops, and two `@media` blocks
@@ -25,7 +25,7 @@ are pure CSS: one `<style>` block inside `<defs>`, class rules plus descendant s
 
 Today `SVGView` renders it with the wave/shine shapes in the SVG default **black** and with **no
 motion**, while WebKit/CoreSVG render it (and Quick Look animates it) as designed. The
-profile-adapted copy `logo-ghost-wave-effect-fixed.svg` already looks and animates correctly, but it
+profile-adapted copy `folder_9/fixed/logo-ghost-wave-effect.svg` already looks and animates correctly, but it
 is a converted asset — it does not make the original file work.
 
 **Goal:** the original file, unmodified, renders and animates through `SVGView` like it does in

@@ -80,16 +80,28 @@ func applyNavBarAppearance(style: SubstrateStyle, to navigationController: UINav
     navigationController.navigationBar.tintColor = style == .dark ? UIColor.white : UIColor.darkGray
 }
 
-/// SVG folders inside the bundle (each one is a separate sub-gallery).
-let svgFolders = ["folder_1", "folder_2", "folder_3", "folder_4", "folder_5", "folder_6", "folder_7", "folder_8", "folder_9"]
+/// A directory of the bundled corpus: `path` is relative to the bundle root, `count` is the number
+/// of SVG documents in the whole subtree, and `hasSubfolders` says whether it groups other
+/// directories (`folder_9` groups `folder_9/original` and `folder_9/fixed`).
+struct SVGFolder {
+    let path: String
+    let name: String
+    let count: Int
+    let hasSubfolders: Bool
+}
 
-/// Root screen: a list of folders, a tap opens the folder gallery.
+/// Screen: the corpus directory tree. A tap on a leaf folder opens its gallery, a tap on a folder
+/// that groups subfolders descends into them, and `All` opens everything below the current level.
 class ViewController2: UITableViewController {
 
     static let allTitle = "All"
-    private var folders: [(name: String, count: Int)] = []
 
-    init() {
+    /// The directory this screen lists; `nil` is the bundle root.
+    private let directory: String?
+    private var entries: [SVGFolder] = []
+
+    init(directory: String? = nil) {
+        self.directory = directory
         super.init(style: .plain)
     }
 
@@ -97,13 +109,17 @@ class ViewController2: UITableViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
+    private var screenTitle: String {
+        guard let directory = directory else { return "SVG Examples" }
+        return (directory as NSString).lastPathComponent
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "SVG Examples"
+        title = screenTitle
         navigationItem.backButtonTitle = ""
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "folder")
-        let found = svgFolders.map { ($0, svgPaths(inFolder: $0).count) }.filter { $0.1 > 0 }
-        folders = [(ViewController2.allTitle, found.reduce(0) { $0 + $1.1 })] + found
+        rebuildEntries()
         refreshSubstrateButton()
         applyStyle()
     }
@@ -115,6 +131,21 @@ class ViewController2: UITableViewController {
 
     override var preferredStatusBarStyle: UIStatusBarStyle {
         return SubstrateStore.shared.style == .dark ? .lightContent : .default
+    }
+
+    /// One `All` row plus every immediate subdirectory that carries SVG documents.
+    private func rebuildEntries() {
+        let allPath = directory ?? ""
+        var found = svgSubfolders(in: directory).map { path -> SVGFolder in
+            SVGFolder(path: path,
+                      name: (path as NSString).lastPathComponent,
+                      count: svgPaths(inFolder: path).count,
+                      hasSubfolders: !svgSubfolders(in: path).isEmpty)
+        }.filter { $0.count > 0 }
+        found.insert(SVGFolder(path: allPath, name: Self.allTitle,
+                               count: found.reduce(0) { $0 + $1.count }, hasSubfolders: true),
+                     at: 0)
+        entries = found
     }
 
     private func refreshSubstrateButton() {
@@ -133,19 +164,19 @@ class ViewController2: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return folders.count
+        return entries.count
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "folder", for: indexPath)
         let style = SubstrateStore.shared.style
-        let folder = folders[indexPath.row]
+        let entry = entries[indexPath.row]
         var content = cell.defaultContentConfiguration()
-        content.text = folder.name
-        content.secondaryText = "\(folder.count)"
+        content.text = entry.name
+        content.secondaryText = "\(entry.count)"
         content.textProperties.color = style.textColor
         content.secondaryTextProperties.color = style.textColor
-        content.image = UIImage(systemName: "folder")
+        content.image = UIImage(systemName: entry.hasSubfolders ? "folder.fill" : "folder")
         content.imageProperties.tintColor = style.textColor
         cell.contentConfiguration = content
         cell.backgroundColor = style.substrateColor
@@ -155,10 +186,38 @@ class ViewController2: UITableViewController {
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        let name = folders[indexPath.row].name
-        let sources = name == ViewController2.allTitle ? folders.dropFirst().map { $0.name } : [name]
-        navigationController?.pushViewController(SVGGalleryViewController(title: name, folders: sources), animated: true)
+        let entry = entries[indexPath.row]
+        if entry.name == Self.allTitle {
+            let sources: [String]
+            if let directory = directory {
+                sources = [directory]
+            } else {
+                sources = svgSubfolders(in: nil)
+            }
+            navigationController?.pushViewController(
+                SVGGalleryViewController(title: Self.allTitle, folders: sources), animated: true)
+        } else if entry.hasSubfolders {
+            navigationController?.pushViewController(ViewController2(directory: entry.path), animated: true)
+        } else {
+            navigationController?.pushViewController(
+                SVGGalleryViewController(title: entry.name, folders: [entry.path]), animated: true)
+        }
     }
+}
+
+/// Immediate subdirectories under `directory` (relative to the bundle root, `nil` = the root) that
+/// contain at least one SVG in their subtree, sorted by path.
+func svgSubfolders(in directory: String?) -> [String] {
+    guard let resourceURL = Bundle.main.resourceURL else { return [] }
+    let base = directory.map { resourceURL.appendingPathComponent($0) } ?? resourceURL
+    guard let contents = try? FileManager.default.contentsOfDirectory(
+        at: base, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) else { return [] }
+    let prefix = directory.map { $0 + "/" } ?? ""
+    return contents
+        .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+        .map { prefix + $0.lastPathComponent }
+        .filter { !svgPaths(inFolder: $0).isEmpty }
+        .sorted()
 }
 
 /// Returns the SVG paths relative to the bundle root inside a folder, including subfolders

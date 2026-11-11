@@ -287,9 +287,10 @@ The `Example` project is a gallery that renders every SVG bundled under
 `Example/Example/data` (`folder_1` … `folder_9`). Open `Example/Example.xcodeproj`
 and run the `Example` scheme — it consumes the library as a local Swift Package.
 The gallery supports a light/dark/gray substrate color picker and a full-screen
-detail view. `folder_9` is the animated demo folder: the dsgnmax icon set as
-exported (CSS animations, frozen in the runtime) and its `folder_9/fixed` copies
-rewritten into the SMIL profile by `Scripts/css-to-smil.py`, side by side.
+detail view. The corpus is browsed as a folder tree: `folder_9` groups the animated demo in two
+subfolders — `folder_9/original` (the dsgnmax icon set as exported: CSS animations, frozen in the
+runtime) and `folder_9/fixed` (the same icons rewritten into the SMIL profile by
+`Scripts/css-to-smil.py`) — and the folder screen descends into them.
 
 ## Tests
 
