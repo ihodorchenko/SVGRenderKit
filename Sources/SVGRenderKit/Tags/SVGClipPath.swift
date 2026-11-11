@@ -175,7 +175,7 @@ extension SVGClipPath: SVGShapesContainer {
     func getStyle(forObject: SVGShapeObject, overrideElements: [String: SVGSourceStyleElement]?) -> SVGSourceStyleElement {
         var style: SVGSourceStyleElement = parent.getStyle(forObject: forObject, overrideElements: overrideElements)
         if let selfStyle = self.sourceStyle {
-            style = style.combine(child: selfStyle)
+            style = style.combine(child: selfStyle.withoutTransform())
         }
         return style
     }

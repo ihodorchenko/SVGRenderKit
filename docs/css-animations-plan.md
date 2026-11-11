@@ -1,6 +1,6 @@
 # Plan: render and animate the original CSS-driven SVG (`folder_9/original/logo-ghost-wave-effect.svg`)
 
-Status: **M1, M2 and M3.1 done; M3.2/M3.3 and M4 remain**. The document-wide stylesheet
+Status: **M1, M2, M3.1 and M3.2 done; M3.3 and M4 remain**. The document-wide stylesheet
 (`SVGStyleSheet`) resolves every `<style>` block in document order with compound and descendant
 selectors, specificity and `!important`, and evaluates `@media (prefers-color-scheme)` /
 `@media (prefers-reduced-motion)` for the render's appearance and Reduce Motion state
@@ -8,10 +8,12 @@ selectors, specificity and `!important`, and evaluates `@media (prefers-color-sc
 `SVGCSSAnimations` reads `@keyframes` from the same registry and plays `transform`, `opacity`,
 `fill`, `stroke` and `stroke-dashoffset` on shapes (a `<g>` gets `opacity`/`transform`; paint
 properties are inherited), including animations declared through a descendant selector, with
-direction, easing, delay, iteration count and `fill-mode` mapped to Core Animation. Remaining:
-`transform-origin`/`transform-box: fill-box`, CSS `filter: drop-shadow()`, the stretch goals of the
-M2 property list and the M4 frame oracle. Depends on the two animation fixes released in 2.0.1
-(see "Prerequisites").
+direction, easing, delay, iteration count and `fill-mode` mapped to Core Animation. The CSS
+`transform` property honours `transform-origin` (`px`, `%`, keywords) and `transform-box`
+(`view-box`/`fill-box`) on shapes and groups, statically and inside every keyframe. Remaining:
+CSS `filter: drop-shadow()`, the stretch goals of the M2 property list (an origin animated inside a
+keyframe, `<use>`/`<image>` transforms, `steps()`/overshoot easing) and the M4 frame oracle.
+Depends on the two animation fixes released in 2.0.1 (see "Prerequisites").
 
 Update: a *build-time* converter for the common export class now exists — `Scripts/css-to-smil.py`
 (Unreleased). It inlines the matched CSS, translates `@keyframes`/`animation` into the SMIL profile

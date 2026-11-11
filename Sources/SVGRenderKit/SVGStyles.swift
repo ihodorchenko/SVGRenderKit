@@ -76,6 +76,15 @@ public class SVGSourceStyleElement {
     /// A reference to the filter applied to the element.
     public var filter: SVGFuncIRI?
 
+    /// The CSS `transform` property (raw value). The SVG `transform` attribute is its presentation
+    /// form, so the cascade resolves both here and the object applies the resolved matrix.
+    var transform: String?
+    /// The CSS `transform-origin` (raw value): the point the transform is applied around.
+    var transformOrigin: String?
+    /// The CSS `transform-box` (raw value): the reference box (`view-box`, the default, or
+    /// `fill-box`, the element's own bounding box).
+    var transformBox: String?
+
     var fontFamily: String?
     var fontStyle: SVGFontStyle?
     var fontWeight: Float?
@@ -125,6 +134,9 @@ public class SVGSourceStyleElement {
         if let markerMid = child.markerMid { newElem.markerMid = markerMid }
         if let markerEnd = child.markerEnd { newElem.markerEnd = markerEnd }
         if let filter = child.filter { newElem.filter = filter }
+        if let transform = child.transform { newElem.transform = transform }
+        if let transformOrigin = child.transformOrigin { newElem.transformOrigin = transformOrigin }
+        if let transformBox = child.transformBox { newElem.transformBox = transformBox }
 
         if let fontFamily = child.fontFamily { newElem.fontFamily = fontFamily }
         if let fontStyle = child.fontStyle { newElem.fontStyle = fontStyle }
@@ -162,6 +174,9 @@ public class SVGSourceStyleElement {
         markerMid = element.markerMid
         markerEnd = element.markerEnd
         filter = element.filter
+        transform = element.transform
+        transformOrigin = element.transformOrigin
+        transformBox = element.transformBox
 
         fontFamily = element.fontFamily
         fontStyle = element.fontStyle
@@ -176,9 +191,22 @@ public class SVGSourceStyleElement {
         return opacity != nil || clipPath != nil || mask != nil || filter != nil
     }
 
-    /// This style without the group-compositing properties (`opacity`, `clip-path`, `mask`,
-    /// `filter`). Those apply to a group — or to a `<use>` clone — as a whole, so they must
-    /// not be inherited by its content: doing so applies them a second time (B119-1).
+    /// This style without the non-inherited properties: the group-compositing ones (`opacity`,
+    /// `clip-path`, `mask`, `filter`, which apply to a group — or a `<use>` clone — as a whole)
+    /// and the CSS transform (`transform`/`transform-origin`/`transform-box`). Inheriting any of
+    /// them would apply it a second time (B119-1).
+    /// This style without the non-inherited CSS transform properties. A host element
+    /// (`<clipPath>`, `<mask>`, `<marker>`) applies its own transform to its layer, so combining
+    /// it into the children's style would apply it a second time.
+    func withoutTransform() -> SVGSourceStyleElement {
+        let copy = SVGSourceStyleElement()
+        copy.set(element: self)
+        copy.transform = nil
+        copy.transformOrigin = nil
+        copy.transformBox = nil
+        return copy
+    }
+
     func withoutGroupCompositing() -> SVGSourceStyleElement {
         let copy = SVGSourceStyleElement()
         copy.set(element: self)
@@ -186,6 +214,9 @@ public class SVGSourceStyleElement {
         copy.clipPath = nil
         copy.mask = nil
         copy.filter = nil
+        copy.transform = nil
+        copy.transformOrigin = nil
+        copy.transformBox = nil
         return copy
     }
 
@@ -327,6 +358,9 @@ public class SVGSourceStyleElement {
         if let str = attributeDict["marker-mid"], !str.isEmpty { ignoring("marker-mid") { try setMarkerMid(str: str) } }
         if let str = attributeDict["marker-end"], !str.isEmpty { ignoring("marker-end") { try setMarkerEnd(str: str) } }
         if let str = attributeDict["filter"], !str.isEmpty { ignoring("filter") { try setFilter(str: str) } }
+        if let str = attributeDict["transform"], !str.isEmpty { transform = str }
+        if let str = attributeDict["transform-origin"], !str.isEmpty { transformOrigin = str }
+        if let str = attributeDict["transform-box"], !str.isEmpty { transformBox = str }
 
         if let str = attributeDict["font-family"], !str.isEmpty { setFontFamily(str: str) }
         if let str = attributeDict["font-style"], !str.isEmpty { ignoring("font-style") { try setFontStyle(str: str) } }

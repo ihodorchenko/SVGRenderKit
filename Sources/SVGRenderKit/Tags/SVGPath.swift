@@ -99,15 +99,28 @@ class SVGShapeObject: SVGObject, SVGRendering {
 
         // A mask bitmap is stretched by the shape's own transform and by its ancestors', so
         // it has to be rasterized that much larger to stay sharp (B119-6).
-        let maskScale = (transform?.svgScaleFactor ?? 1) * ((parent as? SVGGroupObject)?.accumulatedScale() ?? 1)
+        let options = getSvgOptions()
+        let bbox = path.svgBounds(transformedBy: nil)
+        let transformContext = SVGTransformStyle.Context(
+            viewBox: options?.viewBox ?? .zero,
+            bbox: bbox,
+            origin: sourceStyle.transformOrigin,
+            box: sourceStyle.transformBox)
+        // The CSS `transform` property replaces the attribute; `transform-origin`/`transform-box`
+        // reposition both.
+        let resolvedTransform = SVGTransformStyle.resolvedTransform(
+            style: sourceStyle, attributeTransform: transform, context: transformContext)
+        let maskScale = (resolvedTransform?.svgScaleFactor ?? 1)
+            * ((parent as? SVGGroupObject)?.accumulatedScale() ?? 1)
         try sourceStyle.styling(mainLayer: mainLayer, pathLayer: pathLayer, path: path, group: parent, overrideElements: overrideElements, maskScale: maskScale)
 
-        if let transform = transform {
-            mainLayer.transform = transform
+        if let resolvedTransform = resolvedTransform {
+            mainLayer.transform = resolvedTransform
         }
 
         // CSS animations (the runtime subset) ride the same attach/deferred path as SMIL.
-        let cssAnimations = cssAnimations(style: sourceStyle)
+        let cssAnimations = cssAnimations(style: sourceStyle, transformContext: transformContext,
+                                          baseTransform: resolvedTransform)
         if let options = getSvgOptions() {
             options.attach(animations + cssAnimations, to: mainLayer, pathLayer: pathLayer)
         } else {
@@ -122,7 +135,9 @@ class SVGShapeObject: SVGObject, SVGRendering {
     /// The CSS animations of this shape: the document's `<style>` rules matching it plus its
     /// inline `style`. The runtime animates transform/opacity/fill/stroke/stroke-dashoffset on a
     /// shape; anything else is logged and skipped by `SVGCSSAnimations`.
-    private func cssAnimations(style: SVGSourceStyleElement) -> [SVGAnimation] {
+    private func cssAnimations(style: SVGSourceStyleElement,
+                               transformContext: SVGTransformStyle.Context,
+                               baseTransform: CATransform3D?) -> [SVGAnimation] {
         let declarations = parent.animationDeclarations(forObject: self) + cssAnimationDeclarations
             + parent.importantAnimationDeclarations(forObject: self) + cssImportantAnimationDeclarations
         guard !declarations.isEmpty else { return [] }
@@ -131,13 +146,14 @@ class SVGShapeObject: SVGObject, SVGRendering {
             opacity: min(1, max(0, Double(style.opacity ?? 1))),
             fill: Self.cssBaseColor(style.fill, currentColor: style.color, defaultColor: UIColor.black.cgColor),
             stroke: Self.cssBaseColor(style.stroke, currentColor: style.color, defaultColor: nil),
-            transform: transform ?? CATransform3DIdentity
+            transform: baseTransform ?? CATransform3DIdentity
         )
         return SVGCSSAnimations.animations(
             specs: SVGCSSAnimations.specs(from: declarations),
             keyframes: { [parent] name in parent.keyframes(named: name) },
             base: base,
-            properties: Set(SVGCSSAnimations.Property.allCases)
+            properties: Set(SVGCSSAnimations.Property.allCases),
+            transformContextProvider: { transformContext }
         )
     }
 

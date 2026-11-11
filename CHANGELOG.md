@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
+- The CSS `transform` property now replaces the `transform` attribute on shapes and `<g>`, with
+  `transform-origin` (`px`, `%`, keyword pairs) and `transform-box` (`view-box` by default,
+  `fill-box` for the element's bounding box). Percentages resolve against the reference box, the
+  same origin/box is composed into every `transform` keyframe, and the property for a shape whose
+  origin/keyframes were previously ignored (the dsgnmax scale/rotate icons) now renders as designed.
+  A `transform-origin` animated inside a keyframe and the CSS property on `<use>`/`<image>` remain
+  out of scope.
 - CSS `@media` support for `prefers-color-scheme` (`light`/`dark`) and `prefers-reduced-motion`
   (`reduce`/`no-preference`), with `and` chains, comma alternatives and nested blocks; other media
   features make their alternative never match (`SVGStyleSheet`). Appearance and Reduce Motion are

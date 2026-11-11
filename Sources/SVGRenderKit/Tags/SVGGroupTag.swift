@@ -30,13 +30,41 @@ extension SVGGTag: SVGRendering {
 
         try appendChildLayers(layerElements.array, to: mainLayer, addStyle: addStyle, overrideElements: overrideElements, skipEmptyGroups: true)
 
-        if let transform = transform {
-            mainLayer.transform = transform
+        // `contentBounds` walks the whole subtree, and a fan-out `<use>` DAG makes it exponential
+        // (B102); measure it only when the group actually needs a reference box.
+        var cachedBounds: CGRect?
+        func referenceBounds() -> CGRect {
+            if let cachedBounds = cachedBounds { return cachedBounds }
+            let value = contentBounds
+            cachedBounds = value
+            return value
+        }
+        let viewBox = getSvgOptions().viewBox
+        func makeTransformContext() -> SVGTransformStyle.Context {
+            let usesFillBox = ownStyle.transformBox?
+                .trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "fill-box"
+            return SVGTransformStyle.Context(viewBox: viewBox,
+                                             bbox: usesFillBox ? referenceBounds() : nil,
+                                             origin: ownStyle.transformOrigin,
+                                             box: ownStyle.transformBox)
         }
 
-        try ownStyle.applyGroupComposite(to: mainLayer, bbox: contentBounds, container: self, overrideElements: overrideElements, maskScale: accumulatedScale())
+        var resolvedTransform = transform
+        let hasCSSTransform = ownStyle.transform != nil
+            || ownStyle.transformOrigin != nil || ownStyle.transformBox != nil
+        if hasCSSTransform {
+            resolvedTransform = SVGTransformStyle.resolvedTransform(
+                style: ownStyle, attributeTransform: transform, context: makeTransformContext())
+        }
+        if let resolvedTransform = resolvedTransform {
+            mainLayer.transform = resolvedTransform
+        }
 
-        let runtimeCSSAnimations = cssAnimations(style: ownStyle)
+        try ownStyle.applyGroupComposite(to: mainLayer, bbox: referenceBounds(), container: self, overrideElements: overrideElements, maskScale: accumulatedScale())
+
+        let runtimeCSSAnimations = cssAnimations(style: ownStyle,
+                                                 transformContextProvider: makeTransformContext,
+                                                 baseTransform: resolvedTransform)
         getSvgOptions().attach(animations + runtimeCSSAnimations, to: mainLayer, pathLayer: nil)
 
         return mainLayer

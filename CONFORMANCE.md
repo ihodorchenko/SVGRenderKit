@@ -93,6 +93,14 @@ Color values: hex (`#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`), named, `rgb()`, `rgba(
 - Cascade: specificity (id > class > tag, more classes/compounds first) and source order;
   `!important` in a stylesheet rule or inline `style` outranks every normal declaration ✅
 - `inherit` resolution stays limited to `visibility`, `clip-rule`, `fill-rule`, `text-anchor` ✅
+- `transform` (translate/scale/rotate/skew, CSS units and 3D aliases flattened),
+  `transform-origin` (`px`, `%` and `left`/`center`/`right`/`top`/`bottom`) and `transform-box`
+  (`view-box`, the default, and `fill-box`) on shapes and `<g>` ✅: the property replaces the
+  `transform` attribute, percentages in `translate()`/`transform-origin` resolve against the
+  reference box, a missing `transform-origin` keeps the SVG initial `0 0`, and the same origin/box
+  is composed into every `transform` keyframe. Animated `transform-origin` (an origin declared in
+  a keyframe), and the CSS `transform` property on `<use>`/`<image>` (the attribute works there)
+  are out of scope
 - `@media` for `prefers-color-scheme` (`light`/`dark`) and `prefers-reduced-motion`
   (`reduce`/`no-preference`) ✅, including `and` chains, comma alternatives and nested blocks;
   anything else in a media query makes that alternative never match

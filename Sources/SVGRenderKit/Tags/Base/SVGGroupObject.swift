@@ -413,19 +413,22 @@ extension SVGGroupObject {
     /// CSS animations of this group. A group can animate `opacity` and `transform`; `fill`,
     /// `stroke` and `stroke-dashoffset` are inherited properties, so an animation on the group
     /// would have to animate the value its children inherit, which Core Animation cannot do.
-    func cssAnimations(style: SVGSourceStyleElement) -> [SVGAnimation] {
+    func cssAnimations(style: SVGSourceStyleElement,
+                       transformContextProvider: @escaping () -> SVGTransformStyle.Context,
+                       baseTransform: CATransform3D?) -> [SVGAnimation] {
         let declarations = animationDeclarations(for: self) + cssAnimationDeclarations
             + importantAnimationDeclarations(for: self) + cssImportantAnimationDeclarations
         guard !declarations.isEmpty else { return [] }
         let base = SVGCSSAnimations.BaseValues(
             opacity: min(1, max(0, Double(style.opacity ?? 1))),
-            transform: transform ?? CATransform3DIdentity
+            transform: baseTransform ?? CATransform3DIdentity
         )
         return SVGCSSAnimations.animations(
             specs: SVGCSSAnimations.specs(from: declarations),
             keyframes: { self.keyframes(named: $0) },
             base: base,
-            properties: [.opacity, .transform]
+            properties: [.opacity, .transform],
+            transformContextProvider: transformContextProvider
         )
     }
 

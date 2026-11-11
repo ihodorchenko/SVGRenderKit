@@ -15,6 +15,7 @@ final class SVGStylePropertyCoverageTests: XCTestCase {
         "stroke-dasharray": "1 2", "stroke-dashoffset": "1",
         "clip-path": "url(#c)", "clip-rule": "evenodd", "mask": "url(#m)",
         "marker-start": "url(#a)", "marker-mid": "url(#b)", "marker-end": "url(#e)", "filter": "url(#f)",
+        "transform": "translate(1px, 2px)", "transform-origin": "center center", "transform-box": "fill-box",
         "font-family": "Arial", "font-style": "italic", "font-weight": "700", "font-size": "12",
     ]
 
@@ -50,6 +51,7 @@ final class SVGStylePropertyCoverageTests: XCTestCase {
 
     func testWithoutGroupCompositingKeepsTheRest() throws {
         let stripped = try fullStyle().withoutGroupCompositing()
-        XCTAssertEqual(Set(unsetProperties(of: stripped)), ["opacity", "clipPath", "mask", "filter"])
+        XCTAssertEqual(Set(unsetProperties(of: stripped)),
+                       ["opacity", "clipPath", "mask", "filter", "transform", "transformOrigin", "transformBox"])
     }
 }

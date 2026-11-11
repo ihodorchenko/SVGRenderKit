@@ -108,7 +108,8 @@ enum SVGCSSAnimations {
     static func animations(specs: [SVGCSSAnimationSpec],
                            keyframes: (String) -> SVGStyleSheet.Keyframes?,
                            base: BaseValues,
-                           properties: Set<Property>) -> [SVGAnimation] {
+                           properties: Set<Property>,
+                           transformContextProvider: (() -> SVGTransformStyle.Context)? = nil) -> [SVGAnimation] {
         var result: [SVGAnimation] = []
         for spec in specs {
             let name = spec.name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -139,7 +140,8 @@ enum SVGCSSAnimations {
                     + " cannot be animated on this element; skipped")
             }
             for property in declared where properties.contains(property) {
-                if let animation = animation(for: property, block: block, spec: spec, base: base) {
+                if let animation = animation(for: property, block: block, spec: spec, base: base,
+                                             transformContextProvider: transformContextProvider) {
                     result.append(animation)
                 }
             }
@@ -150,7 +152,8 @@ enum SVGCSSAnimations {
     private static func animation(for property: Property,
                                   block: SVGStyleSheet.Keyframes,
                                   spec: SVGCSSAnimationSpec,
-                                  base: BaseValues) -> SVGAnimation? {
+                                  base: BaseValues,
+                                  transformContextProvider: (() -> SVGTransformStyle.Context)?) -> SVGAnimation? {
         var frames: [(offset: Double, raw: String, timing: String?)] = []
         for frame in block.frames {
             guard let raw = frame.declarations[property.rawValue] else { continue }
@@ -173,7 +176,8 @@ enum SVGCSSAnimations {
 
         var values: [Value] = []
         for frame in frames {
-            guard let value = parseValue(frame.raw, property: property) else {
+            guard let value = parseValue(frame.raw, property: property,
+                                         transformContextProvider: transformContextProvider) else {
                 SVGLog.addSLog(errorStr: "CSS animation '\(spec.name)': unsupported "
                     + "\(property.rawValue) value '\(frame.raw)'; skipped")
                 return nil
@@ -351,7 +355,8 @@ enum SVGCSSAnimations {
 
     // MARK: - Property values
 
-    private static func parseValue(_ raw: String, property: Property) -> Value? {
+    private static func parseValue(_ raw: String, property: Property,
+                                   transformContextProvider: (() -> SVGTransformStyle.Context)?) -> Value? {
         switch property {
         case .strokeDashoffset:
             return SVGAnimation.parseDashoffset(raw).map { .number($0) }
@@ -361,7 +366,9 @@ enum SVGCSSAnimations {
             guard let color = SVGColors.parse(string: raw) else { return nil }
             return .color(color.cgColor)
         case .transform:
-            return transformMatrix(raw).map { .transform($0) }
+            guard let context = transformContextProvider?(),
+                  let matrix = SVGTransformStyle.matrix(raw, context: context) else { return nil }
+            return .transform(matrix)
         }
     }
 
@@ -375,146 +382,6 @@ enum SVGCSSAnimations {
         }
         guard let number = number else { return nil }
         return min(1, max(0, number))
-    }
-
-    /// Parses a CSS transform list into a matrix.
-    ///
-    /// CSS and the SVG `transform` attribute share the function list semantics (the first function
-    /// is the outer composition), so the units are stripped and the list is handed to the kit's
-    /// attribute parser. Percentages and 3D rotations about x/y are not representable and skip the
-    /// animation.
-    private static func transformMatrix(_ raw: String) -> CATransform3D? {
-        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if text.isEmpty || text.lowercased() == "none" { return CATransform3DIdentity }
-        var pieces: [String] = []
-        var index = text.startIndex
-        while index < text.endIndex {
-            while index < text.endIndex, text[index].isWhitespace { index = text.index(after: index) }
-            guard index < text.endIndex else { break }
-            var name = ""
-            while index < text.endIndex, text[index].isLetter {
-                name.append(text[index])
-                index = text.index(after: index)
-            }
-            guard !name.isEmpty else { return nil }
-            while index < text.endIndex, text[index].isWhitespace { index = text.index(after: index) }
-            guard index < text.endIndex, text[index] == "(" else { return nil }
-            index = text.index(after: index)
-            var arguments = ""
-            var depth = 1
-            while index < text.endIndex, depth > 0 {
-                let character = text[index]
-                index = text.index(after: index)
-                if character == "(" {
-                    depth += 1
-                    arguments.append(character)
-                } else if character == ")" {
-                    depth -= 1
-                    if depth > 0 { arguments.append(character) }
-                } else {
-                    arguments.append(character)
-                }
-            }
-            guard depth == 0 else { return nil }
-            guard let piece = transformPiece(function: name.lowercased(), arguments: arguments) else {
-                return nil
-            }
-            pieces.append(piece)
-        }
-        guard !pieces.isEmpty else { return nil }
-        return try? SVGTransform.get(string: pieces.joined(separator: " "))
-    }
-
-    private static func transformPiece(function: String, arguments: String) -> String? {
-        let parts = arguments.split(whereSeparator: { $0 == "," || $0.isWhitespace }).map(String.init)
-        switch function {
-        case "translate":
-            guard let x = length(parts.first) else { return nil }
-            let y = parts.count > 1 ? length(parts[1]) : 0
-            guard let y = y else { return nil }
-            return "translate(\(number(x)), \(number(y)))"
-        case "translatex":
-            guard let x = length(parts.first) else { return nil }
-            return "translate(\(number(x)), 0)"
-        case "translatey":
-            guard let y = length(parts.first) else { return nil }
-            return "translate(0, \(number(y)))"
-        case "translatez":
-            return "translate(0, 0)"
-        case "translate3d":
-            guard parts.count == 3, let x = length(parts[0]), let y = length(parts[1]) else { return nil }
-            return "translate(\(number(x)), \(number(y)))"
-        case "scale":
-            guard let sx = parseNumber(parts.first) else { return nil }
-            let sy = parts.count > 1 ? parseNumber(parts[1]) : sx
-            guard let sy = sy else { return nil }
-            return "scale(\(number(sx)), \(number(sy)))"
-        case "scalex":
-            guard let sx = parseNumber(parts.first) else { return nil }
-            return "scale(\(number(sx)), 1)"
-        case "scaley":
-            guard let sy = parseNumber(parts.first) else { return nil }
-            return "scale(1, \(number(sy)))"
-        case "scalez":
-            return "scale(1, 1)"
-        case "scale3d":
-            guard parts.count == 3, let sx = parseNumber(parts[0]), let sy = parseNumber(parts[1]) else { return nil }
-            return "scale(\(number(sx)), \(number(sy)))"
-        case "rotate", "rotatez":
-            guard let angle = angle(parts.first) else { return nil }
-            return "rotate(\(number(angle)))"
-        case "rotate3d":
-            guard parts.count == 4, let x = parseNumber(parts[0]), let y = parseNumber(parts[1]),
-                  let z = parseNumber(parts[2]), let angle = angle(parts[3]),
-                  abs(x) < 1e-9, abs(y) < 1e-9, abs(z) > 1e-9 else { return nil }
-            return "rotate(\(number(angle)))"
-        case "skewx":
-            guard let angle = angle(parts.first) else { return nil }
-            return "skewX(\(number(angle)))"
-        case "skewy":
-            guard let angle = angle(parts.first) else { return nil }
-            return "skewY(\(number(angle)))"
-        case "matrix":
-            guard parts.count == 6 else { return nil }
-            var numbers: [Double] = []
-            for part in parts {
-                guard let value = Double(part) else { return nil }
-                numbers.append(value)
-            }
-            return "matrix(" + numbers.map { number($0) }.joined(separator: ", ") + ")"
-        default:
-            return nil
-        }
-    }
-
-    /// A plain CSS number (scale factors, matrix entries).
-    private static func parseNumber(_ part: String?) -> Double? {
-        guard let part = part else { return nil }
-        return Double(part)
-    }
-
-    /// A CSS length in user units: `px` and unitless values only (percentages are relative to
-    /// something the layer transform does not know).
-    private static func length(_ part: String?) -> Double? {
-        guard var value = part else { return nil }
-        if value.hasSuffix("px") { value = String(value.dropLast(2)) }
-        return Double(value)
-    }
-
-    /// A CSS angle in degrees.
-    private static func angle(_ part: String?) -> Double? {
-        guard let raw = part else { return nil }
-        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if value.hasSuffix("deg") { return Double(value.dropLast(3)) }
-        if value.hasSuffix("rad") { return Double(value.dropLast(3)).map { $0 * 180 / .pi } }
-        if value.hasSuffix("grad") { return Double(value.dropLast(4)).map { $0 * 0.9 } }
-        if value.hasSuffix("turn") { return Double(value.dropLast(4)).map { $0 * 360 } }
-        return Double(value)
-    }
-
-    private static func number(_ value: Double) -> String {
-        if value == value.rounded(), abs(value) < 1e15 { return String(Int(value)) }
-        return String(value)
     }
 
     private static func easingFunction(_ text: String, animationName: String) -> CAMediaTimingFunction {

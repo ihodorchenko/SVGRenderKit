@@ -338,7 +338,8 @@ every `<style>` block document-wide with compound/descendant selectors, specific
 `!important`, and plays CSS Animations for `transform`, `opacity`, `fill`, `stroke` and
 `stroke-dashoffset` (see CONFORMANCE). `@media (prefers-color-scheme)` and
 `@media (prefers-reduced-motion)` are evaluated per render (dark assets and Reduce Motion work
-out of the box in `SVGView`/`SVGImageView`); `transform-origin`, `drop-shadow` and the remaining
+out of the box in `SVGView`/`SVGImageView`), and the CSS `transform` property honours
+`transform-origin`/`transform-box` (including animated keyframes); `drop-shadow` and the remaining
 properties still render their base frame,
 and `Scripts/css-to-smil.py` is the build-time step for them: it inlines the matched CSS
 declarations, rewrites every CSS animation as `<animate>`/`<animateTransform>` (the timing function
