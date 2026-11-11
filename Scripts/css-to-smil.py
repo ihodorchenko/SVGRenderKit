@@ -1587,6 +1587,11 @@ def main(argv=None):
     register_namespaces(root)
     animated, emitted = convert_document(root, warnings, max(2, arguments.samples_per_second))
 
+    # Degradation messages are diagnostics of what was left out, so they are printed even when
+    # nothing could be converted (a file whose CSS animates only unsupported properties).
+    for message in warnings.messages:
+        print("warning: %s" % message, file=sys.stderr)
+
     if animated == 0:
         print("css-to-smil: nothing to convert in %s" % arguments.input, file=sys.stderr)
         if arguments.output:
@@ -1598,8 +1603,6 @@ def main(argv=None):
     if not arguments.quiet:
         print("css-to-smil: %s -> %s (%d element(s), %d animation(s), %d warning(s))"
               % (arguments.input, output, animated, emitted, len(warnings)))
-    for message in warnings.messages:
-        print("warning: %s" % message, file=sys.stderr)
     if arguments.strict and warnings:
         return 1
     return 0
